@@ -164,7 +164,8 @@ mod libc {
 }
 
 #[macro_use]
-mod externs {
+/// This module contains external functions and types used by LibYML.
+pub mod externs {
     use crate::libc;
     use crate::ops::{die, ForceAdd as _, ForceInto as _};
     use alloc::alloc::{self as rust, Layout};
@@ -227,7 +228,12 @@ mod externs {
         memory.add(HEADER).cast()
     }
 
-    pub(crate) unsafe fn free(ptr: *mut libc::c_void) {
+    /// Deallocates the memory pointed to by `ptr`.
+    ///
+    /// # Safety
+    ///
+    /// This function is unsafe because it can cause undefined behavior if the `ptr` is not a valid pointer.
+    pub unsafe fn free(ptr: *mut libc::c_void) {
         let memory = ptr.cast::<u8>().sub(HEADER);
         let size = memory.cast::<usize>().read();
         let layout =

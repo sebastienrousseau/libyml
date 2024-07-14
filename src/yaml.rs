@@ -214,7 +214,7 @@ pub struct YamlTokenT {
     pub end_mark: YamlMarkT,
 }
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, Default)]
 #[repr(C)]
 /// The data structure for YAML tokens.
 pub struct UnnamedYamlTokenTData {
@@ -286,7 +286,7 @@ pub struct UnnamedYamlTokenTdataScalar {
 }
 
 /// Represents the version directive in a YAML document.
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, Default)]
 #[repr(C)]
 #[non_exhaustive]
 pub struct UnnamedYamlTokenTdataVersionDirective {
@@ -825,7 +825,7 @@ impl Deref for YamlParserT {
     }
 }
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, Default)]
 #[repr(C)]
 pub(crate) struct UnnamedYamlParserTInput {
     /// String input data.
@@ -1020,7 +1020,7 @@ impl Deref for YamlEmitterT {
     }
 }
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, Default)]
 #[repr(C)]
 pub(crate) struct UnnamedYamlEmitterTOutput {
     /// String output data.
@@ -1244,28 +1244,12 @@ impl Default for UnnamedYamlEmitterTOutputString {
     }
 }
 
-impl Default for UnnamedYamlEmitterTOutput {
-    fn default() -> Self {
-        UnnamedYamlEmitterTOutput {
-            string: UnnamedYamlEmitterTOutputString::default(),
-        }
-    }
-}
-
 impl Default for UnnamedYamlParserTInputString {
     fn default() -> Self {
         UnnamedYamlParserTInputString {
             start: ptr::null(),
             end: ptr::null(),
             current: ptr::null(),
-        }
-    }
-}
-
-impl Default for UnnamedYamlParserTInput {
-    fn default() -> Self {
-        UnnamedYamlParserTInput {
-            string: UnnamedYamlParserTInputString::default(),
         }
     }
 }
@@ -1304,20 +1288,6 @@ impl Default for YamlTokenT {
             data: UnnamedYamlTokenTData::default(),
             start_mark: YamlMarkT::default(),
             end_mark: YamlMarkT::default(),
-        }
-    }
-}
-
-impl Default for UnnamedYamlTokenTData {
-    fn default() -> Self {
-        UnnamedYamlTokenTData {
-            stream_start: UnnamedYamlTokenTdataStreamStart::default(),
-            alias: UnnamedYamlTokenTdataAlias::default(),
-            anchor: UnnamedYamlTokenTdataAnchor::default(),
-            tag: UnnamedYamlTokenTdataTag::default(),
-            scalar: UnnamedYamlTokenTdataScalar::default(),
-            version_directive: UnnamedYamlTokenTdataVersionDirective::default(),
-            tag_directive: UnnamedYamlTokenTdataTagDirective::default(),
         }
     }
 }
@@ -1361,15 +1331,6 @@ impl Default for UnnamedYamlTokenTdataScalar {
             value: ptr::null_mut(),
             length: 0,
             style: YamlScalarStyleT::YamlAnyScalarStyle,
-        }
-    }
-}
-
-impl Default for UnnamedYamlTokenTdataVersionDirective {
-    fn default() -> Self {
-        UnnamedYamlTokenTdataVersionDirective {
-            major: 0,
-            minor: 0,
         }
     }
 }

@@ -168,12 +168,13 @@ mod externs {
     use crate::libc;
     use crate::ops::{die, ForceAdd as _, ForceInto as _};
     use alloc::alloc::{self as rust, Layout};
-    use core::mem::{self, MaybeUninit};
+    use core::mem::MaybeUninit;
     use core::ptr;
     use core::slice;
+    use core::mem::{size_of, align_of};
 
     const HEADER: usize = {
-        let need_len = mem::size_of::<usize>();
+        let need_len = size_of::<usize>();
         // Round up to multiple of MALLOC_ALIGN.
         (need_len + MALLOC_ALIGN - 1) & !(MALLOC_ALIGN - 1)
     };
@@ -181,8 +182,8 @@ mod externs {
     // `max_align_t` may be bigger than this, but libyaml does not use `long
     // double` or u128.
     const MALLOC_ALIGN: usize = {
-        let int_align = mem::align_of::<libc::c_ulong>();
-        let ptr_align = mem::align_of::<usize>();
+        let int_align = align_of::<libc::c_ulong>();
+        let ptr_align = align_of::<usize>();
         if int_align >= ptr_align {
             int_align
         } else {

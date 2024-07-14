@@ -169,9 +169,9 @@ mod externs {
     use crate::ops::{die, ForceAdd as _, ForceInto as _};
     use alloc::alloc::{self as rust, Layout};
     use core::mem::MaybeUninit;
+    use core::mem::{align_of, size_of};
     use core::ptr;
     use core::slice;
-    use core::mem::{size_of, align_of};
 
     const HEADER: usize = {
         let need_len = size_of::<usize>();

@@ -10,7 +10,7 @@ pub(crate) use core::primitive::{
 };
 
 /// The version directive data.
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, Default)]
 #[repr(C)]
 #[non_exhaustive]
 pub struct YamlVersionDirectiveT {
@@ -66,7 +66,7 @@ pub enum YamlBreakT {
 #[repr(u32)]
 #[non_exhaustive]
 pub enum YamlErrorTypeT {
-    /// No error is produced.
+    /// No error.
     YamlNoError = 0,
     /// Cannot allocate or reallocate a block of memory.
     YamlMemoryError = 1,
@@ -84,8 +84,14 @@ pub enum YamlErrorTypeT {
     YamlEmitterError = 7,
 }
 
+impl Default for YamlErrorTypeT {
+    fn default() -> Self {
+        YamlErrorTypeT::YamlNoError
+    }
+}
+
 /// The pointer position.
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, Default)]
 #[repr(C)]
 #[non_exhaustive]
 pub struct YamlMarkT {
@@ -201,58 +207,6 @@ pub struct YamlTokenT {
     /// The token type.
     pub type_: YamlTokenTypeT,
     /// The token data.
-    ///
-    /// ```
-    /// # const _: &str = stringify! {
-    /// union {
-    ///     /// The stream start (for YamlStreamStartToken).
-    ///     stream_start: struct {
-    ///         /// The stream encoding.
-    ///         encoding: YamlEncodingT,
-    ///     },
-    ///     /// The alias (for YamlAliasToken).
-    ///     alias: struct {
-    ///         /// The alias value.
-    ///         value: *mut u8,
-    ///     },
-    ///     /// The anchor (for YamlAnchorToken).
-    ///     anchor: struct {
-    ///         /// The anchor value.
-    ///         value: *mut u8,
-    ///     },
-    ///     /// The tag (for YamlTagToken).
-    ///     tag: struct {
-    ///         /// The tag handle.
-    ///         handle: *mut u8,
-    ///         /// The tag suffix.
-    ///         suffix: *mut u8,
-    ///     },
-    ///     /// The scalar value (for YamlScalarToken).
-    ///     scalar: struct {
-    ///         /// The scalar value.
-    ///         value: *mut u8,
-    ///         /// The length of the scalar value.
-    ///         length: u64,
-    ///         /// The scalar style.
-    ///         style: YamlScalarStyleT,
-    ///     },
-    ///     /// The version directive (for YamlVersionDirectiveToken).
-    ///     version_directive: struct {
-    ///         /// The major version number.
-    ///         major: i32,
-    ///         /// The minor version number.
-    ///         minor: i32,
-    ///     },
-    ///     /// The tag directive (for YamlTagDirectiveToken).
-    ///     tag_directive: struct {
-    ///         /// The tag handle.
-    ///         handle: *mut u8,
-    ///         /// The tag prefix.
-    ///         prefix: *mut u8,
-    ///     },
-    /// }
-    /// # };
-    /// ```
     pub data: UnnamedYamlTokenTData,
     /// The beginning of the token.
     pub start_mark: YamlMarkT,
@@ -390,81 +344,6 @@ pub struct YamlEventT {
     /// The event type.
     pub type_: YamlEventTypeT,
     /// The event data.
-    ///
-    /// ```
-    /// # const _: &str = stringify! {
-    /// union {
-    ///     /// The stream parameters (for YamlStreamStartEvent).
-    ///     stream_start: struct {
-    ///         /// The document encoding.
-    ///         encoding: YamlEncodingT,
-    ///     },
-    ///     /// The document parameters (for YamlDocumentStartEvent).
-    ///     document_start: struct {
-    ///         /// The version directive.
-    ///         version_directive: *mut YamlVersionDirectiveT,
-    ///         /// The list of tag directives.
-    ///         tag_directives: struct {
-    ///             /// The beginning of the tag directives list.
-    ///             start: *mut YamlTagDirectiveT,
-    ///             /// The end of the tag directives list.
-    ///             end: *mut YamlTagDirectiveT,
-    ///         },
-    ///         /// Is the document indicator implicit?
-    ///         implicit: i32,
-    ///     },
-    ///     /// The document end parameters (for YamlDocumentEndEvent).
-    ///     document_end: struct {
-    ///         /// Is the document end indicator implicit?
-    ///         implicit: i32,
-    ///     },
-    ///     /// The alias parameters (for YamlAliasEvent).
-    ///     alias: struct {
-    ///         /// The anchor.
-    ///         anchor: *mut u8,
-    ///     },
-    ///     /// The scalar parameters (for YamlScalarEvent).
-    ///     scalar: struct {
-    ///         /// The anchor.
-    ///         anchor: *mut u8,
-    ///         /// The tag.
-    ///         tag: *mut u8,
-    ///         /// The scalar value.
-    ///         value: *mut u8,
-    ///         /// The length of the scalar value.
-    ///         length: u64,
-    ///         /// Is the tag optional for the plain style?
-    ///         plain_implicit: i32,
-    ///         /// Is the tag optional for any non-plain style?
-    ///         quoted_implicit: i32,
-    ///         /// The scalar style.
-    ///         style: YamlScalarStyleT,
-    ///     },
-    ///     /// The sequence parameters (for YamlSequenceStartEvent).
-    ///     sequence_start: struct {
-    ///         /// The anchor.
-    ///         anchor: *mut u8,
-    ///         /// The tag.
-    ///         tag: *mut u8,
-    ///         /// Is the tag optional?
-    ///         implicit: i32,
-    ///         /// The sequence style.
-    ///         style: YamlSequenceStyleT,
-    ///     },
-    ///     /// The mapping parameters (for YamlMappingStartEvent).
-    ///     mapping_start: struct {
-    ///         /// The anchor.
-    ///         anchor: *mut u8,
-    ///         /// The tag.
-    ///         tag: *mut u8,
-    ///         /// Is the tag optional?
-    ///         implicit: i32,
-    ///         /// The mapping style.
-    ///         style: YamlMappingStyleT,
-    ///     },
-    /// }
-    /// # };
-    /// ```
     pub data: UnnamedYamlEventTData,
     /// The beginning of the event.
     pub start_mark: YamlMarkT,
@@ -619,36 +498,6 @@ pub struct YamlNodeT {
     /// The node tag.
     pub tag: *mut yaml_char_t,
     /// The node data.
-    ///
-    /// ```
-    /// # const _: &str = stringify! {
-    /// union {
-    ///     /// The scalar parameters (for YamlScalarNode).
-    ///     scalar: struct {
-    ///         /// The scalar value.
-    ///         value: *mut u8,
-    ///         /// The length of the scalar value.
-    ///         length: u64,
-    ///         /// The scalar style.
-    ///         style: YamlScalarStyleT,
-    ///     },
-    ///     /// The sequence parameters (for YamlSequenceNode).
-    ///     sequence: struct {
-    ///         /// The stack of sequence items.
-    ///         items: YamlStackT<YamlNodeItemT>,
-    ///         /// The sequence style.
-    ///         style: YamlSequenceStyleT,
-    ///     },
-    ///     /// The mapping parameters (for YamlMappingNode).
-    ///     mapping: struct {
-    ///         /// The stack of mapping pairs (key, value).
-    ///         pairs: YamlStackT<YamlNodePairT>,
-    ///         /// The mapping style.
-    ///         style: YamlMappingStyleT,
-    ///     },
-    /// }
-    /// # };
-    /// ```
     pub data: UnnamedYamlNodeTData,
     /// The beginning of the node.
     pub start_mark: YamlMarkT,
@@ -727,17 +576,6 @@ pub struct YamlDocumentT {
     /// The version directive.
     pub version_directive: *mut YamlVersionDirectiveT,
     /// The list of tag directives.
-    ///
-    /// ```
-    /// # const _: &str = stringify! {
-    /// struct {
-    ///     /// The beginning of the tag directives list.
-    ///     start: *mut YamlTagDirectiveT,
-    ///     /// The end of the tag directives list.
-    ///     end: *mut YamlTagDirectiveT,
-    /// }
-    /// # };
-    /// ```
     pub tag_directives: UnnamedYamlDocumentTTagDirectives,
     /// Is the document start indicator implicit?
     pub start_implicit: bool,
@@ -777,7 +615,7 @@ pub type YamlReadHandlerT = unsafe fn(
 ) -> libc::c_int;
 
 /// This structure holds information about a potential simple key.
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, Default)]
 #[repr(C)]
 #[non_exhaustive]
 pub struct YamlSimpleKeyT {
@@ -1288,16 +1126,20 @@ impl<T> YamlBufferT<T> {
     }
 }
 
-// impl<T> Copy for YamlBufferT<T> {}
-// impl<T> Clone for YamlBufferT<T> {
-//     fn clone(&self) -> Self {
-//         *self
-//     }
-// }
+impl<T> Default for YamlBufferT<T> {
+    fn default() -> Self {
+        YamlBufferT {
+            start: ptr::null_mut(),
+            end: ptr::null_mut(),
+            pointer: ptr::null_mut(),
+            last: ptr::null_mut(),
+        }
+    }
+}
 
+/// The beginning of the stack.
 #[derive(Debug)]
 #[repr(C)]
-/// The beginning of the stack.
 pub struct YamlStackT<T> {
     /// The beginning of the stack.
     pub start: *mut T,
@@ -1314,6 +1156,7 @@ impl<T> Clone for YamlStackT<T> {
     }
 }
 
+/// The beginning of the queue.
 #[derive(Debug)]
 #[repr(C)]
 pub(crate) struct YamlQueueT<T> {
@@ -1331,5 +1174,284 @@ impl<T> Copy for YamlQueueT<T> {}
 impl<T> Clone for YamlQueueT<T> {
     fn clone(&self) -> Self {
         *self
+    }
+}
+
+impl<T: Default> Default for YamlQueueT<T> {
+    fn default() -> Self {
+        YamlQueueT {
+            start: ptr::null_mut(),
+            end: ptr::null_mut(),
+            head: ptr::null_mut(),
+            tail: ptr::null_mut(),
+        }
+    }
+}
+
+impl Default for YamlStringT {
+    fn default() -> Self {
+        YamlStringT {
+            start: ptr::null_mut(),
+            end: ptr::null_mut(),
+            pointer: ptr::null_mut(),
+        }
+    }
+}
+
+impl Default for UnnamedYamlEmitterTScalarData {
+    fn default() -> Self {
+        UnnamedYamlEmitterTScalarData {
+            value: ptr::null_mut(),
+            length: 0,
+            multiline: false,
+            flow_plain_allowed: false,
+            block_plain_allowed: false,
+            single_quoted_allowed: false,
+            block_allowed: false,
+            style: YamlScalarStyleT::YamlAnyScalarStyle,
+        }
+    }
+}
+
+impl Default for UnnamedYamlEmitterTTagData {
+    fn default() -> Self {
+        UnnamedYamlEmitterTTagData {
+            handle: ptr::null_mut(),
+            handle_length: 0,
+            suffix: ptr::null_mut(),
+            suffix_length: 0,
+        }
+    }
+}
+
+impl Default for UnnamedYamlEmitterTAnchorData {
+    fn default() -> Self {
+        UnnamedYamlEmitterTAnchorData {
+            anchor: ptr::null_mut(),
+            anchor_length: 0,
+            alias: false,
+        }
+    }
+}
+
+impl Default for UnnamedYamlEmitterTOutputString {
+    fn default() -> Self {
+        UnnamedYamlEmitterTOutputString {
+            buffer: ptr::null_mut(),
+            size: 0,
+            size_written: ptr::null_mut(),
+        }
+    }
+}
+
+impl Default for UnnamedYamlEmitterTOutput {
+    fn default() -> Self {
+        UnnamedYamlEmitterTOutput {
+            string: UnnamedYamlEmitterTOutputString::default(),
+        }
+    }
+}
+
+impl Default for UnnamedYamlParserTInputString {
+    fn default() -> Self {
+        UnnamedYamlParserTInputString {
+            start: ptr::null(),
+            end: ptr::null(),
+            current: ptr::null(),
+        }
+    }
+}
+
+impl Default for UnnamedYamlParserTInput {
+    fn default() -> Self {
+        UnnamedYamlParserTInput {
+            string: UnnamedYamlParserTInputString::default(),
+        }
+    }
+}
+
+impl Default for UnnamedYamlDocumentTTagDirectives {
+    fn default() -> Self {
+        UnnamedYamlDocumentTTagDirectives {
+            start: ptr::null_mut(),
+            end: ptr::null_mut(),
+        }
+    }
+}
+
+impl Default for YamlEncodingT {
+    fn default() -> Self {
+        YamlAnyEncoding
+    }
+}
+
+impl Default for YamlParserStateT {
+    fn default() -> Self {
+        YamlParserStateT::YamlParseStreamStartState
+    }
+}
+
+impl Default for YamlScalarStyleT {
+    fn default() -> Self {
+        YamlScalarStyleT::YamlAnyScalarStyle
+    }
+}
+
+impl Default for YamlTokenT {
+    fn default() -> Self {
+        YamlTokenT {
+            type_: YamlTokenTypeT::YamlNoToken,
+            data: UnnamedYamlTokenTData::default(),
+            start_mark: YamlMarkT::default(),
+            end_mark: YamlMarkT::default(),
+        }
+    }
+}
+
+impl Default for UnnamedYamlTokenTData {
+    fn default() -> Self {
+        UnnamedYamlTokenTData {
+            stream_start: UnnamedYamlTokenTdataStreamStart::default(),
+            alias: UnnamedYamlTokenTdataAlias::default(),
+            anchor: UnnamedYamlTokenTdataAnchor::default(),
+            tag: UnnamedYamlTokenTdataTag::default(),
+            scalar: UnnamedYamlTokenTdataScalar::default(),
+            version_directive: UnnamedYamlTokenTdataVersionDirective::default(),
+            tag_directive: UnnamedYamlTokenTdataTagDirective::default(),
+        }
+    }
+}
+
+impl Default for UnnamedYamlTokenTdataStreamStart {
+    fn default() -> Self {
+        UnnamedYamlTokenTdataStreamStart {
+            encoding: YamlAnyEncoding,
+        }
+    }
+}
+
+impl Default for UnnamedYamlTokenTdataAlias {
+    fn default() -> Self {
+        UnnamedYamlTokenTdataAlias {
+            value: ptr::null_mut(),
+        }
+    }
+}
+
+impl Default for UnnamedYamlTokenTdataAnchor {
+    fn default() -> Self {
+        UnnamedYamlTokenTdataAnchor {
+            value: ptr::null_mut(),
+        }
+    }
+}
+
+impl Default for UnnamedYamlTokenTdataTag {
+    fn default() -> Self {
+        UnnamedYamlTokenTdataTag {
+            handle: ptr::null_mut(),
+            suffix: ptr::null_mut(),
+        }
+    }
+}
+
+impl Default for UnnamedYamlTokenTdataScalar {
+    fn default() -> Self {
+        UnnamedYamlTokenTdataScalar {
+            value: ptr::null_mut(),
+            length: 0,
+            style: YamlScalarStyleT::YamlAnyScalarStyle,
+        }
+    }
+}
+
+impl Default for UnnamedYamlTokenTdataVersionDirective {
+    fn default() -> Self {
+        UnnamedYamlTokenTdataVersionDirective {
+            major: 0,
+            minor: 0,
+        }
+    }
+}
+
+impl Default for UnnamedYamlTokenTdataTagDirective {
+    fn default() -> Self {
+        UnnamedYamlTokenTdataTagDirective {
+            handle: ptr::null_mut(),
+            prefix: ptr::null_mut(),
+        }
+    }
+}
+
+impl Default for YamlStackT<YamlSimpleKeyT> {
+    fn default() -> Self {
+        YamlStackT {
+            start: ptr::null_mut(),
+            end: ptr::null_mut(),
+            top: ptr::null_mut(),
+        }
+    }
+}
+
+impl Default for YamlStackT<YamlTagDirectiveT> {
+    fn default() -> Self {
+        YamlStackT {
+            start: ptr::null_mut(),
+            end: ptr::null_mut(),
+            top: ptr::null_mut(),
+        }
+    }
+}
+
+impl Default for YamlStackT<YamlAliasDataT> {
+    fn default() -> Self {
+        YamlStackT {
+            start: ptr::null_mut(),
+            end: ptr::null_mut(),
+            top: ptr::null_mut(),
+        }
+    }
+}
+
+impl Default for YamlTagDirectiveT {
+    fn default() -> Self {
+        YamlTagDirectiveT {
+            handle: ptr::null_mut(),
+            prefix: ptr::null_mut(),
+        }
+    }
+}
+
+impl Default for YamlBreakT {
+    fn default() -> Self {
+        YamlBreakT::YamlAnyBreak
+    }
+}
+
+impl Default for YamlSequenceStyleT {
+    fn default() -> Self {
+        YamlSequenceStyleT::YamlAnySequenceStyle
+    }
+}
+
+impl Default for YamlMappingStyleT {
+    fn default() -> Self {
+        YamlMappingStyleT::YamlAnyMappingStyle
+    }
+}
+
+impl Default for YamlEventTypeT {
+    fn default() -> Self {
+        YamlNoEvent
+    }
+}
+
+impl Default for YamlAliasDataT {
+    fn default() -> Self {
+        YamlAliasDataT {
+            anchor: ptr::null_mut(),
+            index: 0,
+            mark: YamlMarkT::default(),
+        }
     }
 }

@@ -33,7 +33,7 @@
 //!
 //! ```toml
 //! [dependencies]
-//! libyml = "0.0.4"
+//! libyml = "0.0.3"
 //! ```
 //!
 //! Release notes are available under [GitHub releases][05].
@@ -136,7 +136,7 @@
 //! [build-badge]: https://img.shields.io/github/actions/workflow/status/sebastienrousseau/libyml/release.yml?branch=master&style=for-the-badge&logo=github
 //! [codecov-badge]: https://img.shields.io/codecov/c/github/sebastienrousseau/libyml?style=for-the-badge&token=yc9s578xIk&logo=codecov
 //! [crates-badge]: https://img.shields.io/crates/v/libyml.svg?style=for-the-badge&color=fc8d62&logo=rust
-//! [libs-badge]: https://img.shields.io/badge/lib.rs-v0.0.4-orange.svg?style=for-the-badge
+//! [libs-badge]: https://img.shields.io/badge/lib.rs-v0.0.3-orange.svg?style=for-the-badge
 //! [docs-badge]: https://img.shields.io/badge/docs.rs-libyml-66c2a5?style=for-the-badge&labelColor=555555&logo=docs.rs
 //! [github-badge]: https://img.shields.io/badge/github-sebastienrousseau/libyml-8da0cb?style=for-the-badge&labelColor=555555&logo=github
 
@@ -163,19 +163,18 @@ mod libc {
     };
 }
 
+/// Externs for libyaml
 #[macro_use]
-/// This module contains external functions and types used by LibYML.
 pub mod externs {
     use crate::libc;
     use crate::ops::{die, ForceAdd as _, ForceInto as _};
     use alloc::alloc::{self as rust, Layout};
-    use core::mem::MaybeUninit;
-    use core::mem::{align_of, size_of};
+    use core::mem::{self, MaybeUninit};
     use core::ptr;
     use core::slice;
 
     const HEADER: usize = {
-        let need_len = size_of::<usize>();
+        let need_len = mem::size_of::<usize>();
         // Round up to multiple of MALLOC_ALIGN.
         (need_len + MALLOC_ALIGN - 1) & !(MALLOC_ALIGN - 1)
     };
@@ -183,8 +182,8 @@ pub mod externs {
     // `max_align_t` may be bigger than this, but libyaml does not use `long
     // double` or u128.
     const MALLOC_ALIGN: usize = {
-        let int_align = align_of::<libc::c_ulong>();
-        let ptr_align = align_of::<usize>();
+        let int_align = mem::align_of::<libc::c_ulong>();
+        let ptr_align = mem::align_of::<usize>();
         if int_align >= ptr_align {
             int_align
         } else {
@@ -228,11 +227,7 @@ pub mod externs {
         memory.add(HEADER).cast()
     }
 
-    /// Deallocates the memory pointed to by `ptr`.
-    ///
-    /// # Safety
-    ///
-    /// This function is unsafe because it can cause undefined behavior if the `ptr` is not a valid pointer.
+    /// Free memory.
     pub unsafe fn free(ptr: *mut libc::c_void) {
         let memory = ptr.cast::<u8>().sub(HEADER);
         let size = memory.cast::<usize>().read();

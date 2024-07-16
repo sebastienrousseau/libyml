@@ -20,6 +20,17 @@ pub struct YamlVersionDirectiveT {
     pub minor: libc::c_int,
 }
 
+impl YamlVersionDirectiveT {
+    /// Constructor for `YamlVersionDirectiveT`.
+    pub fn new(major: libc::c_int, minor: libc::c_int) -> Self {
+        YamlVersionDirectiveT {
+            major,
+            minor,
+            // Initialize any future fields with their default values
+        }
+    }
+}
+
 /// The tag directive data.
 #[derive(Copy, Clone, Debug)]
 #[repr(C)]
@@ -1414,5 +1425,17 @@ impl Default for YamlAliasDataT {
             index: 0,
             mark: YamlMarkT::default(),
         }
+    }
+}
+
+impl Default for YamlNodeTypeT {
+    fn default() -> Self {
+        YamlNoNode
+    }
+}
+
+impl Default for YamlEmitterStateT {
+    fn default() -> Self {
+        YamlEmitterStateT::YamlEmitStreamStartState
     }
 }

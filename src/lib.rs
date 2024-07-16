@@ -449,7 +449,8 @@ mod macros;
 pub mod api;
 mod dumper;
 mod emitter;
-mod loader;
+/// Loader module for LibYML
+pub mod loader;
 mod ops;
 mod parser;
 mod reader;

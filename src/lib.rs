@@ -197,10 +197,10 @@ pub mod externs {
         let size = HEADER.force_add(size.force_into());
         let layout = Layout::from_size_align(size, MALLOC_ALIGN)
             .ok()
-            .unwrap_or_else(die);
+            .unwrap_or_else(|| return die());
         let memory = rust::alloc(layout);
         if memory.is_null() {
-            rust::handle_alloc_error(layout);
+            return die();
         }
         memory.cast::<usize>().write(size);
         memory.add(HEADER).cast()
@@ -215,19 +215,23 @@ pub mod externs {
         let layout =
             Layout::from_size_align_unchecked(size, MALLOC_ALIGN);
         let new_size = HEADER.force_add(new_size.force_into());
-        let new_layout =
-            Layout::from_size_align(new_size, MALLOC_ALIGN)
-                .ok()
-                .unwrap_or_else(die);
         memory = rust::realloc(memory, layout, new_size);
         if memory.is_null() {
-            rust::handle_alloc_error(new_layout);
+            return die();
         }
         memory.cast::<usize>().write(new_size);
         memory.add(HEADER).cast()
     }
 
     /// Free memory.
+    ///
+    /// # Safety
+    ///
+    /// This function is unsafe because it deallocates memory pointed to by `ptr`.
+    /// The caller must ensure that:
+    /// - `ptr` is a valid pointer that was previously allocated by this allocator.
+    /// - `ptr` has not been freed before.
+    /// - After this call, `ptr` should not be used.
     pub unsafe fn free(ptr: *mut libc::c_void) {
         let memory = ptr.cast::<u8>().sub(HEADER);
         let size = memory.cast::<usize>().read();
@@ -253,6 +257,9 @@ pub mod externs {
         src: *const libc::c_void,
         count: libc::c_ulong,
     ) -> *mut libc::c_void {
+        if dest.is_null() || src.is_null() {
+            return die();
+        }
         ptr::copy_nonoverlapping(
             src.cast::<MaybeUninit<u8>>(),
             dest.cast::<MaybeUninit<u8>>(),
@@ -266,6 +273,9 @@ pub mod externs {
         src: *const libc::c_void,
         count: libc::c_ulong,
     ) -> *mut libc::c_void {
+        if dest.is_null() || src.is_null() {
+            return die();
+        }
         ptr::copy(
             src.cast::<MaybeUninit<u8>>(),
             dest.cast::<MaybeUninit<u8>>(),
@@ -287,6 +297,9 @@ pub mod externs {
         lhs: *const libc::c_char,
         rhs: *const libc::c_char,
     ) -> libc::c_int {
+        if lhs.is_null() || rhs.is_null() {
+            return die();
+        }
         let lhs = slice::from_raw_parts(
             lhs.cast::<u8>(),
             strlen(lhs) as usize,
@@ -301,8 +314,14 @@ pub mod externs {
     pub(crate) unsafe fn strdup(
         src: *const libc::c_char,
     ) -> *mut libc::c_char {
+        if src.is_null() {
+            return die();
+        }
         let len = strlen(src);
         let dest = malloc(len + 1);
+        if dest.is_null() {
+            return die();
+        }
         memcpy(dest, src.cast(), len + 1);
         dest.cast()
     }
@@ -322,6 +341,9 @@ pub mod externs {
         rhs: *const libc::c_char,
         mut count: libc::c_ulong,
     ) -> libc::c_int {
+        if lhs.is_null() || rhs.is_null() {
+            return die();
+        }
         let mut lhs = lhs.cast::<u8>();
         let mut rhs = rhs.cast::<u8>();
         while count > 0 && *lhs != 0 && *lhs == *rhs {
@@ -363,7 +385,7 @@ pub mod externs {
         struct Abort;
         impl Drop for Abort {
             fn drop(&mut self) {
-                panic!();
+                panic!("arithmetic overflow");
             }
         }
         let _abort_on_panic = Abort;

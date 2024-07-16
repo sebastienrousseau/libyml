@@ -197,7 +197,7 @@ pub mod externs {
         let size = HEADER.force_add(size.force_into());
         let layout = Layout::from_size_align(size, MALLOC_ALIGN)
             .ok()
-            .unwrap_or_else(|| return die());
+            .unwrap_or_else(die);
         let memory = rust::alloc(layout);
         if memory.is_null() {
             return die();

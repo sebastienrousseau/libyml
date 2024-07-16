@@ -454,7 +454,8 @@ mod ops;
 mod parser;
 mod reader;
 mod scanner;
-mod success;
+/// Success and Failure types for LibYML
+pub mod success;
 mod writer;
 /// YAML API module for LibYML
 pub mod yaml;

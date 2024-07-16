@@ -62,7 +62,6 @@ pub fn is_failure(result: Success) -> bool {
     !result.ok
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -77,7 +76,7 @@ mod tests {
     fn test_deref() {
         let success = OK;
         let failure = FAIL;
-        assert_eq!(success.deref().fail, false);
-        assert_eq!(failure.deref().fail, true);
+        assert!(!success.deref().fail);
+        assert!(failure.deref().fail);
     }
 }

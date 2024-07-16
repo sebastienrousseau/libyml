@@ -154,7 +154,21 @@
 extern crate alloc;
 use core::mem::size_of;
 
-mod libc {
+/// This module contains declarations for C library functions.
+///
+/// # Purpose
+///
+/// This module provides declarations for C library functions that are used in the LibYAML library.
+/// These declarations are necessary for interfacing with the C library functions from Rust.
+///
+/// # Parameters
+///
+/// None.
+///
+/// # Return Value
+///
+/// This module does not return any value. It only contains declarations for C library functions.
+pub mod libc {
     pub(crate) use core::ffi::c_void;
     pub(crate) use core::primitive::{
         i32 as c_int, i64 as c_long, i8 as c_char, u32 as c_uint,

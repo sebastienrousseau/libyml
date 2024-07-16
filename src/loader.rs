@@ -97,7 +97,29 @@ pub unsafe fn yaml_parser_load(
     FAIL
 }
 
-unsafe fn yaml_parser_set_composer_error(
+/// Sets the error type to `YamlComposerError` and stores the problem and its mark.
+///
+/// # Parameters
+///
+/// * `parser`: A mutable pointer to the `YamlParserT` struct.
+/// * `problem`: A pointer to a constant C string representing the problem.
+/// * `problem_mark`: A `YamlMarkT` struct representing the mark where the problem occurred.
+///
+/// # Return
+///
+/// Returns `FAIL` to indicate an error.
+///
+/// # Safety
+///
+/// - `parser` must be a valid, non-null pointer to a properly initialized `YamlParserT` struct.
+/// - `problem` must be a valid, non-null pointer to a constant C string.
+/// - `problem_mark` must be a valid `YamlMarkT` struct.
+/// - The `YamlParserT` struct must be properly aligned and have the expected memory layout.
+/// - The `problem` string must be null-terminated.
+/// - The `problem_mark` struct must be properly initialized.
+/// - The caller must handle the error and clean up any resources.
+///
+pub unsafe fn yaml_parser_set_composer_error(
     parser: *mut YamlParserT,
     problem: *const libc::c_char,
     problem_mark: YamlMarkT,

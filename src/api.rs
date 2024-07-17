@@ -1,7 +1,7 @@
 use crate::externs::{
-    free, malloc, memcpy, memmove, memset, realloc, strdup, strlen,
+    free, memcpy, memmove, memset, strdup, strlen,
 };
-use crate::memory::yaml_malloc;
+use crate::memory::{yaml_malloc,yaml_realloc};
 use crate::ops::{ForceAdd as _, ForceMul as _};
 use crate::success::{Success, FAIL, OK};
 use crate::yaml::{size_t, yaml_char_t};
@@ -26,51 +26,6 @@ const INPUT_RAW_BUFFER_SIZE: usize = 16384;
 const INPUT_BUFFER_SIZE: usize = INPUT_RAW_BUFFER_SIZE * 3;
 const OUTPUT_BUFFER_SIZE: usize = 16384;
 const OUTPUT_RAW_BUFFER_SIZE: usize = OUTPUT_BUFFER_SIZE * 2 + 2;
-
-// /// Allocate memory using the system's `malloc` function.
-// ///
-// /// This function is a thin wrapper around the system's `malloc` function,
-// /// used for memory allocation within the LibYML crate.
-// ///
-// /// # Safety
-// ///
-// /// - This function is unsafe because it directly calls the system's `malloc` function,
-// ///   which can lead to undefined behaviour if misused.
-// /// - The caller must ensure that the requested size is valid and does not overflow.
-// /// - The caller is responsible for properly freeing the allocated memory using
-// ///   the corresponding `yaml_free` function when it is no longer needed.
-// ///
-// pub unsafe fn yaml_malloc(size: size_t) -> *mut libc::c_void {
-//     malloc(size)
-// }
-
-/// Reallocate memory using the system's `realloc` function.
-///
-/// This function is a thin wrapper around the system's `realloc` function,
-/// used for memory reallocation within the LibYML crate.
-///
-/// # Safety
-///
-/// - This function is unsafe because it directly calls the system's `realloc` function,
-///   which can lead to undefined behaviour if misused.
-/// - The caller must ensure that the provided `ptr` is either a valid pointer returned
-///   by a previous call to `yaml_malloc` or `yaml_realloc`, or a null pointer.
-/// - The caller must ensure that the requested size is valid and does not overflow.
-/// - If `realloc` fails to reallocate the memory, it returns a null pointer, and the
-///   original memory block pointed to by `ptr` is left unchanged.
-/// - The caller is responsible for properly freeing the reallocated memory using
-///   the corresponding `yaml_free` function when it is no longer needed.
-///
-pub unsafe fn yaml_realloc(
-    ptr: *mut libc::c_void,
-    size: size_t,
-) -> *mut libc::c_void {
-    if !ptr.is_null() {
-        realloc(ptr, size)
-    } else {
-        malloc(size)
-    }
-}
 
 /// Free memory allocated by `yaml_malloc` or `yaml_realloc`.
 ///

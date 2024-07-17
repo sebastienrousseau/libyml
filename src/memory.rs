@@ -3,7 +3,7 @@ use crate::{
     libc,
     yaml::{size_t, yaml_char_t},
 };
-use core::ptr;
+use core::{mem::size_of, ptr};
 use libc::c_void;
 
 /// Allocate memory using the system's `malloc` function.
@@ -185,7 +185,7 @@ pub unsafe fn yaml_strdup(str: *const yaml_char_t) -> *mut yaml_char_t {
         return ptr::null_mut();
     }
     let len = strlen(str as *const libc::c_char) as usize;
-    let new_size = (len + 1) * core::mem::size_of::<yaml_char_t>();
+    let new_size = (len + 1) * size_of::<yaml_char_t>();
     let new_str =
         malloc(new_size.try_into().unwrap()) as *mut yaml_char_t;
     if new_str.is_null() {

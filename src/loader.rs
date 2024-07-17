@@ -1,7 +1,6 @@
-use crate::api::{
-    yaml_free, yaml_malloc, yaml_stack_extend, yaml_strdup,
-};
+use crate::api::{yaml_free, yaml_stack_extend, yaml_strdup};
 use crate::externs::{memset, strcmp};
+use crate::memory::yaml_malloc;
 use crate::success::{Success, FAIL, OK};
 use crate::yaml::yaml_char_t;
 use crate::{

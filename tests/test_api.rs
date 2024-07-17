@@ -1,9 +1,9 @@
 #[cfg(test)]
 mod tests {
     use core::ffi::c_void;
-    use libyml::api::yaml_malloc;
     use libyml::api::yaml_strdup;
     use libyml::externs::free;
+    use libyml::memory::yaml_malloc;
     use std::ptr::null;
     use std::ptr::null_mut;
 

@@ -1,6 +1,7 @@
-use crate::api::{yaml_free, yaml_malloc};
+use crate::api::yaml_free;
 use crate::externs::{memset, strcmp};
 use crate::fmt::WriteToPtr;
+use crate::memory::yaml_malloc;
 use crate::ops::ForceMul as _;
 use crate::success::{Success, FAIL, OK};
 use crate::yaml::{

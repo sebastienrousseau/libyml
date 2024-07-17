@@ -1,6 +1,7 @@
 use crate::externs::{
     free, malloc, memcpy, memmove, memset, realloc, strdup, strlen,
 };
+use crate::memory::yaml_malloc;
 use crate::ops::{ForceAdd as _, ForceMul as _};
 use crate::success::{Success, FAIL, OK};
 use crate::yaml::{size_t, yaml_char_t};
@@ -26,22 +27,22 @@ const INPUT_BUFFER_SIZE: usize = INPUT_RAW_BUFFER_SIZE * 3;
 const OUTPUT_BUFFER_SIZE: usize = 16384;
 const OUTPUT_RAW_BUFFER_SIZE: usize = OUTPUT_BUFFER_SIZE * 2 + 2;
 
-/// Allocate memory using the system's `malloc` function.
-///
-/// This function is a thin wrapper around the system's `malloc` function,
-/// used for memory allocation within the LibYML crate.
-///
-/// # Safety
-///
-/// - This function is unsafe because it directly calls the system's `malloc` function,
-///   which can lead to undefined behaviour if misused.
-/// - The caller must ensure that the requested size is valid and does not overflow.
-/// - The caller is responsible for properly freeing the allocated memory using
-///   the corresponding `yaml_free` function when it is no longer needed.
-///
-pub unsafe fn yaml_malloc(size: size_t) -> *mut libc::c_void {
-    malloc(size)
-}
+// /// Allocate memory using the system's `malloc` function.
+// ///
+// /// This function is a thin wrapper around the system's `malloc` function,
+// /// used for memory allocation within the LibYML crate.
+// ///
+// /// # Safety
+// ///
+// /// - This function is unsafe because it directly calls the system's `malloc` function,
+// ///   which can lead to undefined behaviour if misused.
+// /// - The caller must ensure that the requested size is valid and does not overflow.
+// /// - The caller is responsible for properly freeing the allocated memory using
+// ///   the corresponding `yaml_free` function when it is no longer needed.
+// ///
+// pub unsafe fn yaml_malloc(size: size_t) -> *mut libc::c_void {
+//     malloc(size)
+// }
 
 /// Reallocate memory using the system's `realloc` function.
 ///

@@ -1,7 +1,7 @@
 use crate::externs::{
-    free, memcpy, memmove, memset, strdup, strlen,
+    memcpy, memmove, memset, strdup, strlen,
 };
-use crate::memory::{yaml_malloc,yaml_realloc};
+use crate::memory::{yaml_free, yaml_malloc, yaml_realloc};
 use crate::ops::{ForceAdd as _, ForceMul as _};
 use crate::success::{Success, FAIL, OK};
 use crate::yaml::{size_t, yaml_char_t};
@@ -26,25 +26,6 @@ const INPUT_RAW_BUFFER_SIZE: usize = 16384;
 const INPUT_BUFFER_SIZE: usize = INPUT_RAW_BUFFER_SIZE * 3;
 const OUTPUT_BUFFER_SIZE: usize = 16384;
 const OUTPUT_RAW_BUFFER_SIZE: usize = OUTPUT_BUFFER_SIZE * 2 + 2;
-
-/// Free memory allocated by `yaml_malloc` or `yaml_realloc`.
-///
-/// This function is a thin wrapper around the system's `free` function,
-/// used for freeing memory within the LibYML crate.
-///
-/// # Safety
-///
-/// - This function is unsafe because it directly calls the system's `free` function,
-///   which can lead to undefined behaviour if misused.
-/// - The caller must ensure that the provided `ptr` is either a valid pointer returned
-///   by a previous call to `yaml_malloc` or `yaml_realloc`, or a null pointer.
-/// - If `ptr` is a null pointer, no operation is performed.
-///
-pub unsafe fn yaml_free(ptr: *mut libc::c_void) {
-    if !ptr.is_null() {
-        free(ptr);
-    }
-}
 
 /// Duplicate a string using the system's `strdup` function.
 ///

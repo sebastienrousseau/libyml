@@ -1,12 +1,11 @@
 #![allow(missing_docs)]
 pub(crate) use core::primitive::u8 as yaml_char_t;
 use libyml::api::{
-    yaml_free, yaml_parser_delete, yaml_parser_initialize,
+    yaml_parser_delete, yaml_parser_initialize,
     yaml_parser_set_input_string, yaml_strdup,
     yaml_string_extend, yaml_string_join,
 };
-use libyml::memory::{yaml_malloc,yaml_realloc};
-
+use libyml::memory::{yaml_free, yaml_malloc, yaml_realloc};
 use core::mem::MaybeUninit;
 use core::ptr;
 

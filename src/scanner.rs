@@ -1,9 +1,10 @@
 use crate::api::{
-    yaml_free, yaml_queue_extend, yaml_stack_extend,
+    yaml_queue_extend, yaml_stack_extend,
     yaml_string_extend, yaml_string_join,
 };
 use crate::externs::{memcpy, memmove, memset, strcmp, strlen};
 use crate::memory::yaml_malloc;
+use crate::memory::yaml_free;
 use crate::ops::{ForceAdd as _, ForceMul as _};
 use crate::reader::yaml_parser_update_buffer;
 use crate::success::{Success, FAIL, OK};

@@ -1,4 +1,4 @@
-use crate::api::yaml_free;
+use crate::memory::yaml_free;
 use crate::externs::{memset, strcmp};
 use crate::fmt::WriteToPtr;
 use crate::memory::yaml_malloc;

@@ -1,6 +1,7 @@
 use crate::api::{
-    yaml_free, yaml_queue_extend, yaml_stack_extend, yaml_strdup,
+    yaml_queue_extend, yaml_stack_extend, yaml_strdup,
 };
+use crate::memory::yaml_free;
 use crate::externs::{strcmp, strlen, strncmp};
 use crate::ops::{ForceAdd as _, ForceMul as _};
 use crate::success::{Success, FAIL, OK};

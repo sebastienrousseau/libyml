@@ -459,8 +459,14 @@ impl<T> PointerExt for *mut T {
 #[macro_use]
 mod macros;
 
+/// Macros module for LibYML
+#[macro_use]
+pub mod utils;
+
 /// API module for LibYML
 pub mod api;
+/// Memory module for LibYML
+pub mod memory;
 mod dumper;
 mod emitter;
 /// Loader module for LibYML

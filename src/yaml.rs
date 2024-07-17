@@ -5,7 +5,7 @@ use core::ptr::{self, addr_of};
 pub(crate) use self::{
     YamlEncodingT::*, YamlEventTypeT::*, YamlNodeTypeT::*,
 };
-pub(crate) use core::primitive::{
+pub use core::primitive::{
     i64 as ptrdiff_t, u64 as size_t, u8 as yaml_char_t,
 };
 

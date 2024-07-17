@@ -465,12 +465,12 @@ pub mod utils;
 
 /// API module for LibYML
 pub mod api;
-/// Memory module for LibYML
-pub mod memory;
 mod dumper;
 mod emitter;
 /// Loader module for LibYML
 pub mod loader;
+/// Memory module for LibYML
+pub mod memory;
 mod ops;
 mod parser;
 mod reader;

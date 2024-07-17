@@ -1,9 +1,8 @@
 #[cfg(test)]
 mod tests {
-    use libyml::memory::*;
-    use libyml::yaml::yaml_char_t;
-    use core::ptr;
     use core::ffi::c_void;
+    use core::ptr;
+    use libyml::memory::*;
 
     /// Tests that `yaml_malloc` successfully allocates memory.
     #[test]
@@ -63,7 +62,7 @@ mod tests {
     #[test]
     fn test_yaml_strdup() {
         unsafe {
-            let original = b"test string\0" as *const u8 as *const yaml_char_t;
+            let original = b"test string\0" as *const u8;
 
             let duped_ptr = yaml_strdup(original);
             assert!(!duped_ptr.is_null());
@@ -93,7 +92,7 @@ mod tests {
     #[test]
     fn test_yaml_strdup_empty_string() {
         unsafe {
-            let original = b"\0" as *const u8 as *const yaml_char_t;
+            let original = b"\0" as *const u8;
 
             let duped_ptr = yaml_strdup(original);
             assert!(!duped_ptr.is_null());

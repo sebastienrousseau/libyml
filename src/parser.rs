@@ -1,7 +1,6 @@
-use crate::api::{yaml_stack_extend, yaml_strdup};
+use crate::api::yaml_stack_extend;
 use crate::externs::{memcpy, memset, strcmp, strlen};
-use crate::memory::yaml_malloc;
-use crate::memory::yaml_free;
+use crate::memory::{yaml_free, yaml_malloc, yaml_strdup};
 use crate::ops::ForceAdd as _;
 use crate::scanner::yaml_parser_fetch_more_tokens;
 use crate::success::{Success, FAIL, OK};

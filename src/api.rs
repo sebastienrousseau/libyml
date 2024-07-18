@@ -1,7 +1,7 @@
-use crate::externs::{
-    memcpy, memmove, memset, strdup, strlen,
+use crate::externs::{memcpy, memmove, memset, strlen};
+use crate::memory::{
+    yaml_free, yaml_malloc, yaml_realloc, yaml_strdup,
 };
-use crate::memory::{yaml_free, yaml_malloc, yaml_realloc};
 use crate::ops::{ForceAdd as _, ForceMul as _};
 use crate::success::{Success, FAIL, OK};
 use crate::yaml::{size_t, yaml_char_t};
@@ -26,112 +26,6 @@ const INPUT_RAW_BUFFER_SIZE: usize = 16384;
 const INPUT_BUFFER_SIZE: usize = INPUT_RAW_BUFFER_SIZE * 3;
 const OUTPUT_BUFFER_SIZE: usize = 16384;
 const OUTPUT_RAW_BUFFER_SIZE: usize = OUTPUT_BUFFER_SIZE * 2 + 2;
-
-/// Duplicate a string using the system's `strdup` function.
-///
-/// This function is a thin wrapper around the system's `strdup` function,
-/// used for string duplication within the LibYML crate.
-///
-/// # Safety
-///
-/// - This function is unsafe because it directly calls the system's `strdup` function,
-///   which can lead to undefined behaviour if misused.
-/// - The caller must ensure that the provided `str` is either a valid pointer to a
-///   null-terminated string, or a null pointer.
-/// - If `str` is a null pointer, this function returns a null pointer.
-/// - The caller is responsible for properly freeing the duplicated string using
-///   the corresponding `yaml_free` function when it is no longer needed.
-///
-pub unsafe fn yaml_strdup(str: *const yaml_char_t) -> *mut yaml_char_t {
-    if str.is_null() {
-        return ptr::null_mut::<yaml_char_t>();
-    }
-    strdup(str as *mut libc::c_char) as *mut yaml_char_t
-}
-
-/// Extend a string buffer by reallocating and copying the existing data.
-///
-/// This function is used to grow a string buffer when more space is needed.
-///
-/// # Safety
-///
-/// - This function is unsafe because it directly calls the system's `realloc` and
-///   `memset` functions, which can lead to undefined behaviour if misused.
-/// - The caller must ensure that `start`, `pointer`, and `end` are valid pointers
-///   into the same allocated memory block.
-/// - The caller must ensure that the memory block being extended is large enough
-///   to accommodate the new size.
-/// - The caller is responsible for properly freeing the extended memory block using
-///   the corresponding `yaml_free` function when it is no longer needed.
-///
-pub unsafe fn yaml_string_extend(
-    start: *mut *mut yaml_char_t,
-    pointer: *mut *mut yaml_char_t,
-    end: *mut *mut yaml_char_t,
-) {
-    let new_start: *mut yaml_char_t = yaml_realloc(
-        *start as *mut libc::c_void,
-        (((*end).c_offset_from(*start) as libc::c_long)
-            .force_mul(2_i64)) as size_t,
-    ) as *mut yaml_char_t;
-    memset(
-        new_start.wrapping_offset(
-            (*end).c_offset_from(*start) as libc::c_long as isize
-        ) as *mut libc::c_void,
-        0,
-        (*end).c_offset_from(*start) as libc::c_ulong,
-    );
-    *pointer =
-        new_start
-            .wrapping_offset((*pointer).c_offset_from(*start)
-                as libc::c_long as isize);
-    *end = new_start.wrapping_offset(
-        (((*end).c_offset_from(*start) as libc::c_long)
-            .force_mul(2_i64)) as isize,
-    );
-    *start = new_start;
-}
-
-/// Join two string buffers by copying data from one to the other.
-///
-/// This function is used to concatenate two string buffers.
-///
-/// # Safety
-///
-/// - This function is unsafe because it directly calls the system's `memcpy` function,
-///   which can lead to undefined behaviour if misused.
-/// - The caller must ensure that `a_start`, `a_pointer`, `a_end`, `b_start`, `b_pointer`,
-///   and `b_end` are valid pointers into their respective allocated memory blocks.
-/// - The caller must ensure that the memory blocks being joined are large enough to
-///   accommodate the combined data.
-/// - The caller is responsible for properly freeing the joined memory block using
-///   the corresponding `yaml_free` function when it is no longer needed.
-///
-pub unsafe fn yaml_string_join(
-    a_start: *mut *mut yaml_char_t,
-    a_pointer: *mut *mut yaml_char_t,
-    a_end: *mut *mut yaml_char_t,
-    b_start: *mut *mut yaml_char_t,
-    b_pointer: *mut *mut yaml_char_t,
-    _b_end: *mut *mut yaml_char_t,
-) {
-    if *b_start == *b_pointer {
-        return;
-    }
-    while (*a_end).c_offset_from(*a_pointer) as libc::c_long
-        <= (*b_pointer).c_offset_from(*b_start) as libc::c_long
-    {
-        yaml_string_extend(a_start, a_pointer, a_end);
-    }
-    memcpy(
-        *a_pointer as *mut libc::c_void,
-        *b_start as *const libc::c_void,
-        (*b_pointer).c_offset_from(*b_start) as libc::c_ulong,
-    );
-    *a_pointer = (*a_pointer)
-        .wrapping_offset((*b_pointer).c_offset_from(*b_start)
-            as libc::c_long as isize);
-}
 
 /// Extend a stack by reallocating and copying the existing data.
 ///

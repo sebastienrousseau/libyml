@@ -1,13 +1,15 @@
 #![allow(missing_docs)]
+use core::mem::MaybeUninit;
 pub(crate) use core::primitive::u8 as yaml_char_t;
+use core::ptr;
 use libyml::api::{
     yaml_parser_delete, yaml_parser_initialize,
-    yaml_parser_set_input_string, yaml_strdup,
-    yaml_string_extend, yaml_string_join,
+    yaml_parser_set_input_string,
 };
-use libyml::memory::{yaml_free, yaml_malloc, yaml_realloc};
-use core::mem::MaybeUninit;
-use core::ptr;
+use libyml::memory::{
+    yaml_free, yaml_malloc, yaml_realloc, yaml_strdup,
+};
+use libyml::string::{yaml_string_extend, yaml_string_join};
 
 pub(crate) fn main() {
     // Print a message to indicate the file being executed.

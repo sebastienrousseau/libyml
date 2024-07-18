@@ -298,7 +298,29 @@ pub mod externs {
         dest
     }
 
-    pub(crate) unsafe fn memset(
+    /// Sets the first `count` bytes of the memory block pointed to by `dest` to the specified `ch` byte.
+    ///
+    /// # Purpose
+    ///
+    /// This function fills a block of memory with a specified byte value. It is commonly used to initialize or clear memory.
+    ///
+    /// # Parameters
+    ///
+    /// - `dest`: A pointer to the memory block to be filled.
+    /// - `ch`: The byte value to fill the memory block with.
+    /// - `count`: The number of bytes to fill in the memory block.
+    ///
+    /// # Return Value
+    ///
+    /// The function returns a pointer to the memory block (`dest`) after filling it.
+    ///
+    /// # Safety
+    ///
+    /// This function is unsafe because it directly manipulates raw memory. The caller must ensure that:
+    /// - `dest` is a valid pointer to a memory block.
+    /// - `count` is not greater than the size of the memory block pointed to by `dest`.
+    /// - The memory block pointed to by `dest` is properly aligned and initialized.
+    pub unsafe fn memset(
         dest: *mut libc::c_void,
         ch: libc::c_int,
         count: libc::c_ulong,
@@ -323,21 +345,6 @@ pub mod externs {
             strlen(rhs) as usize,
         );
         lhs.cmp(rhs) as libc::c_int
-    }
-
-    pub(crate) unsafe fn strdup(
-        src: *const libc::c_char,
-    ) -> *mut libc::c_char {
-        if src.is_null() {
-            return die();
-        }
-        let len = strlen(src);
-        let dest = malloc(len + 1);
-        if dest.is_null() {
-            return die();
-        }
-        memcpy(dest, src.cast(), len + 1);
-        dest.cast()
     }
 
     pub(crate) unsafe fn strlen(
@@ -465,6 +472,10 @@ pub mod utils;
 
 /// API module for LibYML
 pub mod api;
+
+/// String module for LibYML
+pub mod string;
+
 mod dumper;
 mod emitter;
 /// Loader module for LibYML

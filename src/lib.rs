@@ -480,6 +480,10 @@ mod dumper;
 mod emitter;
 /// Loader module for LibYML
 pub mod loader;
+
+/// Decode module for LibYML
+pub mod decode;
+
 /// Memory module for LibYML
 pub mod memory;
 mod ops;
@@ -506,14 +510,14 @@ pub use crate::api::{
     yaml_emitter_set_output_string, yaml_emitter_set_unicode,
     yaml_emitter_set_width, yaml_event_delete,
     yaml_mapping_end_event_initialize,
-    yaml_mapping_start_event_initialize, yaml_parser_delete,
-    yaml_parser_initialize, yaml_parser_set_encoding,
+    yaml_mapping_start_event_initialize, yaml_parser_set_encoding,
     yaml_parser_set_input, yaml_parser_set_input_string,
     yaml_scalar_event_initialize, yaml_sequence_end_event_initialize,
     yaml_sequence_start_event_initialize,
     yaml_stream_end_event_initialize,
     yaml_stream_start_event_initialize, yaml_token_delete,
 };
+pub use crate::decode::{yaml_parser_delete, yaml_parser_initialize};
 pub use crate::dumper::{
     yaml_emitter_close, yaml_emitter_dump, yaml_emitter_open,
 };

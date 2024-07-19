@@ -2,9 +2,8 @@
 mod tests {
     use core::ffi::c_char;
     use core::mem::MaybeUninit;
-    use libyml::api::{
-        yaml_parser_initialize, yaml_parser_set_input_string,
-    };
+    use libyml::api::yaml_parser_set_input_string;
+    use libyml::decode::yaml_parser_initialize;
     use libyml::loader::yaml_parser_set_composer_error;
     use libyml::success::is_success;
     use libyml::yaml::YamlErrorTypeT::YamlComposerError;

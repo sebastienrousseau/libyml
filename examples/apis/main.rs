@@ -2,10 +2,8 @@
 use core::mem::MaybeUninit;
 pub(crate) use core::primitive::u8 as yaml_char_t;
 use core::ptr;
-use libyml::api::{
-    yaml_parser_delete, yaml_parser_initialize,
-    yaml_parser_set_input_string,
-};
+use libyml::api::yaml_parser_set_input_string;
+use libyml::decode::{yaml_parser_delete, yaml_parser_initialize};
 use libyml::memory::{
     yaml_free, yaml_malloc, yaml_realloc, yaml_strdup,
 };

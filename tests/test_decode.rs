@@ -124,8 +124,12 @@ mod tests {
     fn test_multiple_deletions() {
         unsafe {
             let mut parser = MaybeUninit::<YamlParserT>::uninit();
-            let init_result = yaml_parser_initialize(parser.as_mut_ptr());
-            assert!(init_result.ok, "Parser initialization should succeed");
+            let init_result =
+                yaml_parser_initialize(parser.as_mut_ptr());
+            assert!(
+                init_result.ok,
+                "Parser initialization should succeed"
+            );
 
             let parser_ptr = parser.as_mut_ptr();
             yaml_parser_delete(parser_ptr);
@@ -146,8 +150,12 @@ mod tests {
             // We can't track allocations without a custom allocator, so we'll just
             // test that we can initialize and delete without crashing
             let mut parser = MaybeUninit::<YamlParserT>::uninit();
-            let init_result = yaml_parser_initialize(parser.as_mut_ptr());
-            assert!(init_result.ok, "Parser initialization should succeed");
+            let init_result =
+                yaml_parser_initialize(parser.as_mut_ptr());
+            assert!(
+                init_result.ok,
+                "Parser initialization should succeed"
+            );
             yaml_parser_delete(parser.as_mut_ptr());
         }
     }

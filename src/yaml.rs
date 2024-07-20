@@ -1439,3 +1439,72 @@ impl Default for YamlEmitterStateT {
         YamlEmitterStateT::YamlEmitStreamStartState
     }
 }
+
+impl YamlDocumentT {
+    /// Cleans up resources used by `YamlDocumentT`. This includes deallocating memory for
+    /// version directives, tag directives, and nodes if they were allocated dynamically.
+    ///
+    /// # Safety
+    ///
+    /// This function is `unsafe` because it assumes that all pointers (e.g., version_directive,
+    /// tag directives, and nodes) are either valid or null. It will attempt to free allocated
+    /// memory, so the caller must ensure that:
+    ///
+    /// 1. The struct has been initialized properly.
+    /// 2. No other code retains pointers to the data being freed here.
+    /// 3. This method is not called concurrently with any operations that read from or write to
+    ///    the pointed-to data.
+    /// 4. The memory management strategy (allocation and deallocation) is correctly paired.
+    ///    For instance, if `libc::malloc` is used to allocate, `libc::free` should be used to deallocate.
+    ///
+    pub unsafe fn cleanup(&mut self) {
+        // Assuming `version_directive` and `tag_directives.start/end` are pointers that need to be freed.
+        if !self.version_directive.is_null() {
+            // Free version_directive if your logic requires it, e.g.,
+            // libc::free(self.version_directive as *mut libc::c_void);
+            self.version_directive = ptr::null_mut();
+        }
+
+        // Example of cleaning up tag directives if they were allocated dynamically
+        let mut tag_directive = self.tag_directives.start;
+        while tag_directive < self.tag_directives.end {
+            // Free each tag directive if necessary
+            // libc::free((*tag_directive).handle as *mut libc::c_void);
+            // libc::free((*tag_directive).prefix as *mut libc::c_void);
+            tag_directive = tag_directive.offset(1);
+        }
+
+        // Assuming `nodes` needs to be cleaned up
+        let mut node = self.nodes.start;
+        while node < self.nodes.top {
+            // Free each node if necessary
+            // libc::free((*node).tag as *mut libc::c_void);
+            node = node.offset(1);
+        }
+
+        // Free the nodes array itself if it was dynamically allocated
+        // libc::free(self.nodes.start as *mut libc::c_void);
+        self.nodes.start = ptr::null_mut();
+        self.nodes.end = ptr::null_mut();
+        self.nodes.top = ptr::null_mut();
+    }
+}
+
+impl Default for YamlDocumentT {
+    fn default() -> Self {
+        YamlDocumentT {
+            nodes: YamlStackT {
+                start: ptr::null_mut(),
+                end: ptr::null_mut(),
+                top: ptr::null_mut(),
+            },
+            version_directive: ptr::null_mut(),
+            tag_directives: UnnamedYamlDocumentTTagDirectives::default(
+            ),
+            start_implicit: false,
+            end_implicit: false,
+            start_mark: YamlMarkT::default(),
+            end_mark: YamlMarkT::default(),
+        }
+    }
+}

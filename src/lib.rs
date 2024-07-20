@@ -484,6 +484,9 @@ pub mod loader;
 /// Decode module for LibYML
 pub mod decode;
 
+/// Document module for LibYML
+pub mod document;
+
 /// Memory module for LibYML
 pub mod memory;
 mod ops;
@@ -497,13 +500,7 @@ mod writer;
 pub mod yaml;
 
 pub use crate::api::{
-    yaml_alias_event_initialize, yaml_document_add_mapping,
-    yaml_document_add_scalar, yaml_document_add_sequence,
-    yaml_document_append_mapping_pair,
-    yaml_document_append_sequence_item, yaml_document_delete,
-    yaml_document_end_event_initialize, yaml_document_get_node,
-    yaml_document_get_root_node, yaml_document_initialize,
-    yaml_document_start_event_initialize, yaml_emitter_delete,
+    yaml_alias_event_initialize, yaml_emitter_delete,
     yaml_emitter_initialize, yaml_emitter_set_break,
     yaml_emitter_set_canonical, yaml_emitter_set_encoding,
     yaml_emitter_set_indent, yaml_emitter_set_output,
@@ -518,6 +515,10 @@ pub use crate::api::{
     yaml_stream_start_event_initialize, yaml_token_delete,
 };
 pub use crate::decode::{yaml_parser_delete, yaml_parser_initialize};
+pub use crate::document::{
+    yaml_document_delete, yaml_document_get_node,
+    yaml_document_get_root_node, yaml_document_initialize,
+};
 pub use crate::dumper::{
     yaml_emitter_close, yaml_emitter_dump, yaml_emitter_open,
 };

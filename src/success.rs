@@ -8,14 +8,14 @@ pub const FAIL: Success = Success { ok: false };
 
 /// Structure representing the success state of an operation.
 #[must_use]
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, Default, PartialEq)]
 pub struct Success {
     /// Boolean indicating whether the operation was successful.
     pub ok: bool,
 }
 
 /// Structure representing the failure state of an operation.
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, Default, PartialEq)]
 pub struct Failure {
     /// Boolean indicating whether the operation failed.
     pub fail: bool,

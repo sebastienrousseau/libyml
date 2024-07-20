@@ -33,7 +33,7 @@
 //!
 //! ```toml
 //! [dependencies]
-//! libyml = "0.0.3"
+//! libyml = "0.0.4"
 //! ```
 //!
 //! Release notes are available under [GitHub releases][05].
@@ -134,9 +134,9 @@
 //! [09]: https://codecov.io/gh/sebastienrousseau/libyml
 //! [10]: https://github.com/sebastienrousseau/libyml/actions?query=branch%3Amaster
 //! [build-badge]: https://img.shields.io/github/actions/workflow/status/sebastienrousseau/libyml/release.yml?branch=master&style=for-the-badge&logo=github
-//! [codecov-badge]: https://img.shields.io/codecov/c/github/sebastienrousseau/libyml?style=for-the-badge&token=Q9KJ6XXL67&logo=codecov
+//! [codecov-badge]: https://img.shields.io/codecov/c/github/sebastienrousseau/libyml?style=for-the-badge&token=yc9s578xIk&logo=codecov
 //! [crates-badge]: https://img.shields.io/crates/v/libyml.svg?style=for-the-badge&color=fc8d62&logo=rust
-//! [libs-badge]: https://img.shields.io/badge/lib.rs-v0.0.3-orange.svg?style=for-the-badge
+//! [libs-badge]: https://img.shields.io/badge/lib.rs-v0.0.4-orange.svg?style=for-the-badge
 //! [docs-badge]: https://img.shields.io/badge/docs.rs-libyml-66c2a5?style=for-the-badge&labelColor=555555&logo=docs.rs
 //! [github-badge]: https://img.shields.io/badge/github-sebastienrousseau/libyml-8da0cb?style=for-the-badge&labelColor=555555&logo=github
 
@@ -152,10 +152,23 @@
 #![crate_type = "lib"]
 
 extern crate alloc;
-
 use core::mem::size_of;
 
-mod libc {
+/// This module contains declarations for C library functions.
+///
+/// # Purpose
+///
+/// This module provides declarations for C library functions that are used in the LibYAML library.
+/// These declarations are necessary for interfacing with the C library functions from Rust.
+///
+/// # Parameters
+///
+/// None.
+///
+/// # Return Value
+///
+/// This module does not return any value. It only contains declarations for C library functions.
+pub mod libc {
     pub(crate) use core::ffi::c_void;
     pub(crate) use core::primitive::{
         i32 as c_int, i64 as c_long, i8 as c_char, u32 as c_uint,
@@ -163,17 +176,19 @@ mod libc {
     };
 }
 
+/// Externs for libyaml
 #[macro_use]
-mod externs {
+pub mod externs {
     use crate::libc;
     use crate::ops::{die, ForceAdd as _, ForceInto as _};
     use alloc::alloc::{self as rust, Layout};
-    use core::mem::{self, MaybeUninit};
+    use core::mem::MaybeUninit;
+    use core::mem::{align_of, size_of};
     use core::ptr;
     use core::slice;
 
     const HEADER: usize = {
-        let need_len = mem::size_of::<usize>();
+        let need_len = size_of::<usize>();
         // Round up to multiple of MALLOC_ALIGN.
         (need_len + MALLOC_ALIGN - 1) & !(MALLOC_ALIGN - 1)
     };
@@ -181,8 +196,8 @@ mod externs {
     // `max_align_t` may be bigger than this, but libyaml does not use `long
     // double` or u128.
     const MALLOC_ALIGN: usize = {
-        let int_align = mem::align_of::<libc::c_ulong>();
-        let ptr_align = mem::align_of::<usize>();
+        let int_align = align_of::<libc::c_ulong>();
+        let ptr_align = align_of::<usize>();
         if int_align >= ptr_align {
             int_align
         } else {
@@ -199,7 +214,7 @@ mod externs {
             .unwrap_or_else(die);
         let memory = rust::alloc(layout);
         if memory.is_null() {
-            rust::handle_alloc_error(layout);
+            return die();
         }
         memory.cast::<usize>().write(size);
         memory.add(HEADER).cast()
@@ -214,19 +229,24 @@ mod externs {
         let layout =
             Layout::from_size_align_unchecked(size, MALLOC_ALIGN);
         let new_size = HEADER.force_add(new_size.force_into());
-        let new_layout =
-            Layout::from_size_align(new_size, MALLOC_ALIGN)
-                .ok()
-                .unwrap_or_else(die);
         memory = rust::realloc(memory, layout, new_size);
         if memory.is_null() {
-            rust::handle_alloc_error(new_layout);
+            return die();
         }
         memory.cast::<usize>().write(new_size);
         memory.add(HEADER).cast()
     }
 
-    pub(crate) unsafe fn free(ptr: *mut libc::c_void) {
+    /// Free memory.
+    ///
+    /// # Safety
+    ///
+    /// This function is unsafe because it deallocates memory pointed to by `ptr`.
+    /// The caller must ensure that:
+    /// - `ptr` is a valid pointer that was previously allocated by this allocator.
+    /// - `ptr` has not been freed before.
+    /// - After this call, `ptr` should not be used.
+    pub unsafe fn free(ptr: *mut libc::c_void) {
         let memory = ptr.cast::<u8>().sub(HEADER);
         let size = memory.cast::<usize>().read();
         let layout =
@@ -251,6 +271,9 @@ mod externs {
         src: *const libc::c_void,
         count: libc::c_ulong,
     ) -> *mut libc::c_void {
+        if dest.is_null() || src.is_null() {
+            return die();
+        }
         ptr::copy_nonoverlapping(
             src.cast::<MaybeUninit<u8>>(),
             dest.cast::<MaybeUninit<u8>>(),
@@ -264,6 +287,9 @@ mod externs {
         src: *const libc::c_void,
         count: libc::c_ulong,
     ) -> *mut libc::c_void {
+        if dest.is_null() || src.is_null() {
+            return die();
+        }
         ptr::copy(
             src.cast::<MaybeUninit<u8>>(),
             dest.cast::<MaybeUninit<u8>>(),
@@ -272,7 +298,29 @@ mod externs {
         dest
     }
 
-    pub(crate) unsafe fn memset(
+    /// Sets the first `count` bytes of the memory block pointed to by `dest` to the specified `ch` byte.
+    ///
+    /// # Purpose
+    ///
+    /// This function fills a block of memory with a specified byte value. It is commonly used to initialize or clear memory.
+    ///
+    /// # Parameters
+    ///
+    /// - `dest`: A pointer to the memory block to be filled.
+    /// - `ch`: The byte value to fill the memory block with.
+    /// - `count`: The number of bytes to fill in the memory block.
+    ///
+    /// # Return Value
+    ///
+    /// The function returns a pointer to the memory block (`dest`) after filling it.
+    ///
+    /// # Safety
+    ///
+    /// This function is unsafe because it directly manipulates raw memory. The caller must ensure that:
+    /// - `dest` is a valid pointer to a memory block.
+    /// - `count` is not greater than the size of the memory block pointed to by `dest`.
+    /// - The memory block pointed to by `dest` is properly aligned and initialized.
+    pub unsafe fn memset(
         dest: *mut libc::c_void,
         ch: libc::c_int,
         count: libc::c_ulong,
@@ -285,6 +333,9 @@ mod externs {
         lhs: *const libc::c_char,
         rhs: *const libc::c_char,
     ) -> libc::c_int {
+        if lhs.is_null() || rhs.is_null() {
+            return die();
+        }
         let lhs = slice::from_raw_parts(
             lhs.cast::<u8>(),
             strlen(lhs) as usize,
@@ -294,15 +345,6 @@ mod externs {
             strlen(rhs) as usize,
         );
         lhs.cmp(rhs) as libc::c_int
-    }
-
-    pub(crate) unsafe fn strdup(
-        src: *const libc::c_char,
-    ) -> *mut libc::c_char {
-        let len = strlen(src);
-        let dest = malloc(len + 1);
-        memcpy(dest, src.cast(), len + 1);
-        dest.cast()
     }
 
     pub(crate) unsafe fn strlen(
@@ -320,6 +362,9 @@ mod externs {
         rhs: *const libc::c_char,
         mut count: libc::c_ulong,
     ) -> libc::c_int {
+        if lhs.is_null() || rhs.is_null() {
+            return die();
+        }
         let mut lhs = lhs.cast::<u8>();
         let mut rhs = rhs.cast::<u8>();
         while count > 0 && *lhs != 0 && *lhs == *rhs {
@@ -361,7 +406,7 @@ mod externs {
         struct Abort;
         impl Drop for Abort {
             fn drop(&mut self) {
-                panic!();
+                panic!("arithmetic overflow");
             }
         }
         let _abort_on_panic = Abort;
@@ -421,41 +466,61 @@ impl<T> PointerExt for *mut T {
 #[macro_use]
 mod macros;
 
+/// Macros module for LibYML
+#[macro_use]
+pub mod utils;
+
 /// API module for LibYML
 pub mod api;
+
+/// String module for LibYML
+pub mod string;
+
 mod dumper;
 mod emitter;
-mod loader;
+/// Loader module for LibYML
+pub mod loader;
+
+/// Decode module for LibYML
+pub mod decode;
+
+/// Document module for LibYML
+pub mod document;
+
+/// Internal module for LibYML
+pub mod internal;
+
+/// Memory module for LibYML
+pub mod memory;
 mod ops;
 mod parser;
 mod reader;
 mod scanner;
-mod success;
+/// Success and Failure types for LibYML
+pub mod success;
 mod writer;
 /// YAML API module for LibYML
 pub mod yaml;
 
 pub use crate::api::{
-    yaml_alias_event_initialize, yaml_document_add_mapping,
-    yaml_document_add_scalar, yaml_document_add_sequence,
-    yaml_document_append_mapping_pair,
-    yaml_document_append_sequence_item, yaml_document_delete,
-    yaml_document_end_event_initialize, yaml_document_get_node,
-    yaml_document_get_root_node, yaml_document_initialize,
-    yaml_document_start_event_initialize, yaml_emitter_delete,
+    yaml_alias_event_initialize, yaml_emitter_delete,
     yaml_emitter_initialize, yaml_emitter_set_break,
     yaml_emitter_set_canonical, yaml_emitter_set_encoding,
     yaml_emitter_set_indent, yaml_emitter_set_output,
     yaml_emitter_set_output_string, yaml_emitter_set_unicode,
     yaml_emitter_set_width, yaml_event_delete,
     yaml_mapping_end_event_initialize,
-    yaml_mapping_start_event_initialize, yaml_parser_delete,
-    yaml_parser_initialize, yaml_parser_set_encoding,
+    yaml_mapping_start_event_initialize, yaml_parser_set_encoding,
     yaml_parser_set_input, yaml_parser_set_input_string,
     yaml_scalar_event_initialize, yaml_sequence_end_event_initialize,
     yaml_sequence_start_event_initialize,
     yaml_stream_end_event_initialize,
     yaml_stream_start_event_initialize, yaml_token_delete,
+};
+pub use crate::decode::{yaml_parser_delete, yaml_parser_initialize};
+pub use crate::document::{
+    yaml_document_delete, yaml_document_get_node,
+    yaml_document_get_root_node, yaml_document_initialize,
 };
 pub use crate::dumper::{
     yaml_emitter_close, yaml_emitter_dump, yaml_emitter_open,

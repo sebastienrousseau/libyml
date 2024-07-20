@@ -1,7 +1,6 @@
-use crate::api::{
-    yaml_free, yaml_malloc, yaml_stack_extend, yaml_strdup,
-};
 use crate::externs::{memcpy, memset, strcmp, strlen};
+use crate::internal::yaml_stack_extend;
+use crate::memory::{yaml_free, yaml_malloc, yaml_strdup};
 use crate::ops::ForceAdd as _;
 use crate::scanner::yaml_parser_fetch_more_tokens;
 use crate::success::{Success, FAIL, OK};
@@ -66,24 +65,41 @@ unsafe fn skip_token(parser: *mut YamlParserT) {
 
 /// Parse the input stream and produce the next parsing event.
 ///
-/// Call the function subsequently to produce a sequence of events corresponding
-/// to the input stream. The initial event has the type YamlStreamStartEvent
-/// while the ending event has the type YamlStreamEndEvent.
-///
-/// An application is responsible for freeing any buffers associated with the
-/// produced event object using the yaml_event_delete() function.
-///
-/// An application must not alternate the calls of yaml_parser_parse() with the
-/// calls of yaml_parser_scan() or yaml_parser_load(). Doing this will break the
-/// parser.
+/// This function should be called repeatedly to produce a sequence of events
+/// corresponding to the input stream. The initial event will be of type
+/// `YamlStreamStartEvent`, and the final event will be of type `YamlStreamEndEvent`.
 ///
 /// # Safety
 ///
-/// - `parser` must be a valid, non-null pointer to a properly initialized `YamlParserT` struct.
-/// - `event` must be a valid, non-null pointer to a `YamlEventT` struct that can be safely written to.
-/// - The `YamlParserT` and `YamlEventT` structs must be properly aligned and have the expected memory layout.
-/// - The caller must call `yaml_event_delete` to free any buffers associated with the produced event object.
-/// - The caller must not alternate calls to `yaml_parser_parse` with calls to `yaml_parser_scan` or `yaml_parser_load` on the same `YamlParserT` instance.
+/// This function is unsafe because:
+/// - It operates on raw pointers.
+/// - It assumes certain memory layouts and alignments.
+/// - It may cause undefined behavior if the input pointers are invalid or if the
+///   function is misused.
+///
+/// # Arguments
+///
+/// * `parser` - A pointer to a properly initialized `YamlParserT` struct.
+/// * `event` - A pointer to a `YamlEventT` struct that will be filled with the next event.
+///
+/// # Returns
+///
+/// Returns `OK` if an event was successfully parsed, or `FAIL` if:
+/// - The stream has ended (stream_end_produced is true)
+/// - There's an existing error in the parser
+/// - The parser is in the end state
+///
+/// # Errors
+///
+/// This function will return `FAIL` if any of the above error conditions are met.
+/// The caller should check the parser's error state for more details on the failure.
+///
+/// # Notes
+///
+/// - The caller is responsible for freeing any buffers associated with the produced
+///   event using the `yaml_event_delete()` function.
+/// - Do not alternate calls to `yaml_parser_parse()` with calls to `yaml_parser_scan()`
+///   or `yaml_parser_load()`. Doing so will break the parser.
 ///
 pub unsafe fn yaml_parser_parse(
     parser: *mut YamlParserT,
@@ -96,11 +112,14 @@ pub unsafe fn yaml_parser_parse(
         0,
         size_of::<YamlEventT>() as libc::c_ulong,
     );
-    if (*parser).stream_end_produced
-        || (*parser).error != YamlNoError
-        || (*parser).state == YamlParseEndState
-    {
-        return OK;
+    if (*parser).stream_end_produced {
+        return FAIL;
+    }
+    if (*parser).error != YamlNoError {
+        return FAIL;
+    }
+    if (*parser).state == YamlParseEndState {
+        return FAIL;
     }
     yaml_parser_state_machine(parser, event)
 }

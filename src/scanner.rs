@@ -1,10 +1,10 @@
-use crate::api::{
-    yaml_free, yaml_malloc, yaml_queue_extend, yaml_stack_extend,
-    yaml_string_extend, yaml_string_join,
-};
 use crate::externs::{memcpy, memmove, memset, strcmp, strlen};
+use crate::internal::{yaml_queue_extend, yaml_stack_extend};
+use crate::memory::yaml_free;
+use crate::memory::yaml_malloc;
 use crate::ops::{ForceAdd as _, ForceMul as _};
 use crate::reader::yaml_parser_update_buffer;
+use crate::string::{yaml_string_extend, yaml_string_join};
 use crate::success::{Success, FAIL, OK};
 use crate::yaml::{
     ptrdiff_t, size_t, yaml_char_t, YamlStringT, NULL_STRING,

@@ -21,18 +21,12 @@ mod cstr;
 use self::cstr::CStr;
 pub(crate) use core::primitive::u8 as yaml_char_t;
 use libyml::api::ScalarEventData;
-use std::env;
-use std::error::Error;
-use std::ffi::c_void;
-use std::fs::File;
-use std::io::{self, Read, Write};
-use std::mem::MaybeUninit;
-use std::process::{self, ExitCode};
-use std::ptr::{self, addr_of_mut};
-// use std::slice;
+use libyml::document::{
+    yaml_document_end_event_initialize,
+    yaml_document_start_event_initialize,
+};
 use libyml::{
-    yaml_alias_event_initialize, yaml_document_end_event_initialize,
-    yaml_document_start_event_initialize, yaml_emitter_delete,
+    yaml_alias_event_initialize, yaml_emitter_delete,
     yaml_emitter_emit, yaml_emitter_initialize,
     yaml_emitter_set_canonical, yaml_emitter_set_output,
     yaml_emitter_set_unicode, yaml_mapping_end_event_initialize,
@@ -48,6 +42,14 @@ use libyml::{
     YamlSingleQuotedScalarStyle, YamlTagDirectiveT, YamlUtf8Encoding,
     YamlVersionDirectiveT, YamlWriterError,
 };
+use std::env;
+use std::error::Error;
+use std::ffi::c_void;
+use std::fs::File;
+use std::io::{self, Read, Write};
+use std::mem::MaybeUninit;
+use std::process::{self, ExitCode};
+use std::ptr::{self, addr_of_mut};
 
 pub(crate) unsafe fn unsafe_main(
     stdin: &mut dyn Read,

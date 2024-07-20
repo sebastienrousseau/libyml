@@ -40,7 +40,7 @@ contributions to the Rust and C programming communities.
 
 ```toml
 [dependencies]
-libyml = "0.0.3"
+libyml = "0.0.4"
 ```
 
 Release notes are available under [GitHub releases][05].
@@ -141,8 +141,8 @@ cargo run --example apis
 [09]: https://codecov.io/gh/sebastienrousseau/libyml
 [10]: https://github.com/sebastienrousseau/libyml/actions?query=branch%3Amaster
 [build-badge]: https://img.shields.io/github/actions/workflow/status/sebastienrousseau/libyml/release.yml?branch=master&style=for-the-badge&logo=github
-[codecov-badge]: https://img.shields.io/codecov/c/github/sebastienrousseau/libyml?style=for-the-badge&token=Q9KJ6XXL67&logo=codecov
+[codecov-badge]: https://img.shields.io/codecov/c/github/sebastienrousseau/libyml?style=for-the-badge&logo=codecov&token=yc9s578xIk
 [crates-badge]: https://img.shields.io/crates/v/libyml.svg?style=for-the-badge&color=fc8d62&logo=rust
-[libs-badge]: https://img.shields.io/badge/lib.rs-v0.0.3-orange.svg?style=for-the-badge
+[libs-badge]: https://img.shields.io/badge/lib.rs-v0.0.4-orange.svg?style=for-the-badge
 [docs-badge]: https://img.shields.io/badge/docs.rs-libyml-66c2a5?style=for-the-badge&labelColor=555555&logo=docs.rs
 [github-badge]: https://img.shields.io/badge/github-sebastienrousseau/libyml-8da0cb?style=for-the-badge&labelColor=555555&logo=github

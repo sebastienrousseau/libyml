@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `src/yaml.rs`."><title>yaml.rs - source</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-46f98efaafac5295.ttf.woff2,FiraSans-Regular-018c141bf0843ffd.woff2,FiraSans-Medium-8f9a781e4970d388.woff2,SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2,SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../static.files/rustdoc-dd39b87e5fcfba68.css"><meta name="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="libyml" data-themes="" data-resource-suffix="" data-rustdoc-version="1.80.0-nightly (84b40fc90 2024-05-27)" data-channel="nightly" data-search-js="search-d52510db62a78183.js" data-settings-js="settings-4313503d2e1961c2.js" ><script src="../../static.files/storage-118b08c4c78b968e.js"></script><script defer src="../../static.files/src-script-e66d777a5a92e9b2.js"></script><script defer src="../../src-files.js"></script><script defer src="../../static.files/main-20a3ad099b048cf2.js"></script><noscript><link rel="stylesheet" href="../../static.files/noscript-df360f571f6edeae.css"></noscript><link rel="icon" href="https://kura.pro/libyml/images/favicon.ico"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="src-sidebar-title"><h2>Files</h2></div></nav><div class="sidebar-resizer"></div><main><rustdoc-search></rustdoc-search><section id="main-content" class="content"><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers"><a href="#1" id="1">1</a>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `src/yaml.rs`."><title>yaml.rs - source</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-46f98efaafac5295.ttf.woff2,FiraSans-Regular-018c141bf0843ffd.woff2,FiraSans-Medium-8f9a781e4970d388.woff2,SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2,SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../static.files/rustdoc-c5d6553a23f1e5a6.css"><meta name="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="libyml" data-themes="" data-resource-suffix="" data-rustdoc-version="1.81.0-nightly (9057c3ffe 2024-07-19)" data-channel="nightly" data-search-js="search-d234aafac6c221dd.js" data-settings-js="settings-4313503d2e1961c2.js" ><script src="../../static.files/storage-118b08c4c78b968e.js"></script><script defer src="../../static.files/src-script-e66d777a5a92e9b2.js"></script><script defer src="../../src-files.js"></script><script defer src="../../static.files/main-d2fab2bf619172d3.js"></script><noscript><link rel="stylesheet" href="../../static.files/noscript-df360f571f6edeae.css"></noscript><link rel="icon" href="https://kura.pro/libyml/images/favicon.ico"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="src-sidebar-title"><h2>Files</h2></div></nav><div class="sidebar-resizer"></div><main><rustdoc-search></rustdoc-search><section id="main-content" class="content"><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers"><a href="#1" id="1">1</a>
 <a href="#2" id="2">2</a>
 <a href="#3" id="3">3</a>
 <a href="#4" id="4">4</a>
@@ -1333,6 +1333,181 @@
 <a href="#1333" id="1333">1333</a>
 <a href="#1334" id="1334">1334</a>
 <a href="#1335" id="1335">1335</a>
+<a href="#1336" id="1336">1336</a>
+<a href="#1337" id="1337">1337</a>
+<a href="#1338" id="1338">1338</a>
+<a href="#1339" id="1339">1339</a>
+<a href="#1340" id="1340">1340</a>
+<a href="#1341" id="1341">1341</a>
+<a href="#1342" id="1342">1342</a>
+<a href="#1343" id="1343">1343</a>
+<a href="#1344" id="1344">1344</a>
+<a href="#1345" id="1345">1345</a>
+<a href="#1346" id="1346">1346</a>
+<a href="#1347" id="1347">1347</a>
+<a href="#1348" id="1348">1348</a>
+<a href="#1349" id="1349">1349</a>
+<a href="#1350" id="1350">1350</a>
+<a href="#1351" id="1351">1351</a>
+<a href="#1352" id="1352">1352</a>
+<a href="#1353" id="1353">1353</a>
+<a href="#1354" id="1354">1354</a>
+<a href="#1355" id="1355">1355</a>
+<a href="#1356" id="1356">1356</a>
+<a href="#1357" id="1357">1357</a>
+<a href="#1358" id="1358">1358</a>
+<a href="#1359" id="1359">1359</a>
+<a href="#1360" id="1360">1360</a>
+<a href="#1361" id="1361">1361</a>
+<a href="#1362" id="1362">1362</a>
+<a href="#1363" id="1363">1363</a>
+<a href="#1364" id="1364">1364</a>
+<a href="#1365" id="1365">1365</a>
+<a href="#1366" id="1366">1366</a>
+<a href="#1367" id="1367">1367</a>
+<a href="#1368" id="1368">1368</a>
+<a href="#1369" id="1369">1369</a>
+<a href="#1370" id="1370">1370</a>
+<a href="#1371" id="1371">1371</a>
+<a href="#1372" id="1372">1372</a>
+<a href="#1373" id="1373">1373</a>
+<a href="#1374" id="1374">1374</a>
+<a href="#1375" id="1375">1375</a>
+<a href="#1376" id="1376">1376</a>
+<a href="#1377" id="1377">1377</a>
+<a href="#1378" id="1378">1378</a>
+<a href="#1379" id="1379">1379</a>
+<a href="#1380" id="1380">1380</a>
+<a href="#1381" id="1381">1381</a>
+<a href="#1382" id="1382">1382</a>
+<a href="#1383" id="1383">1383</a>
+<a href="#1384" id="1384">1384</a>
+<a href="#1385" id="1385">1385</a>
+<a href="#1386" id="1386">1386</a>
+<a href="#1387" id="1387">1387</a>
+<a href="#1388" id="1388">1388</a>
+<a href="#1389" id="1389">1389</a>
+<a href="#1390" id="1390">1390</a>
+<a href="#1391" id="1391">1391</a>
+<a href="#1392" id="1392">1392</a>
+<a href="#1393" id="1393">1393</a>
+<a href="#1394" id="1394">1394</a>
+<a href="#1395" id="1395">1395</a>
+<a href="#1396" id="1396">1396</a>
+<a href="#1397" id="1397">1397</a>
+<a href="#1398" id="1398">1398</a>
+<a href="#1399" id="1399">1399</a>
+<a href="#1400" id="1400">1400</a>
+<a href="#1401" id="1401">1401</a>
+<a href="#1402" id="1402">1402</a>
+<a href="#1403" id="1403">1403</a>
+<a href="#1404" id="1404">1404</a>
+<a href="#1405" id="1405">1405</a>
+<a href="#1406" id="1406">1406</a>
+<a href="#1407" id="1407">1407</a>
+<a href="#1408" id="1408">1408</a>
+<a href="#1409" id="1409">1409</a>
+<a href="#1410" id="1410">1410</a>
+<a href="#1411" id="1411">1411</a>
+<a href="#1412" id="1412">1412</a>
+<a href="#1413" id="1413">1413</a>
+<a href="#1414" id="1414">1414</a>
+<a href="#1415" id="1415">1415</a>
+<a href="#1416" id="1416">1416</a>
+<a href="#1417" id="1417">1417</a>
+<a href="#1418" id="1418">1418</a>
+<a href="#1419" id="1419">1419</a>
+<a href="#1420" id="1420">1420</a>
+<a href="#1421" id="1421">1421</a>
+<a href="#1422" id="1422">1422</a>
+<a href="#1423" id="1423">1423</a>
+<a href="#1424" id="1424">1424</a>
+<a href="#1425" id="1425">1425</a>
+<a href="#1426" id="1426">1426</a>
+<a href="#1427" id="1427">1427</a>
+<a href="#1428" id="1428">1428</a>
+<a href="#1429" id="1429">1429</a>
+<a href="#1430" id="1430">1430</a>
+<a href="#1431" id="1431">1431</a>
+<a href="#1432" id="1432">1432</a>
+<a href="#1433" id="1433">1433</a>
+<a href="#1434" id="1434">1434</a>
+<a href="#1435" id="1435">1435</a>
+<a href="#1436" id="1436">1436</a>
+<a href="#1437" id="1437">1437</a>
+<a href="#1438" id="1438">1438</a>
+<a href="#1439" id="1439">1439</a>
+<a href="#1440" id="1440">1440</a>
+<a href="#1441" id="1441">1441</a>
+<a href="#1442" id="1442">1442</a>
+<a href="#1443" id="1443">1443</a>
+<a href="#1444" id="1444">1444</a>
+<a href="#1445" id="1445">1445</a>
+<a href="#1446" id="1446">1446</a>
+<a href="#1447" id="1447">1447</a>
+<a href="#1448" id="1448">1448</a>
+<a href="#1449" id="1449">1449</a>
+<a href="#1450" id="1450">1450</a>
+<a href="#1451" id="1451">1451</a>
+<a href="#1452" id="1452">1452</a>
+<a href="#1453" id="1453">1453</a>
+<a href="#1454" id="1454">1454</a>
+<a href="#1455" id="1455">1455</a>
+<a href="#1456" id="1456">1456</a>
+<a href="#1457" id="1457">1457</a>
+<a href="#1458" id="1458">1458</a>
+<a href="#1459" id="1459">1459</a>
+<a href="#1460" id="1460">1460</a>
+<a href="#1461" id="1461">1461</a>
+<a href="#1462" id="1462">1462</a>
+<a href="#1463" id="1463">1463</a>
+<a href="#1464" id="1464">1464</a>
+<a href="#1465" id="1465">1465</a>
+<a href="#1466" id="1466">1466</a>
+<a href="#1467" id="1467">1467</a>
+<a href="#1468" id="1468">1468</a>
+<a href="#1469" id="1469">1469</a>
+<a href="#1470" id="1470">1470</a>
+<a href="#1471" id="1471">1471</a>
+<a href="#1472" id="1472">1472</a>
+<a href="#1473" id="1473">1473</a>
+<a href="#1474" id="1474">1474</a>
+<a href="#1475" id="1475">1475</a>
+<a href="#1476" id="1476">1476</a>
+<a href="#1477" id="1477">1477</a>
+<a href="#1478" id="1478">1478</a>
+<a href="#1479" id="1479">1479</a>
+<a href="#1480" id="1480">1480</a>
+<a href="#1481" id="1481">1481</a>
+<a href="#1482" id="1482">1482</a>
+<a href="#1483" id="1483">1483</a>
+<a href="#1484" id="1484">1484</a>
+<a href="#1485" id="1485">1485</a>
+<a href="#1486" id="1486">1486</a>
+<a href="#1487" id="1487">1487</a>
+<a href="#1488" id="1488">1488</a>
+<a href="#1489" id="1489">1489</a>
+<a href="#1490" id="1490">1490</a>
+<a href="#1491" id="1491">1491</a>
+<a href="#1492" id="1492">1492</a>
+<a href="#1493" id="1493">1493</a>
+<a href="#1494" id="1494">1494</a>
+<a href="#1495" id="1495">1495</a>
+<a href="#1496" id="1496">1496</a>
+<a href="#1497" id="1497">1497</a>
+<a href="#1498" id="1498">1498</a>
+<a href="#1499" id="1499">1499</a>
+<a href="#1500" id="1500">1500</a>
+<a href="#1501" id="1501">1501</a>
+<a href="#1502" id="1502">1502</a>
+<a href="#1503" id="1503">1503</a>
+<a href="#1504" id="1504">1504</a>
+<a href="#1505" id="1505">1505</a>
+<a href="#1506" id="1506">1506</a>
+<a href="#1507" id="1507">1507</a>
+<a href="#1508" id="1508">1508</a>
+<a href="#1509" id="1509">1509</a>
+<a href="#1510" id="1510">1510</a>
 </pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::libc;
 <span class="kw">use </span>core::ops::Deref;
 <span class="kw">use </span>core::ptr::{<span class="self">self</span>, addr_of};
@@ -1340,12 +1515,12 @@
 <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">use </span><span class="self">self</span>::{
     YamlEncodingT::<span class="kw-2">*</span>, YamlEventTypeT::<span class="kw-2">*</span>, YamlNodeTypeT::<span class="kw-2">*</span>,
 };
-<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">use </span>core::primitive::{
+<span class="kw">pub use </span>core::primitive::{
     i64 <span class="kw">as </span>ptrdiff_t, u64 <span class="kw">as </span>size_t, u8 <span class="kw">as </span>yaml_char_t,
 };
 
 <span class="doccomment">/// The version directive data.
-</span><span class="attr">#[derive(Copy, Clone, Debug)]
+</span><span class="attr">#[derive(Copy, Clone, Debug, Default)]
 #[repr(C)]
 #[non_exhaustive]
 </span><span class="kw">pub struct </span>YamlVersionDirectiveT {
@@ -1353,6 +1528,17 @@
     </span><span class="kw">pub </span>major: libc::c_int,
     <span class="doccomment">/// The minor version number.
     </span><span class="kw">pub </span>minor: libc::c_int,
+}
+
+<span class="kw">impl </span>YamlVersionDirectiveT {
+    <span class="doccomment">/// Constructor for `YamlVersionDirectiveT`.
+    </span><span class="kw">pub fn </span>new(major: libc::c_int, minor: libc::c_int) -&gt; <span class="self">Self </span>{
+        YamlVersionDirectiveT {
+            major,
+            minor,
+            <span class="comment">// Initialize any future fields with their default values
+        </span>}
+    }
 }
 
 <span class="doccomment">/// The tag directive data.
@@ -1401,7 +1587,7 @@
 #[repr(u32)]
 #[non_exhaustive]
 </span><span class="kw">pub enum </span>YamlErrorTypeT {
-    <span class="doccomment">/// No error is produced.
+    <span class="doccomment">/// No error.
     </span>YamlNoError = <span class="number">0</span>,
     <span class="doccomment">/// Cannot allocate or reallocate a block of memory.
     </span>YamlMemoryError = <span class="number">1</span>,
@@ -1419,8 +1605,14 @@
     </span>YamlEmitterError = <span class="number">7</span>,
 }
 
+<span class="kw">impl </span>Default <span class="kw">for </span>YamlErrorTypeT {
+    <span class="kw">fn </span>default() -&gt; <span class="self">Self </span>{
+        YamlErrorTypeT::YamlNoError
+    }
+}
+
 <span class="doccomment">/// The pointer position.
-</span><span class="attr">#[derive(Copy, Clone, Debug)]
+</span><span class="attr">#[derive(Copy, Clone, Debug, Default)]
 #[repr(C)]
 #[non_exhaustive]
 </span><span class="kw">pub struct </span>YamlMarkT {
@@ -1536,58 +1728,6 @@
     <span class="doccomment">/// The token type.
     </span><span class="kw">pub </span>type_: YamlTokenTypeT,
     <span class="doccomment">/// The token data.
-    ///
-    /// ```
-    /// # const _: &amp;str = stringify! {
-    /// union {
-    ///     /// The stream start (for YamlStreamStartToken).
-    ///     stream_start: struct {
-    ///         /// The stream encoding.
-    ///         encoding: YamlEncodingT,
-    ///     },
-    ///     /// The alias (for YamlAliasToken).
-    ///     alias: struct {
-    ///         /// The alias value.
-    ///         value: *mut u8,
-    ///     },
-    ///     /// The anchor (for YamlAnchorToken).
-    ///     anchor: struct {
-    ///         /// The anchor value.
-    ///         value: *mut u8,
-    ///     },
-    ///     /// The tag (for YamlTagToken).
-    ///     tag: struct {
-    ///         /// The tag handle.
-    ///         handle: *mut u8,
-    ///         /// The tag suffix.
-    ///         suffix: *mut u8,
-    ///     },
-    ///     /// The scalar value (for YamlScalarToken).
-    ///     scalar: struct {
-    ///         /// The scalar value.
-    ///         value: *mut u8,
-    ///         /// The length of the scalar value.
-    ///         length: u64,
-    ///         /// The scalar style.
-    ///         style: YamlScalarStyleT,
-    ///     },
-    ///     /// The version directive (for YamlVersionDirectiveToken).
-    ///     version_directive: struct {
-    ///         /// The major version number.
-    ///         major: i32,
-    ///         /// The minor version number.
-    ///         minor: i32,
-    ///     },
-    ///     /// The tag directive (for YamlTagDirectiveToken).
-    ///     tag_directive: struct {
-    ///         /// The tag handle.
-    ///         handle: *mut u8,
-    ///         /// The tag prefix.
-    ///         prefix: *mut u8,
-    ///     },
-    /// }
-    /// # };
-    /// ```
     </span><span class="kw">pub </span>data: UnnamedYamlTokenTData,
     <span class="doccomment">/// The beginning of the token.
     </span><span class="kw">pub </span>start_mark: YamlMarkT,
@@ -1595,7 +1735,7 @@
     </span><span class="kw">pub </span>end_mark: YamlMarkT,
 }
 
-<span class="attr">#[derive(Copy, Clone, Debug)]
+<span class="attr">#[derive(Copy, Clone, Debug, Default)]
 #[repr(C)]
 </span><span class="doccomment">/// The data structure for YAML tokens.
 </span><span class="kw">pub struct </span>UnnamedYamlTokenTData {
@@ -1667,7 +1807,7 @@
 }
 
 <span class="doccomment">/// Represents the version directive in a YAML document.
-</span><span class="attr">#[derive(Copy, Clone, Debug)]
+</span><span class="attr">#[derive(Copy, Clone, Debug, Default)]
 #[repr(C)]
 #[non_exhaustive]
 </span><span class="kw">pub struct </span>UnnamedYamlTokenTdataVersionDirective {
@@ -1725,81 +1865,6 @@
     <span class="doccomment">/// The event type.
     </span><span class="kw">pub </span>type_: YamlEventTypeT,
     <span class="doccomment">/// The event data.
-    ///
-    /// ```
-    /// # const _: &amp;str = stringify! {
-    /// union {
-    ///     /// The stream parameters (for YamlStreamStartEvent).
-    ///     stream_start: struct {
-    ///         /// The document encoding.
-    ///         encoding: YamlEncodingT,
-    ///     },
-    ///     /// The document parameters (for YamlDocumentStartEvent).
-    ///     document_start: struct {
-    ///         /// The version directive.
-    ///         version_directive: *mut YamlVersionDirectiveT,
-    ///         /// The list of tag directives.
-    ///         tag_directives: struct {
-    ///             /// The beginning of the tag directives list.
-    ///             start: *mut YamlTagDirectiveT,
-    ///             /// The end of the tag directives list.
-    ///             end: *mut YamlTagDirectiveT,
-    ///         },
-    ///         /// Is the document indicator implicit?
-    ///         implicit: i32,
-    ///     },
-    ///     /// The document end parameters (for YamlDocumentEndEvent).
-    ///     document_end: struct {
-    ///         /// Is the document end indicator implicit?
-    ///         implicit: i32,
-    ///     },
-    ///     /// The alias parameters (for YamlAliasEvent).
-    ///     alias: struct {
-    ///         /// The anchor.
-    ///         anchor: *mut u8,
-    ///     },
-    ///     /// The scalar parameters (for YamlScalarEvent).
-    ///     scalar: struct {
-    ///         /// The anchor.
-    ///         anchor: *mut u8,
-    ///         /// The tag.
-    ///         tag: *mut u8,
-    ///         /// The scalar value.
-    ///         value: *mut u8,
-    ///         /// The length of the scalar value.
-    ///         length: u64,
-    ///         /// Is the tag optional for the plain style?
-    ///         plain_implicit: i32,
-    ///         /// Is the tag optional for any non-plain style?
-    ///         quoted_implicit: i32,
-    ///         /// The scalar style.
-    ///         style: YamlScalarStyleT,
-    ///     },
-    ///     /// The sequence parameters (for YamlSequenceStartEvent).
-    ///     sequence_start: struct {
-    ///         /// The anchor.
-    ///         anchor: *mut u8,
-    ///         /// The tag.
-    ///         tag: *mut u8,
-    ///         /// Is the tag optional?
-    ///         implicit: i32,
-    ///         /// The sequence style.
-    ///         style: YamlSequenceStyleT,
-    ///     },
-    ///     /// The mapping parameters (for YamlMappingStartEvent).
-    ///     mapping_start: struct {
-    ///         /// The anchor.
-    ///         anchor: *mut u8,
-    ///         /// The tag.
-    ///         tag: *mut u8,
-    ///         /// Is the tag optional?
-    ///         implicit: i32,
-    ///         /// The mapping style.
-    ///         style: YamlMappingStyleT,
-    ///     },
-    /// }
-    /// # };
-    /// ```
     </span><span class="kw">pub </span>data: UnnamedYamlEventTData,
     <span class="doccomment">/// The beginning of the event.
     </span><span class="kw">pub </span>start_mark: YamlMarkT,
@@ -1954,36 +2019,6 @@
     <span class="doccomment">/// The node tag.
     </span><span class="kw">pub </span>tag: <span class="kw-2">*mut </span>yaml_char_t,
     <span class="doccomment">/// The node data.
-    ///
-    /// ```
-    /// # const _: &amp;str = stringify! {
-    /// union {
-    ///     /// The scalar parameters (for YamlScalarNode).
-    ///     scalar: struct {
-    ///         /// The scalar value.
-    ///         value: *mut u8,
-    ///         /// The length of the scalar value.
-    ///         length: u64,
-    ///         /// The scalar style.
-    ///         style: YamlScalarStyleT,
-    ///     },
-    ///     /// The sequence parameters (for YamlSequenceNode).
-    ///     sequence: struct {
-    ///         /// The stack of sequence items.
-    ///         items: YamlStackT&lt;YamlNodeItemT&gt;,
-    ///         /// The sequence style.
-    ///         style: YamlSequenceStyleT,
-    ///     },
-    ///     /// The mapping parameters (for YamlMappingNode).
-    ///     mapping: struct {
-    ///         /// The stack of mapping pairs (key, value).
-    ///         pairs: YamlStackT&lt;YamlNodePairT&gt;,
-    ///         /// The mapping style.
-    ///         style: YamlMappingStyleT,
-    ///     },
-    /// }
-    /// # };
-    /// ```
     </span><span class="kw">pub </span>data: UnnamedYamlNodeTData,
     <span class="doccomment">/// The beginning of the node.
     </span><span class="kw">pub </span>start_mark: YamlMarkT,
@@ -2062,17 +2097,6 @@
     <span class="doccomment">/// The version directive.
     </span><span class="kw">pub </span>version_directive: <span class="kw-2">*mut </span>YamlVersionDirectiveT,
     <span class="doccomment">/// The list of tag directives.
-    ///
-    /// ```
-    /// # const _: &amp;str = stringify! {
-    /// struct {
-    ///     /// The beginning of the tag directives list.
-    ///     start: *mut YamlTagDirectiveT,
-    ///     /// The end of the tag directives list.
-    ///     end: *mut YamlTagDirectiveT,
-    /// }
-    /// # };
-    /// ```
     </span><span class="kw">pub </span>tag_directives: UnnamedYamlDocumentTTagDirectives,
     <span class="doccomment">/// Is the document start indicator implicit?
     </span><span class="kw">pub </span>start_implicit: bool,
@@ -2112,7 +2136,7 @@
 ) -&gt; libc::c_int;
 
 <span class="doccomment">/// This structure holds information about a potential simple key.
-</span><span class="attr">#[derive(Copy, Clone, Debug)]
+</span><span class="attr">#[derive(Copy, Clone, Debug, Default)]
 #[repr(C)]
 #[non_exhaustive]
 </span><span class="kw">pub struct </span>YamlSimpleKeyT {
@@ -2322,7 +2346,7 @@
     }
 }
 
-<span class="attr">#[derive(Copy, Clone, Debug)]
+<span class="attr">#[derive(Copy, Clone, Debug, Default)]
 #[repr(C)]
 </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">struct </span>UnnamedYamlParserTInput {
     <span class="doccomment">/// String input data.
@@ -2517,7 +2541,7 @@
     }
 }
 
-<span class="attr">#[derive(Copy, Clone, Debug)]
+<span class="attr">#[derive(Copy, Clone, Debug, Default)]
 #[repr(C)]
 </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">struct </span>UnnamedYamlEmitterTOutput {
     <span class="doccomment">/// String output data.
@@ -2623,16 +2647,20 @@
     }
 }
 
-<span class="comment">// impl&lt;T&gt; Copy for YamlBufferT&lt;T&gt; {}
-// impl&lt;T&gt; Clone for YamlBufferT&lt;T&gt; {
-//     fn clone(&amp;self) -&gt; Self {
-//         *self
-//     }
-// }
+<span class="kw">impl</span>&lt;T&gt; Default <span class="kw">for </span>YamlBufferT&lt;T&gt; {
+    <span class="kw">fn </span>default() -&gt; <span class="self">Self </span>{
+        YamlBufferT {
+            start: ptr::null_mut(),
+            end: ptr::null_mut(),
+            pointer: ptr::null_mut(),
+            last: ptr::null_mut(),
+        }
+    }
+}
 
+<span class="doccomment">/// The beginning of the stack.
 </span><span class="attr">#[derive(Debug)]
 #[repr(C)]
-</span><span class="doccomment">/// The beginning of the stack.
 </span><span class="kw">pub struct </span>YamlStackT&lt;T&gt; {
     <span class="doccomment">/// The beginning of the stack.
     </span><span class="kw">pub </span>start: <span class="kw-2">*mut </span>T,
@@ -2649,7 +2677,8 @@
     </span>}
 }
 
-<span class="attr">#[derive(Debug)]
+<span class="doccomment">/// The beginning of the queue.
+</span><span class="attr">#[derive(Debug)]
 #[repr(C)]
 </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">struct </span>YamlQueueT&lt;T&gt; {
     <span class="doccomment">/// The beginning of the queue.
@@ -2667,5 +2696,326 @@
     <span class="kw">fn </span>clone(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="self">Self </span>{
         <span class="kw-2">*</span><span class="self">self
     </span>}
+}
+
+<span class="kw">impl</span>&lt;T: Default&gt; Default <span class="kw">for </span>YamlQueueT&lt;T&gt; {
+    <span class="kw">fn </span>default() -&gt; <span class="self">Self </span>{
+        YamlQueueT {
+            start: ptr::null_mut(),
+            end: ptr::null_mut(),
+            head: ptr::null_mut(),
+            tail: ptr::null_mut(),
+        }
+    }
+}
+
+<span class="kw">impl </span>Default <span class="kw">for </span>YamlStringT {
+    <span class="kw">fn </span>default() -&gt; <span class="self">Self </span>{
+        YamlStringT {
+            start: ptr::null_mut(),
+            end: ptr::null_mut(),
+            pointer: ptr::null_mut(),
+        }
+    }
+}
+
+<span class="kw">impl </span>Default <span class="kw">for </span>UnnamedYamlEmitterTScalarData {
+    <span class="kw">fn </span>default() -&gt; <span class="self">Self </span>{
+        UnnamedYamlEmitterTScalarData {
+            value: ptr::null_mut(),
+            length: <span class="number">0</span>,
+            multiline: <span class="bool-val">false</span>,
+            flow_plain_allowed: <span class="bool-val">false</span>,
+            block_plain_allowed: <span class="bool-val">false</span>,
+            single_quoted_allowed: <span class="bool-val">false</span>,
+            block_allowed: <span class="bool-val">false</span>,
+            style: YamlScalarStyleT::YamlAnyScalarStyle,
+        }
+    }
+}
+
+<span class="kw">impl </span>Default <span class="kw">for </span>UnnamedYamlEmitterTTagData {
+    <span class="kw">fn </span>default() -&gt; <span class="self">Self </span>{
+        UnnamedYamlEmitterTTagData {
+            handle: ptr::null_mut(),
+            handle_length: <span class="number">0</span>,
+            suffix: ptr::null_mut(),
+            suffix_length: <span class="number">0</span>,
+        }
+    }
+}
+
+<span class="kw">impl </span>Default <span class="kw">for </span>UnnamedYamlEmitterTAnchorData {
+    <span class="kw">fn </span>default() -&gt; <span class="self">Self </span>{
+        UnnamedYamlEmitterTAnchorData {
+            anchor: ptr::null_mut(),
+            anchor_length: <span class="number">0</span>,
+            alias: <span class="bool-val">false</span>,
+        }
+    }
+}
+
+<span class="kw">impl </span>Default <span class="kw">for </span>UnnamedYamlEmitterTOutputString {
+    <span class="kw">fn </span>default() -&gt; <span class="self">Self </span>{
+        UnnamedYamlEmitterTOutputString {
+            buffer: ptr::null_mut(),
+            size: <span class="number">0</span>,
+            size_written: ptr::null_mut(),
+        }
+    }
+}
+
+<span class="kw">impl </span>Default <span class="kw">for </span>UnnamedYamlParserTInputString {
+    <span class="kw">fn </span>default() -&gt; <span class="self">Self </span>{
+        UnnamedYamlParserTInputString {
+            start: ptr::null(),
+            end: ptr::null(),
+            current: ptr::null(),
+        }
+    }
+}
+
+<span class="kw">impl </span>Default <span class="kw">for </span>UnnamedYamlDocumentTTagDirectives {
+    <span class="kw">fn </span>default() -&gt; <span class="self">Self </span>{
+        UnnamedYamlDocumentTTagDirectives {
+            start: ptr::null_mut(),
+            end: ptr::null_mut(),
+        }
+    }
+}
+
+<span class="kw">impl </span>Default <span class="kw">for </span>YamlEncodingT {
+    <span class="kw">fn </span>default() -&gt; <span class="self">Self </span>{
+        YamlAnyEncoding
+    }
+}
+
+<span class="kw">impl </span>Default <span class="kw">for </span>YamlParserStateT {
+    <span class="kw">fn </span>default() -&gt; <span class="self">Self </span>{
+        YamlParserStateT::YamlParseStreamStartState
+    }
+}
+
+<span class="kw">impl </span>Default <span class="kw">for </span>YamlScalarStyleT {
+    <span class="kw">fn </span>default() -&gt; <span class="self">Self </span>{
+        YamlScalarStyleT::YamlAnyScalarStyle
+    }
+}
+
+<span class="kw">impl </span>Default <span class="kw">for </span>YamlTokenT {
+    <span class="kw">fn </span>default() -&gt; <span class="self">Self </span>{
+        YamlTokenT {
+            type_: YamlTokenTypeT::YamlNoToken,
+            data: UnnamedYamlTokenTData::default(),
+            start_mark: YamlMarkT::default(),
+            end_mark: YamlMarkT::default(),
+        }
+    }
+}
+
+<span class="kw">impl </span>Default <span class="kw">for </span>UnnamedYamlTokenTdataStreamStart {
+    <span class="kw">fn </span>default() -&gt; <span class="self">Self </span>{
+        UnnamedYamlTokenTdataStreamStart {
+            encoding: YamlAnyEncoding,
+        }
+    }
+}
+
+<span class="kw">impl </span>Default <span class="kw">for </span>UnnamedYamlTokenTdataAlias {
+    <span class="kw">fn </span>default() -&gt; <span class="self">Self </span>{
+        UnnamedYamlTokenTdataAlias {
+            value: ptr::null_mut(),
+        }
+    }
+}
+
+<span class="kw">impl </span>Default <span class="kw">for </span>UnnamedYamlTokenTdataAnchor {
+    <span class="kw">fn </span>default() -&gt; <span class="self">Self </span>{
+        UnnamedYamlTokenTdataAnchor {
+            value: ptr::null_mut(),
+        }
+    }
+}
+
+<span class="kw">impl </span>Default <span class="kw">for </span>UnnamedYamlTokenTdataTag {
+    <span class="kw">fn </span>default() -&gt; <span class="self">Self </span>{
+        UnnamedYamlTokenTdataTag {
+            handle: ptr::null_mut(),
+            suffix: ptr::null_mut(),
+        }
+    }
+}
+
+<span class="kw">impl </span>Default <span class="kw">for </span>UnnamedYamlTokenTdataScalar {
+    <span class="kw">fn </span>default() -&gt; <span class="self">Self </span>{
+        UnnamedYamlTokenTdataScalar {
+            value: ptr::null_mut(),
+            length: <span class="number">0</span>,
+            style: YamlScalarStyleT::YamlAnyScalarStyle,
+        }
+    }
+}
+
+<span class="kw">impl </span>Default <span class="kw">for </span>UnnamedYamlTokenTdataTagDirective {
+    <span class="kw">fn </span>default() -&gt; <span class="self">Self </span>{
+        UnnamedYamlTokenTdataTagDirective {
+            handle: ptr::null_mut(),
+            prefix: ptr::null_mut(),
+        }
+    }
+}
+
+<span class="kw">impl </span>Default <span class="kw">for </span>YamlStackT&lt;YamlSimpleKeyT&gt; {
+    <span class="kw">fn </span>default() -&gt; <span class="self">Self </span>{
+        YamlStackT {
+            start: ptr::null_mut(),
+            end: ptr::null_mut(),
+            top: ptr::null_mut(),
+        }
+    }
+}
+
+<span class="kw">impl </span>Default <span class="kw">for </span>YamlStackT&lt;YamlTagDirectiveT&gt; {
+    <span class="kw">fn </span>default() -&gt; <span class="self">Self </span>{
+        YamlStackT {
+            start: ptr::null_mut(),
+            end: ptr::null_mut(),
+            top: ptr::null_mut(),
+        }
+    }
+}
+
+<span class="kw">impl </span>Default <span class="kw">for </span>YamlStackT&lt;YamlAliasDataT&gt; {
+    <span class="kw">fn </span>default() -&gt; <span class="self">Self </span>{
+        YamlStackT {
+            start: ptr::null_mut(),
+            end: ptr::null_mut(),
+            top: ptr::null_mut(),
+        }
+    }
+}
+
+<span class="kw">impl </span>Default <span class="kw">for </span>YamlTagDirectiveT {
+    <span class="kw">fn </span>default() -&gt; <span class="self">Self </span>{
+        YamlTagDirectiveT {
+            handle: ptr::null_mut(),
+            prefix: ptr::null_mut(),
+        }
+    }
+}
+
+<span class="kw">impl </span>Default <span class="kw">for </span>YamlBreakT {
+    <span class="kw">fn </span>default() -&gt; <span class="self">Self </span>{
+        YamlBreakT::YamlAnyBreak
+    }
+}
+
+<span class="kw">impl </span>Default <span class="kw">for </span>YamlSequenceStyleT {
+    <span class="kw">fn </span>default() -&gt; <span class="self">Self </span>{
+        YamlSequenceStyleT::YamlAnySequenceStyle
+    }
+}
+
+<span class="kw">impl </span>Default <span class="kw">for </span>YamlMappingStyleT {
+    <span class="kw">fn </span>default() -&gt; <span class="self">Self </span>{
+        YamlMappingStyleT::YamlAnyMappingStyle
+    }
+}
+
+<span class="kw">impl </span>Default <span class="kw">for </span>YamlEventTypeT {
+    <span class="kw">fn </span>default() -&gt; <span class="self">Self </span>{
+        YamlNoEvent
+    }
+}
+
+<span class="kw">impl </span>Default <span class="kw">for </span>YamlAliasDataT {
+    <span class="kw">fn </span>default() -&gt; <span class="self">Self </span>{
+        YamlAliasDataT {
+            anchor: ptr::null_mut(),
+            index: <span class="number">0</span>,
+            mark: YamlMarkT::default(),
+        }
+    }
+}
+
+<span class="kw">impl </span>Default <span class="kw">for </span>YamlNodeTypeT {
+    <span class="kw">fn </span>default() -&gt; <span class="self">Self </span>{
+        YamlNoNode
+    }
+}
+
+<span class="kw">impl </span>Default <span class="kw">for </span>YamlEmitterStateT {
+    <span class="kw">fn </span>default() -&gt; <span class="self">Self </span>{
+        YamlEmitterStateT::YamlEmitStreamStartState
+    }
+}
+
+<span class="kw">impl </span>YamlDocumentT {
+    <span class="doccomment">/// Cleans up resources used by `YamlDocumentT`. This includes deallocating memory for
+    /// version directives, tag directives, and nodes if they were allocated dynamically.
+    ///
+    /// # Safety
+    ///
+    /// This function is `unsafe` because it assumes that all pointers (e.g., version_directive,
+    /// tag directives, and nodes) are either valid or null. It will attempt to free allocated
+    /// memory, so the caller must ensure that:
+    ///
+    /// 1. The struct has been initialized properly.
+    /// 2. No other code retains pointers to the data being freed here.
+    /// 3. This method is not called concurrently with any operations that read from or write to
+    ///    the pointed-to data.
+    /// 4. The memory management strategy (allocation and deallocation) is correctly paired.
+    ///    For instance, if `libc::malloc` is used to allocate, `libc::free` should be used to deallocate.
+    ///
+    </span><span class="kw">pub unsafe fn </span>cleanup(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
+        <span class="comment">// Assuming `version_directive` and `tag_directives.start/end` are pointers that need to be freed.
+        </span><span class="kw">if </span>!<span class="self">self</span>.version_directive.is_null() {
+            <span class="comment">// Free version_directive if your logic requires it, e.g.,
+            // libc::free(self.version_directive as *mut libc::c_void);
+            </span><span class="self">self</span>.version_directive = ptr::null_mut();
+        }
+
+        <span class="comment">// Example of cleaning up tag directives if they were allocated dynamically
+        </span><span class="kw">let </span><span class="kw-2">mut </span>tag_directive = <span class="self">self</span>.tag_directives.start;
+        <span class="kw">while </span>tag_directive &lt; <span class="self">self</span>.tag_directives.end {
+            <span class="comment">// Free each tag directive if necessary
+            // libc::free((*tag_directive).handle as *mut libc::c_void);
+            // libc::free((*tag_directive).prefix as *mut libc::c_void);
+            </span>tag_directive = tag_directive.offset(<span class="number">1</span>);
+        }
+
+        <span class="comment">// Assuming `nodes` needs to be cleaned up
+        </span><span class="kw">let </span><span class="kw-2">mut </span>node = <span class="self">self</span>.nodes.start;
+        <span class="kw">while </span>node &lt; <span class="self">self</span>.nodes.top {
+            <span class="comment">// Free each node if necessary
+            // libc::free((*node).tag as *mut libc::c_void);
+            </span>node = node.offset(<span class="number">1</span>);
+        }
+
+        <span class="comment">// Free the nodes array itself if it was dynamically allocated
+        // libc::free(self.nodes.start as *mut libc::c_void);
+        </span><span class="self">self</span>.nodes.start = ptr::null_mut();
+        <span class="self">self</span>.nodes.end = ptr::null_mut();
+        <span class="self">self</span>.nodes.top = ptr::null_mut();
+    }
+}
+
+<span class="kw">impl </span>Default <span class="kw">for </span>YamlDocumentT {
+    <span class="kw">fn </span>default() -&gt; <span class="self">Self </span>{
+        YamlDocumentT {
+            nodes: YamlStackT {
+                start: ptr::null_mut(),
+                end: ptr::null_mut(),
+                top: ptr::null_mut(),
+            },
+            version_directive: ptr::null_mut(),
+            tag_directives: UnnamedYamlDocumentTTagDirectives::default(
+            ),
+            start_implicit: <span class="bool-val">false</span>,
+            end_implicit: <span class="bool-val">false</span>,
+            start_mark: YamlMarkT::default(),
+            end_mark: YamlMarkT::default(),
+        }
+    }
 }
 </code></pre></div></section></main></body></html>

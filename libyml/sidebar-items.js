@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["yaml_emitter_close","yaml_emitter_dump","yaml_emitter_emit","yaml_emitter_flush","yaml_emitter_open","yaml_parser_load","yaml_parser_parse","yaml_parser_scan"],"mod":["api","yaml"]};
+window.SIDEBAR_ITEMS = {"fn":["yaml_emitter_close","yaml_emitter_dump","yaml_emitter_emit","yaml_emitter_flush","yaml_emitter_open","yaml_parser_parse","yaml_parser_scan"],"macro":["yaml_free","yaml_malloc","yaml_realloc","yaml_strdup"],"mod":["api","decode","document","externs","internal","libc","loader","memory","string","success","utils","yaml"]};

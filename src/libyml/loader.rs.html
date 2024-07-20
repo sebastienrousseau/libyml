@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `src/loader.rs`."><title>loader.rs - source</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-46f98efaafac5295.ttf.woff2,FiraSans-Regular-018c141bf0843ffd.woff2,FiraSans-Medium-8f9a781e4970d388.woff2,SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2,SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../static.files/rustdoc-dd39b87e5fcfba68.css"><meta name="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="libyml" data-themes="" data-resource-suffix="" data-rustdoc-version="1.80.0-nightly (84b40fc90 2024-05-27)" data-channel="nightly" data-search-js="search-d52510db62a78183.js" data-settings-js="settings-4313503d2e1961c2.js" ><script src="../../static.files/storage-118b08c4c78b968e.js"></script><script defer src="../../static.files/src-script-e66d777a5a92e9b2.js"></script><script defer src="../../src-files.js"></script><script defer src="../../static.files/main-20a3ad099b048cf2.js"></script><noscript><link rel="stylesheet" href="../../static.files/noscript-df360f571f6edeae.css"></noscript><link rel="icon" href="https://kura.pro/libyml/images/favicon.ico"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="src-sidebar-title"><h2>Files</h2></div></nav><div class="sidebar-resizer"></div><main><rustdoc-search></rustdoc-search><section id="main-content" class="content"><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers"><a href="#1" id="1">1</a>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `src/loader.rs`."><title>loader.rs - source</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-46f98efaafac5295.ttf.woff2,FiraSans-Regular-018c141bf0843ffd.woff2,FiraSans-Medium-8f9a781e4970d388.woff2,SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2,SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../static.files/rustdoc-c5d6553a23f1e5a6.css"><meta name="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="libyml" data-themes="" data-resource-suffix="" data-rustdoc-version="1.81.0-nightly (9057c3ffe 2024-07-19)" data-channel="nightly" data-search-js="search-d234aafac6c221dd.js" data-settings-js="settings-4313503d2e1961c2.js" ><script src="../../static.files/storage-118b08c4c78b968e.js"></script><script defer src="../../static.files/src-script-e66d777a5a92e9b2.js"></script><script defer src="../../src-files.js"></script><script defer src="../../static.files/main-d2fab2bf619172d3.js"></script><noscript><link rel="stylesheet" href="../../static.files/noscript-df360f571f6edeae.css"></noscript><link rel="icon" href="https://kura.pro/libyml/images/favicon.ico"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="src-sidebar-title"><h2>Files</h2></div></nav><div class="sidebar-resizer"></div><main><rustdoc-search></rustdoc-search><section id="main-content" class="content"><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers"><a href="#1" id="1">1</a>
 <a href="#2" id="2">2</a>
 <a href="#3" id="3">3</a>
 <a href="#4" id="4">4</a>
@@ -651,10 +651,30 @@
 <a href="#651" id="651">651</a>
 <a href="#652" id="652">652</a>
 <a href="#653" id="653">653</a>
-</pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::api::{
-    yaml_free, yaml_malloc, yaml_stack_extend, yaml_strdup,
-};
-<span class="kw">use </span><span class="kw">crate</span>::externs::{memset, strcmp};
+<a href="#654" id="654">654</a>
+<a href="#655" id="655">655</a>
+<a href="#656" id="656">656</a>
+<a href="#657" id="657">657</a>
+<a href="#658" id="658">658</a>
+<a href="#659" id="659">659</a>
+<a href="#660" id="660">660</a>
+<a href="#661" id="661">661</a>
+<a href="#662" id="662">662</a>
+<a href="#663" id="663">663</a>
+<a href="#664" id="664">664</a>
+<a href="#665" id="665">665</a>
+<a href="#666" id="666">666</a>
+<a href="#667" id="667">667</a>
+<a href="#668" id="668">668</a>
+<a href="#669" id="669">669</a>
+<a href="#670" id="670">670</a>
+<a href="#671" id="671">671</a>
+<a href="#672" id="672">672</a>
+<a href="#673" id="673">673</a>
+<a href="#674" id="674">674</a>
+</pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::externs::{memset, strcmp};
+<span class="kw">use </span><span class="kw">crate</span>::internal::yaml_stack_extend;
+<span class="kw">use </span><span class="kw">crate</span>::memory::{yaml_free, yaml_malloc, yaml_strdup};
 <span class="kw">use </span><span class="kw">crate</span>::success::{Success, FAIL, OK};
 <span class="kw">use </span><span class="kw">crate</span>::yaml::yaml_char_t;
 <span class="kw">use crate</span>::{
@@ -750,7 +770,29 @@
     FAIL
 }
 
-<span class="kw">unsafe fn </span>yaml_parser_set_composer_error(
+<span class="doccomment">/// Sets the error type to `YamlComposerError` and stores the problem and its mark.
+///
+/// # Parameters
+///
+/// * `parser`: A mutable pointer to the `YamlParserT` struct.
+/// * `problem`: A pointer to a constant C string representing the problem.
+/// * `problem_mark`: A `YamlMarkT` struct representing the mark where the problem occurred.
+///
+/// # Return
+///
+/// Returns `FAIL` to indicate an error.
+///
+/// # Safety
+///
+/// - `parser` must be a valid, non-null pointer to a properly initialized `YamlParserT` struct.
+/// - `problem` must be a valid, non-null pointer to a constant C string.
+/// - `problem_mark` must be a valid `YamlMarkT` struct.
+/// - The `YamlParserT` struct must be properly aligned and have the expected memory layout.
+/// - The `problem` string must be null-terminated.
+/// - The `problem_mark` struct must be properly initialized.
+/// - The caller must handle the error and clean up any resources.
+///
+</span><span class="kw">pub unsafe fn </span>yaml_parser_set_composer_error(
     parser: <span class="kw-2">*mut </span>YamlParserT,
     problem: <span class="kw-2">*const </span>libc::c_char,
     problem_mark: YamlMarkT,

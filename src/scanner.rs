@@ -1,5 +1,5 @@
-use crate::api::{yaml_queue_extend, yaml_stack_extend};
 use crate::externs::{memcpy, memmove, memset, strcmp, strlen};
+use crate::internal::{yaml_queue_extend, yaml_stack_extend};
 use crate::memory::yaml_free;
 use crate::memory::yaml_malloc;
 use crate::ops::{ForceAdd as _, ForceMul as _};

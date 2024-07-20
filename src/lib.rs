@@ -487,6 +487,9 @@ pub mod decode;
 /// Document module for LibYML
 pub mod document;
 
+/// Internal module for LibYML
+pub mod internal;
+
 /// Memory module for LibYML
 pub mod memory;
 mod ops;

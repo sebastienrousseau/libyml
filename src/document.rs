@@ -1,6 +1,6 @@
-use crate::api::yaml_check_utf8;
-use crate::api::yaml_stack_extend;
 use crate::externs::{memcpy, memset, strlen};
+use crate::internal::yaml_check_utf8;
+use crate::internal::yaml_stack_extend;
 use crate::memory::{yaml_free, yaml_malloc, yaml_strdup};
 use crate::ops::ForceAdd;
 use crate::success::{Success, FAIL, OK};

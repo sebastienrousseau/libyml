@@ -75,7 +75,7 @@ fn main() {
             }
             yaml_parser_delete(&mut parser);
         } else {
-            println!("Failed to initialize parser");
+            // Failed to initialize parser
         }
     }
 }
@@ -83,7 +83,7 @@ fn main() {
 
 ## Documentation
 
-For full API documentation, please visit [https://docs.rs/libyml][07].
+For full API documentation, please visit [https://doc.libyml.com/libyml/][03] or [https://docs.rs/libyml][07].
 
 ## Rust Version Compatibility
 
@@ -104,6 +104,7 @@ LibYML is a fork of the work done by [David Tolnay][04] and the maintainers of [
 [00]: https://libyml.com
 [01]: https://github.com/dtolnay/unsafe-libyaml
 [02]: https://github.com/yaml/libyaml/tree/2c891fc7a770e8ba2fec34fc6b545c672beb37e6
+[03]: https://doc.libyml.com/libyml/
 [04]: https://github.com/dtolnay
 [05]: https://github.com/sebastienrousseau/libyml
 [06]: https://crates.io/crates/libyml

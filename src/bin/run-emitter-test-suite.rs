@@ -22,26 +22,18 @@ use self::cstr::CStr;
 use core::fmt;
 pub(crate) use core::primitive::u8 as yaml_char_t;
 use libyml::api::ScalarEventData;
-use libyml::document::{
-    yaml_document_end_event_initialize,
-    yaml_document_start_event_initialize,
-};
+use libyml::document::{yaml_document_end_event_initialize, yaml_document_start_event_initialize};
 use libyml::{
-    yaml_alias_event_initialize, yaml_emitter_delete,
-    yaml_emitter_emit, yaml_emitter_initialize,
-    yaml_emitter_set_canonical, yaml_emitter_set_output,
-    yaml_emitter_set_unicode, yaml_mapping_end_event_initialize,
-    yaml_mapping_start_event_initialize, yaml_scalar_event_initialize,
-    yaml_sequence_end_event_initialize,
-    yaml_sequence_start_event_initialize,
-    yaml_stream_end_event_initialize,
-    yaml_stream_start_event_initialize, YamlAnyScalarStyle,
-    YamlBlockMappingStyle, YamlBlockSequenceStyle,
-    YamlDoubleQuotedScalarStyle, YamlEmitterError, YamlEmitterT,
-    YamlEventT, YamlFoldedScalarStyle, YamlLiteralScalarStyle,
-    YamlMemoryError, YamlPlainScalarStyle, YamlScalarStyleT,
-    YamlSingleQuotedScalarStyle, YamlTagDirectiveT, YamlUtf8Encoding,
-    YamlVersionDirectiveT, YamlWriterError,
+    yaml_alias_event_initialize, yaml_emitter_delete, yaml_emitter_emit, yaml_emitter_initialize,
+    yaml_emitter_set_canonical, yaml_emitter_set_output, yaml_emitter_set_unicode,
+    yaml_mapping_end_event_initialize, yaml_mapping_start_event_initialize,
+    yaml_scalar_event_initialize, yaml_sequence_end_event_initialize,
+    yaml_sequence_start_event_initialize, yaml_stream_end_event_initialize,
+    yaml_stream_start_event_initialize, YamlAnyScalarStyle, YamlBlockMappingStyle,
+    YamlBlockSequenceStyle, YamlDoubleQuotedScalarStyle, YamlEmitterError, YamlEmitterT,
+    YamlEventT, YamlFoldedScalarStyle, YamlLiteralScalarStyle, YamlMemoryError,
+    YamlPlainScalarStyle, YamlScalarStyleT, YamlSingleQuotedScalarStyle, YamlTagDirectiveT,
+    YamlUtf8Encoding, YamlVersionDirectiveT, YamlWriterError,
 };
 use std::env;
 use std::error::Error;
@@ -89,11 +81,7 @@ pub(crate) unsafe fn unsafe_main(
         ));
     }
 
-    unsafe fn write_to_stdio(
-        data: *mut c_void,
-        buffer: *mut u8,
-        size: u64,
-    ) -> i32 {
+    unsafe fn write_to_stdio(data: *mut c_void, buffer: *mut u8, size: u64) -> i32 {
         let stdout: *mut &mut dyn Write = data as _;
         let bytes = std::slice::from_raw_parts(buffer, size as usize);
         match (*stdout).write(bytes) {
@@ -102,11 +90,7 @@ pub(crate) unsafe fn unsafe_main(
         }
     }
 
-    yaml_emitter_set_output(
-        emitter,
-        write_to_stdio,
-        addr_of_mut!(stdout).cast(),
-    );
+    yaml_emitter_set_output(emitter, write_to_stdio, addr_of_mut!(stdout).cast());
     yaml_emitter_set_canonical(emitter, false);
     yaml_emitter_set_unicode(emitter, false);
 
@@ -175,10 +159,7 @@ pub(crate) unsafe fn unsafe_main(
 
             yaml_scalar_event_initialize(event, scalar_event_data)
         } else if line.starts_with(b"=ALI") {
-            yaml_alias_event_initialize(
-                event,
-                get_anchor(b'*', line, anchor.as_mut_ptr()),
-            )
+            yaml_alias_event_initialize(event, get_anchor(b'*', line, anchor.as_mut_ptr()))
         } else {
             let line = line.as_mut_ptr() as *mut i8;
             break Err(EmitterError::UnknownEvent(format!(
@@ -189,28 +170,22 @@ pub(crate) unsafe fn unsafe_main(
 
         if result.fail {
             break Err(EmitterError::MemoryError(
-                "Memory error: Not enough memory for creating an event"
-                    .into(),
+                "Memory error: Not enough memory for creating an event".into(),
             ));
         }
         if yaml_emitter_emit(emitter, event).fail {
             break Err(match (*emitter).error {
-                YamlMemoryError => EmitterError::MemoryError(
-                    "Memory error: Not enough memory for emitting"
-                        .into(),
-                ),
-                YamlWriterError => {
-                    EmitterError::EmittingError(format!(
-                        "Writer error: {}",
-                        CStr::from_ptr((*emitter).problem)
-                    ))
+                YamlMemoryError => {
+                    EmitterError::MemoryError("Memory error: Not enough memory for emitting".into())
                 }
-                YamlEmitterError => {
-                    EmitterError::EmittingError(format!(
-                        "Emitter error: {}",
-                        CStr::from_ptr((*emitter).problem)
-                    ))
-                }
+                YamlWriterError => EmitterError::EmittingError(format!(
+                    "Writer error: {}",
+                    CStr::from_ptr((*emitter).problem)
+                )),
+                YamlEmitterError => EmitterError::EmittingError(format!(
+                    "Emitter error: {}",
+                    CStr::from_ptr((*emitter).problem)
+                )),
                 _ => EmitterError::InternalError,
             });
         }
@@ -246,8 +221,7 @@ impl ReadBuf {
                     return Some(line);
                 }
             }
-            let mut remainder =
-                &mut self.buf[self.offset + self.filled..];
+            let mut remainder = &mut self.buf[self.offset + self.filled..];
             if remainder.is_empty() {
                 if self.offset == 0 {
                     let _ = writeln!(
@@ -270,11 +244,7 @@ impl ReadBuf {
     }
 }
 
-unsafe fn get_anchor(
-    sigil: u8,
-    line: &[u8],
-    anchor: *mut u8,
-) -> *mut u8 {
+unsafe fn get_anchor(sigil: u8, line: &[u8], anchor: *mut u8) -> *mut u8 {
     let start = match line.iter().position(|ch| *ch == sigil) {
         Some(offset) => offset + 1,
         None => return ptr::null_mut(),
@@ -283,10 +253,7 @@ unsafe fn get_anchor(
         Some(offset) => start + offset,
         None => line.len(),
     };
-    anchor.copy_from_nonoverlapping(
-        line[start..end].as_ptr(),
-        end - start,
-    );
+    anchor.copy_from_nonoverlapping(line[start..end].as_ptr(), end - start);
     *anchor.add(end - start) = b'\0';
     anchor
 }
@@ -300,19 +267,12 @@ unsafe fn get_tag(line: &[u8], tag: *mut u8) -> *mut u8 {
         Some(offset) => start + offset,
         None => return ptr::null_mut(),
     };
-    tag.copy_from_nonoverlapping(
-        line[start..end].as_ptr(),
-        end - start,
-    );
+    tag.copy_from_nonoverlapping(line[start..end].as_ptr(), end - start);
     *tag.add(end - start) = b'\0';
     tag
 }
 
-unsafe fn get_value(
-    line: &[u8],
-    value: *mut i8,
-    style: *mut YamlScalarStyleT,
-) {
+unsafe fn get_value(line: &[u8], value: *mut i8, style: *mut YamlScalarStyleT) {
     let line_len = line.len();
     let line = line.as_ptr() as *mut i8;
     let mut start = ptr::null_mut::<i8>();

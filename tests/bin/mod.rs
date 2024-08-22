@@ -37,10 +37,7 @@ pub(crate) struct Output {
 
 pub(crate) fn run(
     compiled: &str,
-    unsafe_main: unsafe fn(
-        stdin: &mut dyn Read,
-        stdout: &mut dyn Write,
-    ) -> Result<(), MyError>,
+    unsafe_main: unsafe fn(stdin: &mut dyn Read, stdout: &mut dyn Write) -> Result<(), MyError>,
     input: &Path,
 ) -> Output {
     if cfg!(miri) {

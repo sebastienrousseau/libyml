@@ -4,9 +4,7 @@ pub(crate) use core::primitive::u8 as yaml_char_t;
 use core::ptr;
 use libyml::api::yaml_parser_set_input_string;
 use libyml::decode::{yaml_parser_delete, yaml_parser_initialize};
-use libyml::memory::{
-    yaml_free, yaml_malloc, yaml_realloc, yaml_strdup,
-};
+use libyml::memory::{yaml_free, yaml_malloc, yaml_realloc, yaml_strdup};
 use libyml::string::{yaml_string_extend, yaml_string_join};
 
 pub(crate) fn main() {
@@ -24,14 +22,8 @@ pub(crate) fn main() {
         );
 
         let input = b"key: value\n";
-        yaml_parser_set_input_string(
-            parser_ptr,
-            input.as_ptr(),
-            input.len().try_into().unwrap(),
-        );
-        println!(
-            "✅ Successfully set the input string for the YAML parser"
-        );
+        yaml_parser_set_input_string(parser_ptr, input.as_ptr(), input.len().try_into().unwrap());
+        println!("✅ Successfully set the input string for the YAML parser");
 
         // Example: yaml_malloc
         let size = 1024;
@@ -64,9 +56,7 @@ pub(crate) fn main() {
         yaml_string_extend(&mut start, &mut pointer, &mut end);
         // Use the extended string buffer
         yaml_free(start as *mut std::ffi::c_void);
-        println!(
-            "✅ Successfully extended and freed the string buffer"
-        );
+        println!("✅ Successfully extended and freed the string buffer");
 
         // Example: yaml_string_join
         let mut a_start = ptr::null_mut::<yaml_char_t>();

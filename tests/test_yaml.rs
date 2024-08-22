@@ -40,10 +40,7 @@ fn test_default_yaml_scalar_style() {
 #[test]
 fn test_default_yaml_sequence_style() {
     let sequence_style = YamlSequenceStyleT::default();
-    assert_eq!(
-        sequence_style,
-        YamlSequenceStyleT::YamlAnySequenceStyle
-    );
+    assert_eq!(sequence_style, YamlSequenceStyleT::YamlAnySequenceStyle);
 }
 
 /// Tests the default values of YamlMappingStyleT
@@ -105,10 +102,7 @@ fn test_default_yaml_node_type() {
 #[test]
 fn test_default_yaml_parser_state() {
     let parser_state = YamlParserStateT::default();
-    assert_eq!(
-        parser_state,
-        YamlParserStateT::YamlParseStreamStartState
-    );
+    assert_eq!(parser_state, YamlParserStateT::YamlParseStreamStartState);
 }
 
 /// Tests the default values of YamlAliasDataT
@@ -139,10 +133,7 @@ fn test_default_yaml_token() {
 #[test]
 fn test_default_yaml_emitter_state() {
     let emitter_state = YamlEmitterStateT::default();
-    assert_eq!(
-        emitter_state,
-        YamlEmitterStateT::YamlEmitStreamStartState
-    );
+    assert_eq!(emitter_state, YamlEmitterStateT::YamlEmitStreamStartState);
 }
 
 // Enum value tests
@@ -239,15 +230,11 @@ fn test_yaml_parser_state_values() {
         1
     );
     assert_eq!(YamlParserStateT::YamlParseDocumentStartState as u32, 2);
-    assert_eq!(
-        YamlParserStateT::YamlParseDocumentContentState as u32,
-        3
-    );
+    assert_eq!(YamlParserStateT::YamlParseDocumentContentState as u32, 3);
     assert_eq!(YamlParserStateT::YamlParseDocumentEndState as u32, 4);
     assert_eq!(YamlParserStateT::YamlParseBlockNodeState as u32, 5);
     assert_eq!(
-        YamlParserStateT::YamlParseBlockNodeOrIndentlessSequenceState
-            as u32,
+        YamlParserStateT::YamlParseBlockNodeOrIndentlessSequenceState as u32,
         6
     );
     assert_eq!(YamlParserStateT::YamlParseFlowNodeState as u32, 7);
@@ -255,10 +242,7 @@ fn test_yaml_parser_state_values() {
         YamlParserStateT::YamlParseBlockSequenceFirstEntryState as u32,
         8
     );
-    assert_eq!(
-        YamlParserStateT::YamlParseBlockSequenceEntryState as u32,
-        9
-    );
+    assert_eq!(YamlParserStateT::YamlParseBlockSequenceEntryState as u32, 9);
     assert_eq!(
         YamlParserStateT::YamlParseIndentlessSequenceEntryState as u32,
         10
@@ -267,49 +251,31 @@ fn test_yaml_parser_state_values() {
         YamlParserStateT::YamlParseBlockMappingFirstKeyState as u32,
         11
     );
-    assert_eq!(
-        YamlParserStateT::YamlParseBlockMappingKeyState as u32,
-        12
-    );
-    assert_eq!(
-        YamlParserStateT::YamlParseBlockMappingValueState as u32,
-        13
-    );
+    assert_eq!(YamlParserStateT::YamlParseBlockMappingKeyState as u32, 12);
+    assert_eq!(YamlParserStateT::YamlParseBlockMappingValueState as u32, 13);
     assert_eq!(
         YamlParserStateT::YamlParseFlowSequenceFirstEntryState as u32,
         14
     );
+    assert_eq!(YamlParserStateT::YamlParseFlowSequenceEntryState as u32, 15);
     assert_eq!(
-        YamlParserStateT::YamlParseFlowSequenceEntryState as u32,
-        15
-    );
-    assert_eq!(
-        YamlParserStateT::YamlParseFlowSequenceEntryMappingKeyState
-            as u32,
+        YamlParserStateT::YamlParseFlowSequenceEntryMappingKeyState as u32,
         16
     );
     assert_eq!(
-        YamlParserStateT::YamlParseFlowSequenceEntryMappingValueState
-            as u32,
+        YamlParserStateT::YamlParseFlowSequenceEntryMappingValueState as u32,
         17
     );
     assert_eq!(
-        YamlParserStateT::YamlParseFlowSequenceEntryMappingEndState
-            as u32,
+        YamlParserStateT::YamlParseFlowSequenceEntryMappingEndState as u32,
         18
     );
     assert_eq!(
         YamlParserStateT::YamlParseFlowMappingFirstKeyState as u32,
         19
     );
-    assert_eq!(
-        YamlParserStateT::YamlParseFlowMappingKeyState as u32,
-        20
-    );
-    assert_eq!(
-        YamlParserStateT::YamlParseFlowMappingValueState as u32,
-        21
-    );
+    assert_eq!(YamlParserStateT::YamlParseFlowMappingKeyState as u32, 20);
+    assert_eq!(YamlParserStateT::YamlParseFlowMappingValueState as u32, 21);
     assert_eq!(
         YamlParserStateT::YamlParseFlowMappingEmptyValueState as u32,
         22
@@ -321,64 +287,40 @@ fn test_yaml_parser_state_values() {
 #[test]
 fn test_yaml_emitter_state_values() {
     assert_eq!(YamlEmitterStateT::YamlEmitStreamStartState as u32, 0);
-    assert_eq!(
-        YamlEmitterStateT::YamlEmitFirstDocumentStartState as u32,
-        1
-    );
+    assert_eq!(YamlEmitterStateT::YamlEmitFirstDocumentStartState as u32, 1);
     assert_eq!(YamlEmitterStateT::YamlEmitDocumentStartState as u32, 2);
-    assert_eq!(
-        YamlEmitterStateT::YamlEmitDocumentContentState as u32,
-        3
-    );
+    assert_eq!(YamlEmitterStateT::YamlEmitDocumentContentState as u32, 3);
     assert_eq!(YamlEmitterStateT::YamlEmitDocumentEndState as u32, 4);
     assert_eq!(
         YamlEmitterStateT::YamlEmitFlowSequenceFirstItemState as u32,
         5
     );
-    assert_eq!(
-        YamlEmitterStateT::YamlEmitFlowSequenceItemState as u32,
-        6
-    );
+    assert_eq!(YamlEmitterStateT::YamlEmitFlowSequenceItemState as u32, 6);
     assert_eq!(
         YamlEmitterStateT::YamlEmitFlowMappingFirstKeyState as u32,
         7
     );
-    assert_eq!(
-        YamlEmitterStateT::YamlEmitFlowMappingKeyState as u32,
-        8
-    );
+    assert_eq!(YamlEmitterStateT::YamlEmitFlowMappingKeyState as u32, 8);
     assert_eq!(
         YamlEmitterStateT::YamlEmitFlowMappingSimpleValueState as u32,
         9
     );
-    assert_eq!(
-        YamlEmitterStateT::YamlEmitFlowMappingValueState as u32,
-        10
-    );
+    assert_eq!(YamlEmitterStateT::YamlEmitFlowMappingValueState as u32, 10);
     assert_eq!(
         YamlEmitterStateT::YamlEmitBlockSequenceFirstItemState as u32,
         11
     );
-    assert_eq!(
-        YamlEmitterStateT::YamlEmitBlockSequenceItemState as u32,
-        12
-    );
+    assert_eq!(YamlEmitterStateT::YamlEmitBlockSequenceItemState as u32, 12);
     assert_eq!(
         YamlEmitterStateT::YamlEmitBlockMappingFirstKeyState as u32,
         13
     );
-    assert_eq!(
-        YamlEmitterStateT::YamlEmitBlockMappingKeyState as u32,
-        14
-    );
+    assert_eq!(YamlEmitterStateT::YamlEmitBlockMappingKeyState as u32, 14);
     assert_eq!(
         YamlEmitterStateT::YamlEmitBlockMappingSimpleValueState as u32,
         15
     );
-    assert_eq!(
-        YamlEmitterStateT::YamlEmitBlockMappingValueState as u32,
-        16
-    );
+    assert_eq!(YamlEmitterStateT::YamlEmitBlockMappingValueState as u32, 16);
     assert_eq!(YamlEmitterStateT::YamlEmitEndState as u32, 17);
 }
 

@@ -95,9 +95,7 @@ macro_rules! yaml_malloc {
 #[macro_export]
 macro_rules! yaml_realloc {
     ($ptr:expr, $t:ty, $size:expr) => {{
-        let new_ptr = unsafe {
-            $crate::memory::yaml_realloc($ptr as *mut _, $size)
-        };
+        let new_ptr = unsafe { $crate::memory::yaml_realloc($ptr as *mut _, $size) };
         if new_ptr.is_null() {
             None
         } else {

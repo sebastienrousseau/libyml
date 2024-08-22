@@ -6,16 +6,12 @@ use crate::{
     ops::ForceAdd as _,
     success::{Success, FAIL, OK},
     yaml::{size_t, yaml_char_t},
-    PointerExt, YamlAliasEvent, YamlAliasToken, YamlAnchorToken,
-    YamlAnyEncoding, YamlBreakT, YamlEmitterStateT, YamlEmitterT,
-    YamlEncodingT, YamlEventT,
-    YamlEventTypeT::{
-        YamlDocumentStartEvent, YamlScalarEvent, YamlStreamEndEvent,
-    },
-    YamlMappingEndEvent, YamlMappingStartEvent, YamlMappingStyleT,
-    YamlMarkT, YamlParserT, YamlReadHandlerT, YamlScalarStyleT,
-    YamlScalarToken, YamlSequenceEndEvent, YamlSequenceStartEvent,
-    YamlSequenceStyleT, YamlStreamStartEvent, YamlTagDirectiveT,
+    PointerExt, YamlAliasEvent, YamlAliasToken, YamlAnchorToken, YamlAnyEncoding, YamlBreakT,
+    YamlEmitterStateT, YamlEmitterT, YamlEncodingT, YamlEventT,
+    YamlEventTypeT::{YamlDocumentStartEvent, YamlScalarEvent, YamlStreamEndEvent},
+    YamlMappingEndEvent, YamlMappingStartEvent, YamlMappingStyleT, YamlMarkT, YamlParserT,
+    YamlReadHandlerT, YamlScalarStyleT, YamlScalarToken, YamlSequenceEndEvent,
+    YamlSequenceStartEvent, YamlSequenceStyleT, YamlStreamStartEvent, YamlTagDirectiveT,
     YamlTagDirectiveToken, YamlTagToken, YamlTokenT, YamlWriteHandlerT,
 };
 use core::{
@@ -42,15 +38,13 @@ unsafe fn yaml_string_read_handler(
             .input
             .string
             .end
-            .c_offset_from((*parser).input.string.current)
-            as size_t
+            .c_offset_from((*parser).input.string.current) as size_t
     {
         size = (*parser)
             .input
             .string
             .end
-            .c_offset_from((*parser).input.string.current)
-            as size_t;
+            .c_offset_from((*parser).input.string.current) as size_t;
     }
     let _ = memcpy(
         buffer as *mut libc::c_void,
@@ -129,10 +123,7 @@ pub unsafe fn yaml_parser_set_input(
 /// - The `YamlParserT` struct must not have an encoding already set, or the encoding must be `YamlAnyEncoding`.
 /// - The `YamlParserT` struct and its associated data structures must be properly aligned and have the expected memory layout.
 ///
-pub unsafe fn yaml_parser_set_encoding(
-    parser: *mut YamlParserT,
-    encoding: YamlEncodingT,
-) {
+pub unsafe fn yaml_parser_set_encoding(parser: *mut YamlParserT, encoding: YamlEncodingT) {
     __assert!(!parser.is_null());
     __assert!((*parser).encoding == YamlAnyEncoding);
     (*parser).encoding = encoding;
@@ -149,9 +140,7 @@ pub unsafe fn yaml_parser_set_encoding(
 /// - The `YamlEmitterT` struct must be properly aligned and have the expected memory layout.
 /// - The caller is responsible for properly destroying the emitter object using `yaml_emitter_delete`.
 ///
-pub unsafe fn yaml_emitter_initialize(
-    emitter: *mut YamlEmitterT,
-) -> Success {
+pub unsafe fn yaml_emitter_initialize(emitter: *mut YamlEmitterT) -> Success {
     __assert!(!emitter.is_null());
     let _ = memset(
         emitter as *mut libc::c_void,
@@ -216,29 +205,34 @@ unsafe fn yaml_string_write_handler(
         .wrapping_sub(*(*emitter).output.string.size_written)
         < size
     {
-        let _ =
-            memcpy(
-                (*emitter).output.string.buffer.wrapping_offset(
-                    *(*emitter).output.string.size_written as isize,
-                ) as *mut libc::c_void,
-                buffer as *const libc::c_void,
-                (*emitter).output.string.size.wrapping_sub(
-                    *(*emitter).output.string.size_written,
-                ),
-            );
-        *(*emitter).output.string.size_written =
-            (*emitter).output.string.size;
+        let _ = memcpy(
+            (*emitter)
+                .output
+                .string
+                .buffer
+                .wrapping_offset(*(*emitter).output.string.size_written as isize)
+                as *mut libc::c_void,
+            buffer as *const libc::c_void,
+            (*emitter)
+                .output
+                .string
+                .size
+                .wrapping_sub(*(*emitter).output.string.size_written),
+        );
+        *(*emitter).output.string.size_written = (*emitter).output.string.size;
         return 0;
     }
     let _ = memcpy(
-        (*emitter).output.string.buffer.wrapping_offset(
-            *(*emitter).output.string.size_written as isize,
-        ) as *mut libc::c_void,
+        (*emitter)
+            .output
+            .string
+            .buffer
+            .wrapping_offset(*(*emitter).output.string.size_written as isize)
+            as *mut libc::c_void,
         buffer as *const libc::c_void,
         size,
     );
-    let fresh153 =
-        addr_of_mut!((*(*emitter).output.string.size_written));
+    let fresh153 = addr_of_mut!((*(*emitter).output.string.size_written));
     *fresh153 = (*fresh153).wrapping_add(size);
     1
 }
@@ -312,10 +306,7 @@ pub unsafe fn yaml_emitter_set_output(
 /// - The `YamlEmitterT` struct must not have an encoding already set, or the encoding must be `YamlAnyEncoding`.
 /// - The `YamlEmitterT` struct and its associated data structures must be properly aligned and have the expected memory layout.
 ///
-pub unsafe fn yaml_emitter_set_encoding(
-    emitter: *mut YamlEmitterT,
-    encoding: YamlEncodingT,
-) {
+pub unsafe fn yaml_emitter_set_encoding(emitter: *mut YamlEmitterT, encoding: YamlEncodingT) {
     __assert!(!emitter.is_null());
     __assert!((*emitter).encoding == YamlAnyEncoding);
     (*emitter).encoding = encoding;
@@ -332,10 +323,7 @@ pub unsafe fn yaml_emitter_set_encoding(
 /// - `emitter` must be a valid, non-null pointer to a properly initialized `YamlEmitterT` struct.
 /// - The `YamlEmitterT` struct and its associated data structures must be properly aligned and have the expected memory layout.
 ///
-pub unsafe fn yaml_emitter_set_canonical(
-    emitter: *mut YamlEmitterT,
-    canonical: bool,
-) {
+pub unsafe fn yaml_emitter_set_canonical(emitter: *mut YamlEmitterT, canonical: bool) {
     __assert!(!emitter.is_null());
     (*emitter).canonical = canonical;
 }
@@ -350,13 +338,9 @@ pub unsafe fn yaml_emitter_set_canonical(
 /// - `emitter` must be a valid, non-null pointer to a properly initialized `YamlEmitterT` struct.
 /// - The `YamlEmitterT` struct and its associated data structures must be properly aligned and have the expected memory layout.
 ///
-pub unsafe fn yaml_emitter_set_indent(
-    emitter: *mut YamlEmitterT,
-    indent: libc::c_int,
-) {
+pub unsafe fn yaml_emitter_set_indent(emitter: *mut YamlEmitterT, indent: libc::c_int) {
     __assert!(!emitter.is_null());
-    (*emitter).best_indent =
-        if 1 < indent && indent < 10 { indent } else { 2 };
+    (*emitter).best_indent = if 1 < indent && indent < 10 { indent } else { 2 };
 }
 
 /// Set the preferred line width. -1 means unlimited.
@@ -369,10 +353,7 @@ pub unsafe fn yaml_emitter_set_indent(
 /// - `emitter` must be a valid, non-null pointer to a properly initialized `YamlEmitterT` struct.
 /// - The `YamlEmitterT` struct and its associated data structures must be properly aligned and have the expected memory layout.
 ///
-pub unsafe fn yaml_emitter_set_width(
-    emitter: *mut YamlEmitterT,
-    width: libc::c_int,
-) {
+pub unsafe fn yaml_emitter_set_width(emitter: *mut YamlEmitterT, width: libc::c_int) {
     __assert!(!emitter.is_null());
     (*emitter).best_width = if width >= 0 { width } else { -1 };
 }
@@ -387,10 +368,7 @@ pub unsafe fn yaml_emitter_set_width(
 /// - `emitter` must be a valid, non-null pointer to a properly initialized `YamlEmitterT` struct.
 /// - The `YamlEmitterT` struct and its associated data structures must be properly aligned and have the expected memory layout.
 ///
-pub unsafe fn yaml_emitter_set_unicode(
-    emitter: *mut YamlEmitterT,
-    unicode: bool,
-) {
+pub unsafe fn yaml_emitter_set_unicode(emitter: *mut YamlEmitterT, unicode: bool) {
     __assert!(!emitter.is_null());
     (*emitter).unicode = unicode;
 }
@@ -404,10 +382,7 @@ pub unsafe fn yaml_emitter_set_unicode(
 /// - `emitter` must be a valid, non-null pointer to a properly initialized `YamlEmitterT` struct.
 /// - The `YamlEmitterT` struct and its associated data structures must be properly aligned and have the expected memory layout.
 ///
-pub unsafe fn yaml_emitter_set_break(
-    emitter: *mut YamlEmitterT,
-    line_break: YamlBreakT,
-) {
+pub unsafe fn yaml_emitter_set_break(emitter: *mut YamlEmitterT, line_break: YamlBreakT) {
     __assert!(!emitter.is_null());
     (*emitter).line_break = line_break;
 }
@@ -427,12 +402,8 @@ pub unsafe fn yaml_token_delete(token: *mut YamlTokenT) {
     __assert!(!token.is_null());
     match (*token).type_ {
         YamlTagDirectiveToken => {
-            yaml_free(
-                (*token).data.tag_directive.handle as *mut libc::c_void,
-            );
-            yaml_free(
-                (*token).data.tag_directive.prefix as *mut libc::c_void,
-            );
+            yaml_free((*token).data.tag_directive.handle as *mut libc::c_void);
+            yaml_free((*token).data.tag_directive.prefix as *mut libc::c_void);
         }
         YamlAliasToken => {
             yaml_free((*token).data.alias.value as *mut libc::c_void);
@@ -498,9 +469,7 @@ pub unsafe fn yaml_stream_start_event_initialize(
 /// - `event` must be a valid, non-null pointer to a `YamlEventT` struct that can be safely written to.
 /// - The `YamlEventT` struct must be properly aligned and have the expected memory layout.
 ///
-pub unsafe fn yaml_stream_end_event_initialize(
-    event: *mut YamlEventT,
-) -> Success {
+pub unsafe fn yaml_stream_end_event_initialize(event: *mut YamlEventT) -> Success {
     let mark = YamlMarkT {
         index: 0_u64,
         line: 0_u64,
@@ -538,8 +507,7 @@ pub unsafe fn yaml_alias_event_initialize(
     };
     __assert!(!event.is_null());
     __assert!(!anchor.is_null());
-    if yaml_check_utf8(anchor, strlen(anchor as *mut libc::c_char)).fail
-    {
+    if yaml_check_utf8(anchor, strlen(anchor as *mut libc::c_char)).fail {
         return FAIL;
     }
     let anchor_copy: *mut yaml_char_t = yaml_strdup(anchor);
@@ -622,22 +590,15 @@ pub unsafe fn yaml_scalar_event_initialize(
         line: 0_u64,
         column: 0_u64,
     };
-    let mut anchor_copy: *mut yaml_char_t =
-        ptr::null_mut::<yaml_char_t>();
+    let mut anchor_copy: *mut yaml_char_t = ptr::null_mut::<yaml_char_t>();
     let mut tag_copy: *mut yaml_char_t = ptr::null_mut::<yaml_char_t>();
-    let mut value_copy: *mut yaml_char_t =
-        ptr::null_mut::<yaml_char_t>();
+    let mut value_copy: *mut yaml_char_t = ptr::null_mut::<yaml_char_t>();
 
     __assert!(!event.is_null());
     __assert!(!data.value.is_null());
 
     if !data.anchor.is_null() {
-        if yaml_check_utf8(
-            data.anchor,
-            strlen(data.anchor as *mut libc::c_char),
-        )
-        .fail
-        {
+        if yaml_check_utf8(data.anchor, strlen(data.anchor as *mut libc::c_char)).fail {
             current_block = 16285396129609901221;
         } else {
             anchor_copy = yaml_strdup(data.anchor);
@@ -653,12 +614,7 @@ pub unsafe fn yaml_scalar_event_initialize(
 
     if current_block == 8515828400728868193 {
         if !data.tag.is_null() {
-            if yaml_check_utf8(
-                data.tag,
-                strlen(data.tag as *mut libc::c_char),
-            )
-            .fail
-            {
+            if yaml_check_utf8(data.tag, strlen(data.tag as *mut libc::c_char)).fail {
                 current_block = 16285396129609901221;
             } else {
                 tag_copy = yaml_strdup(data.tag);
@@ -674,21 +630,17 @@ pub unsafe fn yaml_scalar_event_initialize(
 
         if current_block != 16285396129609901221 {
             if data.length < 0 {
-                data.length = strlen(data.value as *mut libc::c_char)
-                    as libc::c_int;
+                data.length = strlen(data.value as *mut libc::c_char) as libc::c_int;
             }
 
             if yaml_check_utf8(data.value, data.length as size_t).ok {
-                value_copy =
-                    yaml_malloc(data.length.force_add(1) as size_t)
-                        as *mut yaml_char_t;
+                value_copy = yaml_malloc(data.length.force_add(1) as size_t) as *mut yaml_char_t;
                 let _ = memcpy(
                     value_copy as *mut libc::c_void,
                     data.value as *const libc::c_void,
                     data.length as libc::c_ulong,
                 );
-                *value_copy.wrapping_offset(data.length as isize) =
-                    b'\0';
+                *value_copy.wrapping_offset(data.length as isize) = b'\0';
                 let _ = memset(
                     event as *mut libc::c_void,
                     0,
@@ -697,18 +649,15 @@ pub unsafe fn yaml_scalar_event_initialize(
                 (*event).type_ = YamlScalarEvent;
                 (*event).start_mark = mark;
                 (*event).end_mark = mark;
-                let fresh168 =
-                    addr_of_mut!((*event).data.scalar.anchor);
+                let fresh168 = addr_of_mut!((*event).data.scalar.anchor);
                 *fresh168 = anchor_copy;
                 let fresh169 = addr_of_mut!((*event).data.scalar.tag);
                 *fresh169 = tag_copy;
                 let fresh170 = addr_of_mut!((*event).data.scalar.value);
                 *fresh170 = value_copy;
                 (*event).data.scalar.length = data.length as size_t;
-                (*event).data.scalar.plain_implicit =
-                    data.plain_implicit;
-                (*event).data.scalar.quoted_implicit =
-                    data.quoted_implicit;
+                (*event).data.scalar.plain_implicit = data.plain_implicit;
+                (*event).data.scalar.quoted_implicit = data.quoted_implicit;
                 (*event).data.scalar.style = data.style;
                 return OK;
             }
@@ -748,14 +697,11 @@ pub unsafe fn yaml_sequence_start_event_initialize(
         line: 0_u64,
         column: 0_u64,
     };
-    let mut anchor_copy: *mut yaml_char_t =
-        ptr::null_mut::<yaml_char_t>();
+    let mut anchor_copy: *mut yaml_char_t = ptr::null_mut::<yaml_char_t>();
     let mut tag_copy: *mut yaml_char_t = ptr::null_mut::<yaml_char_t>();
     __assert!(!event.is_null());
     if !anchor.is_null() {
-        if yaml_check_utf8(anchor, strlen(anchor as *mut libc::c_char))
-            .fail
-        {
+        if yaml_check_utf8(anchor, strlen(anchor as *mut libc::c_char)).fail {
             current_block = 8817775685815971442;
         } else {
             anchor_copy = yaml_strdup(anchor);
@@ -770,9 +716,7 @@ pub unsafe fn yaml_sequence_start_event_initialize(
     }
     if current_block == 11006700562992250127 {
         if !tag.is_null() {
-            if yaml_check_utf8(tag, strlen(tag as *mut libc::c_char))
-                .fail
-            {
+            if yaml_check_utf8(tag, strlen(tag as *mut libc::c_char)).fail {
                 current_block = 8817775685815971442;
             } else {
                 tag_copy = yaml_strdup(tag);
@@ -794,11 +738,9 @@ pub unsafe fn yaml_sequence_start_event_initialize(
             (*event).type_ = YamlSequenceStartEvent;
             (*event).start_mark = mark;
             (*event).end_mark = mark;
-            let fresh171 =
-                addr_of_mut!((*event).data.sequence_start.anchor);
+            let fresh171 = addr_of_mut!((*event).data.sequence_start.anchor);
             *fresh171 = anchor_copy;
-            let fresh172 =
-                addr_of_mut!((*event).data.sequence_start.tag);
+            let fresh172 = addr_of_mut!((*event).data.sequence_start.tag);
             *fresh172 = tag_copy;
             (*event).data.sequence_start.implicit = implicit;
             (*event).data.sequence_start.style = style;
@@ -820,9 +762,7 @@ pub unsafe fn yaml_sequence_start_event_initialize(
 /// - `event` must be a valid, non-null pointer to a `YamlEventT` struct that can be safely written to.
 /// - The `YamlEventT` struct must be properly aligned and have the expected memory layout.
 ///
-pub unsafe fn yaml_sequence_end_event_initialize(
-    event: *mut YamlEventT,
-) -> Success {
+pub unsafe fn yaml_sequence_end_event_initialize(event: *mut YamlEventT) -> Success {
     let mark = YamlMarkT {
         index: 0_u64,
         line: 0_u64,
@@ -870,14 +810,11 @@ pub unsafe fn yaml_mapping_start_event_initialize(
         line: 0_u64,
         column: 0_u64,
     };
-    let mut anchor_copy: *mut yaml_char_t =
-        ptr::null_mut::<yaml_char_t>();
+    let mut anchor_copy: *mut yaml_char_t = ptr::null_mut::<yaml_char_t>();
     let mut tag_copy: *mut yaml_char_t = ptr::null_mut::<yaml_char_t>();
     __assert!(!event.is_null());
     if !anchor.is_null() {
-        if yaml_check_utf8(anchor, strlen(anchor as *mut libc::c_char))
-            .fail
-        {
+        if yaml_check_utf8(anchor, strlen(anchor as *mut libc::c_char)).fail {
             current_block = 14748279734549812740;
         } else {
             anchor_copy = yaml_strdup(anchor);
@@ -892,9 +829,7 @@ pub unsafe fn yaml_mapping_start_event_initialize(
     }
     if current_block == 11006700562992250127 {
         if !tag.is_null() {
-            if yaml_check_utf8(tag, strlen(tag as *mut libc::c_char))
-                .fail
-            {
+            if yaml_check_utf8(tag, strlen(tag as *mut libc::c_char)).fail {
                 current_block = 14748279734549812740;
             } else {
                 tag_copy = yaml_strdup(tag);
@@ -916,11 +851,9 @@ pub unsafe fn yaml_mapping_start_event_initialize(
             (*event).type_ = YamlMappingStartEvent;
             (*event).start_mark = mark;
             (*event).end_mark = mark;
-            let fresh173 =
-                addr_of_mut!((*event).data.mapping_start.anchor);
+            let fresh173 = addr_of_mut!((*event).data.mapping_start.anchor);
             *fresh173 = anchor_copy;
-            let fresh174 =
-                addr_of_mut!((*event).data.mapping_start.tag);
+            let fresh174 = addr_of_mut!((*event).data.mapping_start.tag);
             *fresh174 = tag_copy;
             (*event).data.mapping_start.implicit = implicit;
             (*event).data.mapping_start.style = style;
@@ -942,9 +875,7 @@ pub unsafe fn yaml_mapping_start_event_initialize(
 /// - `event` must be a valid, non-null pointer to a `YamlEventT` struct that can be safely written to.
 /// - The `YamlEventT` struct must be properly aligned and have the expected memory layout.
 ///
-pub unsafe fn yaml_mapping_end_event_initialize(
-    event: *mut YamlEventT,
-) -> Success {
+pub unsafe fn yaml_mapping_end_event_initialize(event: *mut YamlEventT) -> Success {
     let mark = YamlMarkT {
         index: 0_u64,
         line: 0_u64,
@@ -978,23 +909,14 @@ pub unsafe fn yaml_event_delete(event: *mut YamlEventT) {
     __assert!(!event.is_null());
     match (*event).type_ {
         YamlDocumentStartEvent => {
-            yaml_free(
-                (*event).data.document_start.version_directive
-                    as *mut libc::c_void,
-            );
-            tag_directive =
-                (*event).data.document_start.tag_directives.start;
-            while tag_directive
-                != (*event).data.document_start.tag_directives.end
-            {
+            yaml_free((*event).data.document_start.version_directive as *mut libc::c_void);
+            tag_directive = (*event).data.document_start.tag_directives.start;
+            while tag_directive != (*event).data.document_start.tag_directives.end {
                 yaml_free((*tag_directive).handle as *mut libc::c_void);
                 yaml_free((*tag_directive).prefix as *mut libc::c_void);
                 tag_directive = tag_directive.wrapping_offset(1);
             }
-            yaml_free(
-                (*event).data.document_start.tag_directives.start
-                    as *mut libc::c_void,
-            );
+            yaml_free((*event).data.document_start.tag_directives.start as *mut libc::c_void);
         }
         YamlAliasEvent => {
             yaml_free((*event).data.alias.anchor as *mut libc::c_void);
@@ -1005,21 +927,12 @@ pub unsafe fn yaml_event_delete(event: *mut YamlEventT) {
             yaml_free((*event).data.scalar.value as *mut libc::c_void);
         }
         YamlSequenceStartEvent => {
-            yaml_free(
-                (*event).data.sequence_start.anchor
-                    as *mut libc::c_void,
-            );
-            yaml_free(
-                (*event).data.sequence_start.tag as *mut libc::c_void,
-            );
+            yaml_free((*event).data.sequence_start.anchor as *mut libc::c_void);
+            yaml_free((*event).data.sequence_start.tag as *mut libc::c_void);
         }
         YamlMappingStartEvent => {
-            yaml_free(
-                (*event).data.mapping_start.anchor as *mut libc::c_void,
-            );
-            yaml_free(
-                (*event).data.mapping_start.tag as *mut libc::c_void,
-            );
+            yaml_free((*event).data.mapping_start.anchor as *mut libc::c_void);
+            yaml_free((*event).data.mapping_start.tag as *mut libc::c_void);
         }
         _ => {}
     }

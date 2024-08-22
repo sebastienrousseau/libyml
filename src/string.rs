@@ -29,11 +29,9 @@ pub unsafe fn yaml_string_extend(
     let new_size = current_size * 2;
 
     let new_start: *mut yaml_char_t =
-        yaml_realloc(*start as *mut libc::c_void, new_size)
-            as *mut yaml_char_t;
+        yaml_realloc(*start as *mut libc::c_void, new_size) as *mut yaml_char_t;
     let _ = memset(
-        new_start.add(current_size.try_into().unwrap())
-            as *mut libc::c_void,
+        new_start.add(current_size.try_into().unwrap()) as *mut libc::c_void,
         0,
         current_size,
     );
@@ -47,9 +45,7 @@ pub unsafe fn yaml_string_extend(
 /// Duplicate a null-terminated string.
 /// # Safety
 /// - This function is unsafe because it involves memory allocation.
-pub unsafe fn yaml_string_duplicate(
-    str: *const yaml_char_t,
-) -> *mut yaml_char_t {
+pub unsafe fn yaml_string_duplicate(str: *const yaml_char_t) -> *mut yaml_char_t {
     yaml_strdup(str)
 }
 
@@ -80,9 +76,8 @@ pub unsafe fn yaml_string_join(
         return;
     }
 
-    let b_length = ((*b_pointer).offset_from(*b_start))
-        .min((*b_end).offset_from(*b_start))
-        as usize;
+    let b_length =
+        ((*b_pointer).offset_from(*b_start)).min((*b_end).offset_from(*b_start)) as usize;
 
     if b_length == 0 {
         return;

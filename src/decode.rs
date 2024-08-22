@@ -6,8 +6,8 @@ use crate::{
     memory::{yaml_free, yaml_malloc},
     success::{Success, OK},
     yaml::{size_t, yaml_char_t},
-    yaml_token_delete, YamlMarkT, YamlParserStateT, YamlParserT,
-    YamlSimpleKeyT, YamlTagDirectiveT, YamlTokenT,
+    yaml_token_delete, YamlMarkT, YamlParserStateT, YamlParserT, YamlSimpleKeyT, YamlTagDirectiveT,
+    YamlTokenT,
 };
 
 use crate::externs::memset;
@@ -32,9 +32,7 @@ const INPUT_BUFFER_SIZE: usize = INPUT_RAW_BUFFER_SIZE * 3;
 /// - The `YamlParserT` struct must be properly aligned and have the expected memory layout.
 /// - The caller is responsible for properly destroying the parser object using `yaml_parser_delete`.
 ///
-pub unsafe fn yaml_parser_initialize(
-    parser: *mut YamlParserT,
-) -> Success {
+pub unsafe fn yaml_parser_initialize(parser: *mut YamlParserT) -> Success {
     __assert!(!parser.is_null());
     let _ = memset(
         parser as *mut libc::c_void,

@@ -12,7 +12,7 @@ license = "MIT"
 name = "libyml"
 readme = "README.md"
 repository = "https://github.com/sebastienrousseau/libyml"
-rust-version = "1.60"
+rust-version = "1.56.0"
 version = "0.0.5"
 
 # Included and excluded files
@@ -37,11 +37,15 @@ include = [
 # debug = true
 
 [dependencies]
-anyhow = "1.0.86"
+anyhow = "1.0.86" # Rust library for reporting multiple error types through a single type.
+
+[build-dependencies]
+# Dependencies for build scripts.
+version_check = "0.9.5" # Check the Rust version used to compile the package.
 
 [dev-dependencies]
 # Development dependencies
-pretty_assertions = "1.4.0"
+pretty_assertions = "1.4.0" # Pretty assertions for tests.
 libyml-test-suite = { path = "tests/data" }
 
 [features]

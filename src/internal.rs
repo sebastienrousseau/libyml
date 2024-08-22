@@ -30,20 +30,15 @@ pub unsafe fn yaml_stack_extend(
 ) {
     let new_start: *mut libc::c_void = yaml_realloc(
         *start,
-        (((*end as *mut libc::c_char)
-            .c_offset_from(*start as *mut libc::c_char)
-            as libc::c_long)
+        (((*end as *mut libc::c_char).c_offset_from(*start as *mut libc::c_char) as libc::c_long)
             .force_mul(2_i64)) as size_t,
     );
     *top = (new_start as *mut libc::c_char).wrapping_offset(
-        (*top as *mut libc::c_char)
-            .c_offset_from(*start as *mut libc::c_char)
-            as libc::c_long as isize,
+        (*top as *mut libc::c_char).c_offset_from(*start as *mut libc::c_char) as libc::c_long
+            as isize,
     ) as *mut libc::c_void;
     *end = (new_start as *mut libc::c_char).wrapping_offset(
-        (((*end as *mut libc::c_char)
-            .c_offset_from(*start as *mut libc::c_char)
-            as libc::c_long)
+        (((*end as *mut libc::c_char).c_offset_from(*start as *mut libc::c_char) as libc::c_long)
             .force_mul(2_i64)) as isize,
     ) as *mut libc::c_void;
     *start = new_start;
@@ -73,24 +68,20 @@ pub unsafe fn yaml_queue_extend(
     if *start == *head && *tail == *end {
         let new_start: *mut libc::c_void = yaml_realloc(
             *start,
-            (((*end as *mut libc::c_char)
-                .c_offset_from(*start as *mut libc::c_char)
+            (((*end as *mut libc::c_char).c_offset_from(*start as *mut libc::c_char)
                 as libc::c_long)
                 .force_mul(2_i64)) as size_t,
         );
         *head = (new_start as *mut libc::c_char).wrapping_offset(
-            (*head as *mut libc::c_char)
-                .c_offset_from(*start as *mut libc::c_char)
-                as libc::c_long as isize,
+            (*head as *mut libc::c_char).c_offset_from(*start as *mut libc::c_char) as libc::c_long
+                as isize,
         ) as *mut libc::c_void;
         *tail = (new_start as *mut libc::c_char).wrapping_offset(
-            (*tail as *mut libc::c_char)
-                .c_offset_from(*start as *mut libc::c_char)
-                as libc::c_long as isize,
+            (*tail as *mut libc::c_char).c_offset_from(*start as *mut libc::c_char) as libc::c_long
+                as isize,
         ) as *mut libc::c_void;
         *end = (new_start as *mut libc::c_char).wrapping_offset(
-            (((*end as *mut libc::c_char)
-                .c_offset_from(*start as *mut libc::c_char)
+            (((*end as *mut libc::c_char).c_offset_from(*start as *mut libc::c_char)
                 as libc::c_long)
                 .force_mul(2_i64)) as isize,
         ) as *mut libc::c_void;
@@ -101,15 +92,13 @@ pub unsafe fn yaml_queue_extend(
             let _ = memmove(
                 *start,
                 *head,
-                (*tail as *mut libc::c_char)
-                    .c_offset_from(*head as *mut libc::c_char)
+                (*tail as *mut libc::c_char).c_offset_from(*head as *mut libc::c_char)
                     as libc::c_ulong,
             );
         }
         *tail = (*start as *mut libc::c_char).wrapping_offset(
-            (*tail as *mut libc::c_char)
-                .c_offset_from(*head as *mut libc::c_char)
-                as libc::c_long as isize,
+            (*tail as *mut libc::c_char).c_offset_from(*head as *mut libc::c_char) as libc::c_long
+                as isize,
         ) as *mut libc::c_void;
         *head = *start;
     }
@@ -133,12 +122,8 @@ pub unsafe fn yaml_queue_extend(
 /// - The string must be properly null-terminated.
 /// - The string must not contain any invalid characters or sequences.
 ///
-pub unsafe fn yaml_check_utf8(
-    start: *const yaml_char_t,
-    length: size_t,
-) -> Success {
-    let end: *const yaml_char_t =
-        start.wrapping_offset(length as isize);
+pub unsafe fn yaml_check_utf8(start: *const yaml_char_t, length: size_t) -> Success {
+    let end: *const yaml_char_t = start.wrapping_offset(length as isize);
     let mut pointer: *const yaml_char_t = start;
 
     while pointer < end {
@@ -185,8 +170,7 @@ pub unsafe fn yaml_check_utf8(
             if octet & 0xC0 != 0x80 {
                 return FAIL;
             }
-            value =
-                (value << 6).force_add((octet & 0x3F) as libc::c_uint);
+            value = (value << 6).force_add((octet & 0x3F) as libc::c_uint);
             k = k.force_add(1);
         }
 

@@ -93,10 +93,7 @@ pub unsafe fn yaml_malloc(size: size_t) -> *mut c_void {
 ///     }
 /// }
 /// ```
-pub unsafe fn yaml_realloc(
-    ptr: *mut c_void,
-    size: size_t,
-) -> *mut c_void {
+pub unsafe fn yaml_realloc(ptr: *mut c_void, size: size_t) -> *mut c_void {
     if !ptr.is_null() {
         realloc(ptr, size)
     } else {
@@ -186,8 +183,7 @@ pub unsafe fn yaml_strdup(str: *const yaml_char_t) -> *mut yaml_char_t {
     }
     let len = strlen(str as *const libc::c_char) as usize;
     let new_size = (len + 1) * size_of::<yaml_char_t>();
-    let new_str =
-        malloc(new_size.try_into().unwrap()) as *mut yaml_char_t;
+    let new_str = malloc(new_size.try_into().unwrap()) as *mut yaml_char_t;
     if new_str.is_null() {
         return ptr::null_mut();
     }

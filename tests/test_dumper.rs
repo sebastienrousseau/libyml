@@ -4,7 +4,10 @@ mod tests {
     use libyml::success::{FAIL, OK};
     use libyml::yaml::YamlEmitterT;
     use libyml::yaml_emitter_close;
-    use libyml::{libc, yaml_emitter_delete, yaml_emitter_initialize, yaml_emitter_open};
+    use libyml::{
+        libc, yaml_emitter_delete, yaml_emitter_initialize,
+        yaml_emitter_open,
+    };
     use std::ptr;
 
     /// Dummy write handler function that simulates writing without actually performing any I/O.
@@ -20,7 +23,9 @@ mod tests {
     /// Initializes a YamlEmitterT instance with a dummy write handler.
     /// Allocates memory, initializes the emitter, and assigns a write handler.
     unsafe fn initialize_emitter() -> *mut YamlEmitterT {
-        let emitter = malloc(size_of::<YamlEmitterT>().try_into().unwrap()) as *mut YamlEmitterT;
+        let emitter =
+            malloc(size_of::<YamlEmitterT>().try_into().unwrap())
+                as *mut YamlEmitterT;
         let _ = yaml_emitter_initialize(emitter);
         (*emitter).write_handler = Some(dummy_write_handler);
         emitter
@@ -111,7 +116,8 @@ mod tests {
     fn test_yaml_emitter_initialize() {
         unsafe {
             let emitter_ptr =
-                malloc(size_of::<YamlEmitterT>().try_into().unwrap()) as *mut YamlEmitterT;
+                malloc(size_of::<YamlEmitterT>().try_into().unwrap())
+                    as *mut YamlEmitterT;
             let result = yaml_emitter_initialize(emitter_ptr);
             assert_eq!(result, OK);
             assert!(!(*emitter_ptr).opened);
@@ -137,7 +143,10 @@ mod tests {
         unsafe {
             let emitter_ptr = initialize_emitter();
             let result = yaml_emitter_close(emitter_ptr);
-            assert_eq!(result, OK, "Expected OK when closing an unopened emitter");
+            assert_eq!(
+                result, OK,
+                "Expected OK when closing an unopened emitter"
+            );
             assert!(
                 !(*emitter_ptr).opened,
                 "Emitter should not be marked as opened"
@@ -201,13 +210,21 @@ mod tests {
 
             for &byte in yaml_bytes {
                 // Check that the write handler is None
-                if let Some(write_handler) = (*emitter_ptr).write_handler {
+                if let Some(write_handler) =
+                    (*emitter_ptr).write_handler
+                {
                     // If there's a write handler, use it
                     let mut mutable_byte = byte;
                     let byte_ptr: *mut u8 = &mut mutable_byte;
-                    let result =
-                        write_handler(emitter_ptr as *mut _ as *mut libc::c_void, byte_ptr, 1);
-                    assert_eq!(result, 1, "Write handler should succeed");
+                    let result = write_handler(
+                        emitter_ptr as *mut _ as *mut libc::c_void,
+                        byte_ptr,
+                        1,
+                    );
+                    assert_eq!(
+                        result, 1,
+                        "Write handler should succeed"
+                    );
                 } else {
                     // Handle the None case
                     assert!(

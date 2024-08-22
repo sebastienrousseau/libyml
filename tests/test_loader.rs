@@ -8,8 +8,8 @@ mod tests {
     use libyml::success::is_success;
     use libyml::yaml::YamlErrorTypeT::YamlComposerError;
     use libyml::{
-        yaml_document_delete, yaml_parser_delete, yaml_parser_load, YamlDocumentT, YamlMarkT,
-        YamlParserT,
+        yaml_document_delete, yaml_parser_delete, yaml_parser_load,
+        YamlDocumentT, YamlMarkT, YamlParserT,
     };
 
     #[test]
@@ -20,14 +20,21 @@ mod tests {
             let input = b"key: value\n";
 
             // Initialize the parser
-            assert!(is_success(yaml_parser_initialize(parser.as_mut_ptr())));
+            assert!(is_success(yaml_parser_initialize(
+                parser.as_mut_ptr()
+            )));
             let parser = parser.assume_init_mut();
 
             // Set the input string
-            yaml_parser_set_input_string(parser, input.as_ptr(), input.len() as u64);
+            yaml_parser_set_input_string(
+                parser,
+                input.as_ptr(),
+                input.len() as u64,
+            );
 
             // Load the document
-            let result = yaml_parser_load(parser, document.as_mut_ptr());
+            let result =
+                yaml_parser_load(parser, document.as_mut_ptr());
             assert!(is_success(result));
 
             // Clean up
@@ -41,14 +48,21 @@ mod tests {
     fn test_yaml_parser_set_composer_error() {
         unsafe {
             let mut parser = MaybeUninit::<YamlParserT>::uninit();
-            assert!(is_success(yaml_parser_initialize(parser.as_mut_ptr())));
+            assert!(is_success(yaml_parser_initialize(
+                parser.as_mut_ptr()
+            )));
             let parser = parser.assume_init_mut();
 
-            let problem = b"Test problem\0" as *const u8 as *const c_char;
+            let problem =
+                b"Test problem\0" as *const u8 as *const c_char;
             let problem_mark = YamlMarkT::default();
 
             // Call the function that sets the error
-            let _ = yaml_parser_set_composer_error(parser, problem, problem_mark);
+            let _ = yaml_parser_set_composer_error(
+                parser,
+                problem,
+                problem_mark,
+            );
 
             // Check if the error is set correctly
             assert_eq!(parser.error, YamlComposerError);

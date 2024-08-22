@@ -25,14 +25,16 @@ fn test(ignorelist: &str, check: fn(&Path) -> bool) -> TokenStream {
 
     let mut ignored_ids = Set::new();
     let ignorelist = tests_dir.join("ignorelist").join(ignorelist);
-    for line in BufReader::new(File::open(ignorelist).unwrap()).lines() {
+    for line in BufReader::new(File::open(ignorelist).unwrap()).lines()
+    {
         let mut line = line.unwrap();
         line.truncate(4);
         ignored_ids.insert(line);
     }
 
     let mut ids = Map::new();
-    let yaml_test_suite = tests_dir.join("data").join("yaml-test-suite");
+    let yaml_test_suite =
+        tests_dir.join("data").join("yaml-test-suite");
     for entry in fs::read_dir(yaml_test_suite).unwrap() {
         let entry = entry.unwrap();
         if !entry.file_type().unwrap().is_dir() {
@@ -41,11 +43,12 @@ fn test(ignorelist: &str, check: fn(&Path) -> bool) -> TokenStream {
 
         let path = entry.path();
         let description = path.join("===");
-        let slug = if let Ok(description) = fs::read_to_string(description) {
-            description_to_slug(description)
-        } else {
-            continue;
-        };
+        let slug =
+            if let Ok(description) = fs::read_to_string(description) {
+                description_to_slug(description)
+            } else {
+                continue;
+            };
 
         if !check(&path) {
             continue;
@@ -76,7 +79,8 @@ fn test(ignorelist: &str, check: fn(&Path) -> bool) -> TokenStream {
 }
 
 fn description_to_slug(mut description: String) -> String {
-    description = description.replace(|ch: char| !ch.is_ascii_alphanumeric(), "_");
+    description = description
+        .replace(|ch: char| !ch.is_ascii_alphanumeric(), "_");
     while description.contains("__") {
         description = description.replace("__", "_");
     }

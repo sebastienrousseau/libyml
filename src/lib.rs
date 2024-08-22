@@ -171,7 +171,8 @@ use core::mem::size_of;
 pub mod libc {
     pub use core::ffi::c_void;
     pub use core::primitive::{
-        i32 as c_int, i64 as c_long, i8 as c_char, u32 as c_uint, u64 as c_ulong, u8 as c_uchar,
+        i32 as c_int, i64 as c_long, i8 as c_char, u32 as c_uint,
+        u64 as c_ulong, u8 as c_uchar,
     };
 }
 
@@ -229,7 +230,8 @@ pub mod externs {
     ) -> *mut libc::c_void {
         let mut memory = ptr.cast::<u8>().sub(HEADER);
         let size = memory.cast::<usize>().read();
-        let layout = Layout::from_size_align_unchecked(size, MALLOC_ALIGN);
+        let layout =
+            Layout::from_size_align_unchecked(size, MALLOC_ALIGN);
         let new_size = HEADER.force_add(new_size.force_into());
         memory = rust::realloc(memory, layout, new_size);
         if memory.is_null() {
@@ -251,7 +253,8 @@ pub mod externs {
     pub unsafe fn free(ptr: *mut libc::c_void) {
         let memory = ptr.cast::<u8>().sub(HEADER);
         let size = memory.cast::<usize>().read();
-        let layout = Layout::from_size_align_unchecked(size, MALLOC_ALIGN);
+        let layout =
+            Layout::from_size_align_unchecked(size, MALLOC_ALIGN);
         rust::dealloc(memory, layout);
     }
 
@@ -260,8 +263,10 @@ pub mod externs {
         rhs: *const libc::c_void,
         count: libc::c_ulong,
     ) -> libc::c_int {
-        let lhs = slice::from_raw_parts(lhs.cast::<u8>(), count as usize);
-        let rhs = slice::from_raw_parts(rhs.cast::<u8>(), count as usize);
+        let lhs =
+            slice::from_raw_parts(lhs.cast::<u8>(), count as usize);
+        let rhs =
+            slice::from_raw_parts(rhs.cast::<u8>(), count as usize);
         lhs.cmp(rhs) as libc::c_int
     }
 
@@ -281,7 +286,17 @@ pub mod externs {
         dest
     }
 
-    pub(crate) unsafe fn memmove(
+    /// Moves a block of memory.
+    ///
+    /// This function moves `count` bytes from the memory block pointed to by `src` to the memory block pointed to by `dest`.
+    ///
+    /// # Safety
+    ///
+    /// This function is unsafe because it directly manipulates raw memory. The caller must ensure that:
+    /// - `dest` and `src` are valid pointers to memory blocks.
+    /// - The memory blocks pointed to by `dest` and `src` do not overlap.
+    /// - The memory blocks pointed to by `dest` and `src` are properly aligned and initialized.
+    pub unsafe fn memmove(
         dest: *mut libc::c_void,
         src: *const libc::c_void,
         count: libc::c_ulong,
@@ -328,16 +343,27 @@ pub mod externs {
         dest
     }
 
-    pub(crate) unsafe fn strcmp(lhs: *const libc::c_char, rhs: *const libc::c_char) -> libc::c_int {
+    pub(crate) unsafe fn strcmp(
+        lhs: *const libc::c_char,
+        rhs: *const libc::c_char,
+    ) -> libc::c_int {
         if lhs.is_null() || rhs.is_null() {
             return die();
         }
-        let lhs = slice::from_raw_parts(lhs.cast::<u8>(), strlen(lhs) as usize);
-        let rhs = slice::from_raw_parts(rhs.cast::<u8>(), strlen(rhs) as usize);
+        let lhs = slice::from_raw_parts(
+            lhs.cast::<u8>(),
+            strlen(lhs) as usize,
+        );
+        let rhs = slice::from_raw_parts(
+            rhs.cast::<u8>(),
+            strlen(rhs) as usize,
+        );
         lhs.cmp(rhs) as libc::c_int
     }
 
-    pub(crate) unsafe fn strlen(str: *const libc::c_char) -> libc::c_ulong {
+    pub(crate) unsafe fn strlen(
+        str: *const libc::c_char,
+    ) -> libc::c_ulong {
         let mut end = str;
         while *end != 0 {
             end = end.add(1);
@@ -369,11 +395,19 @@ pub mod externs {
 
     macro_rules! __assert {
         (false $(,)?) => {
-            $crate::externs::__assert_fail(stringify!(false), file!(), line!())
+            $crate::externs::__assert_fail(
+                stringify!(false),
+                file!(),
+                line!(),
+            )
         };
         ($assertion:expr $(,)?) => {
             if !$assertion {
-                $crate::externs::__assert_fail(stringify!($assertion), file!(), line!());
+                $crate::externs::__assert_fail(
+                    stringify!($assertion),
+                    file!(),
+                    line!(),
+                );
             }
         };
     }
@@ -390,7 +424,10 @@ pub mod externs {
             }
         }
         let _abort_on_panic = Abort;
-        panic!("{}:{}: Assertion `{}` failed.", __file, __line, __assertion);
+        panic!(
+            "{}:{}: Assertion `{}` failed.",
+            __file, __line, __assertion
+        );
     }
 }
 
@@ -441,7 +478,8 @@ impl<T> PointerExt for *mut T {
 }
 
 #[macro_use]
-mod macros;
+/// Macros module for LibYML
+pub mod macros;
 
 /// Macros module for LibYML
 #[macro_use]
@@ -483,37 +521,47 @@ mod writer;
 pub mod yaml;
 
 pub use crate::api::{
-    yaml_alias_event_initialize, yaml_emitter_delete, yaml_emitter_initialize,
-    yaml_emitter_set_break, yaml_emitter_set_canonical, yaml_emitter_set_encoding,
-    yaml_emitter_set_indent, yaml_emitter_set_output, yaml_emitter_set_output_string,
-    yaml_emitter_set_unicode, yaml_emitter_set_width, yaml_event_delete,
-    yaml_mapping_end_event_initialize, yaml_mapping_start_event_initialize,
-    yaml_parser_set_encoding, yaml_parser_set_input, yaml_parser_set_input_string,
+    yaml_alias_event_initialize, yaml_emitter_delete,
+    yaml_emitter_initialize, yaml_emitter_set_break,
+    yaml_emitter_set_canonical, yaml_emitter_set_encoding,
+    yaml_emitter_set_indent, yaml_emitter_set_output,
+    yaml_emitter_set_output_string, yaml_emitter_set_unicode,
+    yaml_emitter_set_width, yaml_event_delete,
+    yaml_mapping_end_event_initialize,
+    yaml_mapping_start_event_initialize, yaml_parser_set_encoding,
+    yaml_parser_set_input, yaml_parser_set_input_string,
     yaml_scalar_event_initialize, yaml_sequence_end_event_initialize,
-    yaml_sequence_start_event_initialize, yaml_stream_end_event_initialize,
+    yaml_sequence_start_event_initialize,
+    yaml_stream_end_event_initialize,
     yaml_stream_start_event_initialize, yaml_token_delete,
 };
 pub use crate::decode::{yaml_parser_delete, yaml_parser_initialize};
 pub use crate::document::{
-    yaml_document_delete, yaml_document_get_node, yaml_document_get_root_node,
-    yaml_document_initialize,
+    yaml_document_delete, yaml_document_get_node,
+    yaml_document_get_root_node, yaml_document_initialize,
 };
-pub use crate::dumper::{yaml_emitter_close, yaml_emitter_dump, yaml_emitter_open};
+pub use crate::dumper::{
+    yaml_emitter_close, yaml_emitter_dump, yaml_emitter_open,
+};
 pub use crate::emitter::yaml_emitter_emit;
 pub use crate::loader::yaml_parser_load;
 pub use crate::parser::yaml_parser_parse;
 pub use crate::scanner::yaml_parser_scan;
 pub use crate::writer::yaml_emitter_flush;
 pub use crate::yaml::{
-    YamlAliasDataT, YamlBreakT, YamlDocumentT, YamlEmitterStateT, YamlEmitterT, YamlEncodingT,
-    YamlErrorTypeT, YamlEventT, YamlEventTypeT, YamlMappingStyleT, YamlMarkT, YamlNodeItemT,
-    YamlNodePairT, YamlNodeT, YamlNodeTypeT, YamlParserStateT, YamlParserT, YamlReadHandlerT,
-    YamlScalarStyleT, YamlSequenceStyleT, YamlSimpleKeyT, YamlStackT, YamlTagDirectiveT,
-    YamlTokenT, YamlTokenTypeT, YamlVersionDirectiveT, YamlWriteHandlerT,
+    YamlAliasDataT, YamlBreakT, YamlDocumentT, YamlEmitterStateT,
+    YamlEmitterT, YamlEncodingT, YamlErrorTypeT, YamlEventT,
+    YamlEventTypeT, YamlMappingStyleT, YamlMarkT, YamlNodeItemT,
+    YamlNodePairT, YamlNodeT, YamlNodeTypeT, YamlParserStateT,
+    YamlParserT, YamlReadHandlerT, YamlScalarStyleT,
+    YamlSequenceStyleT, YamlSimpleKeyT, YamlStackT, YamlTagDirectiveT,
+    YamlTokenT, YamlTokenTypeT, YamlVersionDirectiveT,
+    YamlWriteHandlerT,
 };
 #[doc(hidden)]
 pub use crate::yaml::{
-    YamlBreakT::*, YamlEmitterStateT::*, YamlEncodingT::*, YamlErrorTypeT::*, YamlEventTypeT::*,
-    YamlMappingStyleT::*, YamlNodeTypeT::*, YamlParserStateT::*, YamlScalarStyleT::*,
+    YamlBreakT::*, YamlEmitterStateT::*, YamlEncodingT::*,
+    YamlErrorTypeT::*, YamlEventTypeT::*, YamlMappingStyleT::*,
+    YamlNodeTypeT::*, YamlParserStateT::*, YamlScalarStyleT::*,
     YamlSequenceStyleT::*, YamlTokenTypeT::*,
 };

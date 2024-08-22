@@ -39,7 +39,9 @@ mod tests {
             let mut end = start.add(32);
 
             // Extend the queue
-            yaml_queue_extend(&mut start, &mut head, &mut tail, &mut end);
+            yaml_queue_extend(
+                &mut start, &mut head, &mut tail, &mut end,
+            );
 
             // Check if the queue size doubled
             assert_eq!(end.offset_from(start), 32);
@@ -56,21 +58,30 @@ mod tests {
             // Valid UTF-8 string
             let valid_str = "Hello, world!";
             assert_eq!(
-                yaml_check_utf8(valid_str.as_ptr(), valid_str.len().try_into().unwrap()),
+                yaml_check_utf8(
+                    valid_str.as_ptr(),
+                    valid_str.len().try_into().unwrap()
+                ),
                 OK
             );
 
             // Invalid UTF-8 string
             let invalid_str = [0xFF, 0xFE, 0xFD];
             assert_eq!(
-                yaml_check_utf8(invalid_str.as_ptr(), invalid_str.len().try_into().unwrap()),
+                yaml_check_utf8(
+                    invalid_str.as_ptr(),
+                    invalid_str.len().try_into().unwrap()
+                ),
                 FAIL
             );
 
             // Empty string
             let empty_str = "";
             assert_eq!(
-                yaml_check_utf8(empty_str.as_ptr(), empty_str.len().try_into().unwrap()),
+                yaml_check_utf8(
+                    empty_str.as_ptr(),
+                    empty_str.len().try_into().unwrap()
+                ),
                 OK
             );
 

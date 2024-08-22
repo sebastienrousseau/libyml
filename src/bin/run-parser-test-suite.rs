@@ -23,12 +23,15 @@ mod cstr;
 use self::cstr::CStr;
 use anyhow::{bail, Error, Result};
 use libyml::{
-    yaml_event_delete, yaml_parser_delete, yaml_parser_initialize, yaml_parser_parse,
-    yaml_parser_set_input, YamlAliasEvent, YamlDocumentEndEvent, YamlDocumentStartEvent,
-    YamlDoubleQuotedScalarStyle, YamlEventT, YamlEventTypeT, YamlFoldedScalarStyle,
-    YamlLiteralScalarStyle, YamlMappingEndEvent, YamlMappingStartEvent, YamlNoEvent, YamlParserT,
-    YamlPlainScalarStyle, YamlScalarEvent, YamlSequenceEndEvent, YamlSequenceStartEvent,
-    YamlSingleQuotedScalarStyle, YamlStreamEndEvent, YamlStreamStartEvent,
+    yaml_event_delete, yaml_parser_delete, yaml_parser_initialize,
+    yaml_parser_parse, yaml_parser_set_input, YamlAliasEvent,
+    YamlDocumentEndEvent, YamlDocumentStartEvent,
+    YamlDoubleQuotedScalarStyle, YamlEventT, YamlEventTypeT,
+    YamlFoldedScalarStyle, YamlLiteralScalarStyle, YamlMappingEndEvent,
+    YamlMappingStartEvent, YamlNoEvent, YamlParserT,
+    YamlPlainScalarStyle, YamlScalarEvent, YamlSequenceEndEvent,
+    YamlSequenceStartEvent, YamlSingleQuotedScalarStyle,
+    YamlStreamEndEvent, YamlStreamStartEvent,
 };
 use std::env;
 use std::ffi::c_void;
@@ -56,7 +59,10 @@ use std::slice;
 /// # Returns
 ///
 /// Returns `Ok(())` if parsing and formatting succeed, or an `Error` if any issues occur.
-pub(crate) unsafe fn unsafe_main(mut stdin: &mut dyn Read, stdout: &mut dyn Write) -> Result<()> {
+pub(crate) unsafe fn unsafe_main(
+    mut stdin: &mut dyn Read,
+    stdout: &mut dyn Write,
+) -> Result<()> {
     let mut parser = MaybeUninit::<YamlParserT>::uninit();
     let parser = parser.as_mut_ptr();
     if yaml_parser_initialize(parser).fail {
@@ -78,7 +84,8 @@ pub(crate) unsafe fn unsafe_main(mut stdin: &mut dyn Read, stdout: &mut dyn Writ
         size_read: *mut u64,
     ) -> i32 {
         let stdin: *mut &mut dyn Read = data.cast();
-        let slice = slice::from_raw_parts_mut(buffer.cast(), size as usize);
+        let slice =
+            slice::from_raw_parts_mut(buffer.cast(), size as usize);
         match (*stdin).read(slice) {
             Ok(n) => {
                 *size_read = n as u64;
@@ -88,14 +95,23 @@ pub(crate) unsafe fn unsafe_main(mut stdin: &mut dyn Read, stdout: &mut dyn Writ
         }
     }
 
-    yaml_parser_set_input(parser, read_from_stdio, addr_of_mut!(stdin).cast());
+    yaml_parser_set_input(
+        parser,
+        read_from_stdio,
+        addr_of_mut!(stdin).cast(),
+    );
 
     let mut event = MaybeUninit::<YamlEventT>::uninit();
     let event = event.as_mut_ptr();
     loop {
         if yaml_parser_parse(parser, event).fail {
-            let error = format!("Parse error: {}", CStr::from_ptr((*parser).problem));
-            let error = if (*parser).problem_mark.line != 0 || (*parser).problem_mark.column != 0 {
+            let error = format!(
+                "Parse error: {}",
+                CStr::from_ptr((*parser).problem)
+            );
+            let error = if (*parser).problem_mark.line != 0
+                || (*parser).problem_mark.column != 0
+            {
                 format!(
                     "{}\nLine: {} Column: {}",
                     error,
@@ -134,14 +150,20 @@ pub(crate) unsafe fn unsafe_main(mut stdin: &mut dyn Read, stdout: &mut dyn Writ
                     write!(
                         stdout,
                         " &{}",
-                        CStr::from_ptr((*event).data.mapping_start.anchor as *const i8),
+                        CStr::from_ptr(
+                            (*event).data.mapping_start.anchor
+                                as *const i8
+                        ),
                     )?;
                 }
                 if !(*event).data.mapping_start.tag.is_null() {
                     write!(
                         stdout,
                         " <{}>",
-                        CStr::from_ptr((*event).data.mapping_start.tag as *const i8),
+                        CStr::from_ptr(
+                            (*event).data.mapping_start.tag
+                                as *const i8
+                        ),
                     )?;
                 }
                 writeln!(stdout)?;
@@ -153,14 +175,20 @@ pub(crate) unsafe fn unsafe_main(mut stdin: &mut dyn Read, stdout: &mut dyn Writ
                     write!(
                         stdout,
                         " &{}",
-                        CStr::from_ptr((*event).data.sequence_start.anchor as *const i8),
+                        CStr::from_ptr(
+                            (*event).data.sequence_start.anchor
+                                as *const i8
+                        ),
                     )?;
                 }
                 if !(*event).data.sequence_start.tag.is_null() {
                     write!(
                         stdout,
                         " <{}>",
-                        CStr::from_ptr((*event).data.sequence_start.tag as *const i8),
+                        CStr::from_ptr(
+                            (*event).data.sequence_start.tag
+                                as *const i8
+                        ),
                     )?;
                 }
                 writeln!(stdout)?;
@@ -172,14 +200,18 @@ pub(crate) unsafe fn unsafe_main(mut stdin: &mut dyn Read, stdout: &mut dyn Writ
                     write!(
                         stdout,
                         " &{}",
-                        CStr::from_ptr((*event).data.scalar.anchor as *const i8),
+                        CStr::from_ptr(
+                            (*event).data.scalar.anchor as *const i8
+                        ),
                     )?;
                 }
                 if !(*event).data.scalar.tag.is_null() {
                     write!(
                         stdout,
                         " <{}>",
-                        CStr::from_ptr((*event).data.scalar.tag as *const i8),
+                        CStr::from_ptr(
+                            (*event).data.scalar.tag as *const i8
+                        ),
                     )?;
                 }
                 stdout.write_all(match (*event).data.scalar.style {
@@ -188,7 +220,9 @@ pub(crate) unsafe fn unsafe_main(mut stdin: &mut dyn Read, stdout: &mut dyn Writ
                     YamlDoubleQuotedScalarStyle => b" \"",
                     YamlLiteralScalarStyle => b" |",
                     YamlFoldedScalarStyle => b" >",
-                    _ => return Err(Error::msg("Unknown scalar style")),
+                    _ => {
+                        return Err(Error::msg("Unknown scalar style"))
+                    }
                 })?;
                 print_escaped(
                     stdout,
@@ -234,7 +268,11 @@ pub(crate) unsafe fn unsafe_main(mut stdin: &mut dyn Read, stdout: &mut dyn Writ
 /// # Returns
 ///
 /// Returns `Ok(())` if writing succeeds, or an `io::Error` if any issues occur during writing.
-unsafe fn print_escaped(stdout: &mut dyn Write, str: *const u8, length: u64) -> io::Result<()> {
+unsafe fn print_escaped(
+    stdout: &mut dyn Write,
+    str: *const u8,
+    length: u64,
+) -> io::Result<()> {
     let slice = slice::from_raw_parts(str, length as usize);
     let mut chars = slice.iter().peekable();
 
@@ -309,9 +347,15 @@ fn main() -> ExitCode {
                 let mut stdout = io::stdout();
                 eprintln!("Processing file: {:?}", path);
                 match unsafe { unsafe_main(&mut file, &mut stdout) } {
-                    Ok(()) => eprintln!("Successfully processed file: {:?}", path),
+                    Ok(()) => eprintln!(
+                        "Successfully processed file: {:?}",
+                        path
+                    ),
                     Err(err) => {
-                        eprintln!("Error processing file {:?}: {}", path, err);
+                        eprintln!(
+                            "Error processing file {:?}: {}",
+                            path, err
+                        );
                         eprintln!("The parser encountered an error. Please check if the file contains valid YAML.");
                         return ExitCode::FAILURE;
                     }

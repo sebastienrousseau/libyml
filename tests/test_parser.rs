@@ -384,7 +384,10 @@ fn test_unicode() {
         &temp_file,
     );
 
-    assert!(output.success, "Parser should succeed for Unicode content");
+    assert!(
+        output.success,
+        "Parser should succeed for Unicode content"
+    );
     let stdout = String::from_utf8_lossy(&output.stdout);
     assert!(
         stdout.contains("你好世界"),

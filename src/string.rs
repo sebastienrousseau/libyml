@@ -29,9 +29,11 @@ pub unsafe fn yaml_string_extend(
     let new_size = current_size * 2;
 
     let new_start: *mut yaml_char_t =
-        yaml_realloc(*start as *mut libc::c_void, new_size) as *mut yaml_char_t;
+        yaml_realloc(*start as *mut libc::c_void, new_size)
+            as *mut yaml_char_t;
     let _ = memset(
-        new_start.add(current_size.try_into().unwrap()) as *mut libc::c_void,
+        new_start.add(current_size.try_into().unwrap())
+            as *mut libc::c_void,
         0,
         current_size,
     );
@@ -45,7 +47,9 @@ pub unsafe fn yaml_string_extend(
 /// Duplicate a null-terminated string.
 /// # Safety
 /// - This function is unsafe because it involves memory allocation.
-pub unsafe fn yaml_string_duplicate(str: *const yaml_char_t) -> *mut yaml_char_t {
+pub unsafe fn yaml_string_duplicate(
+    str: *const yaml_char_t,
+) -> *mut yaml_char_t {
     yaml_strdup(str)
 }
 
@@ -72,22 +76,29 @@ pub unsafe fn yaml_string_join(
     b_pointer: *mut *mut yaml_char_t,
     b_end: *mut *mut yaml_char_t,
 ) {
+    // If b_start is equal to b_pointer, there's nothing to join
     if *b_start == *b_pointer {
         return;
     }
 
-    let b_length =
-        ((*b_pointer).offset_from(*b_start)).min((*b_end).offset_from(*b_start)) as usize;
+    // Calculate the length of the data in b
+    let b_length = ((*b_pointer).offset_from(*b_start))
+        .min((*b_end).offset_from(*b_start))
+        as usize;
 
+    // If the length of b is 0, there's nothing to copy
     if b_length == 0 {
         return;
     }
 
+    // Ensure there's enough space in a to hold b's content
     while ((*a_end).offset_from(*a_pointer) as usize) < b_length {
         yaml_string_extend(a_start, a_pointer, a_end);
     }
 
+    // Copy b's content to a
     core::ptr::copy_nonoverlapping(*b_start, *a_pointer, b_length);
 
+    // Move a's pointer forward by the length of the copied data
     *a_pointer = (*a_pointer).add(b_length);
 }

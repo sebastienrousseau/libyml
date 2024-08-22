@@ -118,7 +118,8 @@ mod tests {
             let mut a_pointer = a_start;
             let mut a_end = a_start.add(2);
 
-            let mut b_start = b"longer string" as *const u8 as *mut yaml_char_t;
+            let mut b_start =
+                b"longer string" as *const u8 as *mut yaml_char_t;
             let mut b_pointer = b_start.add(12);
             let mut b_end = b_start.add(12);
 
@@ -213,7 +214,11 @@ mod tests {
 
             let offset = a_pointer.offset_from(a_start);
 
-            assert_eq!(offset, 4, "Expected offset to be 4, but got {}", offset);
+            assert_eq!(
+                offset, 4,
+                "Expected offset to be 4, but got {}",
+                offset
+            );
             assert_eq!(
                 *a_start.add(3),
                 b'l',

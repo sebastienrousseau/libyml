@@ -24,9 +24,12 @@ impl Display for CStr {
                 Ok(valid) => return formatter.write_str(valid),
                 Err(utf8_error) => {
                     let valid_up_to = utf8_error.valid_up_to();
-                    let valid = unsafe { str::from_utf8_unchecked(&bytes[..valid_up_to]) };
+                    let valid = unsafe {
+                        str::from_utf8_unchecked(&bytes[..valid_up_to])
+                    };
                     formatter.write_str(valid)?;
-                    formatter.write_char(char::REPLACEMENT_CHARACTER)?;
+                    formatter
+                        .write_char(char::REPLACEMENT_CHARACTER)?;
                     if let Some(error_len) = utf8_error.error_len() {
                         bytes = &bytes[valid_up_to + error_len..];
                     } else {

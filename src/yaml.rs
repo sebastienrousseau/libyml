@@ -2,8 +2,12 @@ use crate::libc;
 use core::ops::Deref;
 use core::ptr::{self, addr_of};
 
-pub(crate) use self::{YamlEncodingT::*, YamlEventTypeT::*, YamlNodeTypeT::*};
-pub use core::primitive::{i64 as ptrdiff_t, u64 as size_t, u8 as yaml_char_t};
+pub(crate) use self::{
+    YamlEncodingT::*, YamlEventTypeT::*, YamlNodeTypeT::*,
+};
+pub use core::primitive::{
+    i64 as ptrdiff_t, u64 as size_t, u8 as yaml_char_t,
+};
 
 /// The version directive data.
 #[derive(Copy, Clone, Debug, Default)]
@@ -858,8 +862,11 @@ pub(crate) struct UnnamedYamlParserTInputString {
 ///
 /// On success, the handler should return 1. If the handler failed, the returned
 /// value should be 0.
-pub type YamlWriteHandlerT =
-    unsafe fn(data: *mut libc::c_void, buffer: *mut libc::c_uchar, size: size_t) -> libc::c_int;
+pub type YamlWriteHandlerT = unsafe fn(
+    data: *mut libc::c_void,
+    buffer: *mut libc::c_uchar,
+    size: size_t,
+) -> libc::c_int;
 
 /// The emitter states.
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
@@ -1495,7 +1502,8 @@ impl Default for YamlDocumentT {
                 top: ptr::null_mut(),
             },
             version_directive: ptr::null_mut(),
-            tag_directives: UnnamedYamlDocumentTTagDirectives::default(),
+            tag_directives: UnnamedYamlDocumentTTagDirectives::default(
+            ),
             start_implicit: false,
             end_implicit: false,
             start_mark: YamlMarkT::default(),

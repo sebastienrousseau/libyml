@@ -413,8 +413,7 @@ mod tests {
     /// Test memory allocation failure
     fn test_memory_allocation_failure() {
         unsafe {
-            let mut doc: YamlDocumentT =
-                MaybeUninit::zeroed().assume_init();
+            let mut doc: YamlDocumentT = MaybeUninit::zeroed().assume_init();
             let result = yaml_document_initialize(
                 &mut doc,
                 ptr::null_mut(),
@@ -424,16 +423,18 @@ mod tests {
                 false,
             );
 
+            // Assert that the function returns the expected result
             if result == FAIL {
-                assert!(
-                    true,
-                    "Handled memory allocation failure correctly"
-                );
+                // If the initialization failed, ensure that it was handled
+                assert_eq!(result, FAIL, "Expected memory allocation to fail, and it did.");
             } else {
-                doc.cleanup();
+                // If the initialization succeeded, assert success and perform cleanup
+                assert_eq!(result, OK, "Expected memory allocation to succeed, and it did.");
+                doc.cleanup(); // Ensure proper cleanup
             }
         }
     }
+
 
     #[test]
     /// Test document initialization with different node types

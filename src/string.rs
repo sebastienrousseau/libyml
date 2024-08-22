@@ -31,7 +31,7 @@ pub unsafe fn yaml_string_extend(
     let new_start: *mut yaml_char_t =
         yaml_realloc(*start as *mut libc::c_void, new_size)
             as *mut yaml_char_t;
-    memset(
+    let _ = memset(
         new_start.add(current_size.try_into().unwrap())
             as *mut libc::c_void,
         0,

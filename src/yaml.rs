@@ -941,13 +941,13 @@ pub struct YamlEmitterT {
     #[cfg(not(doc))]
     pub(crate) problem: *const libc::c_char,
     /// Write handler.
-    pub(crate) write_handler: Option<YamlWriteHandlerT>,
+    pub write_handler: Option<YamlWriteHandlerT>,
     /// A pointer for passing to the write handler.
     pub(crate) write_handler_data: *mut libc::c_void,
     /// Standard (string or file) output data.
-    pub(crate) output: UnnamedYamlEmitterTOutput,
+    pub output: UnnamedYamlEmitterTOutput,
     /// The working buffer.
-    pub(crate) buffer: YamlBufferT<yaml_char_t>,
+    pub buffer: YamlBufferT<yaml_char_t>,
     /// The raw buffer.
     pub(crate) raw_buffer: YamlBufferT<libc::c_uchar>,
     /// The stream encoding.
@@ -1001,9 +1001,9 @@ pub struct YamlEmitterT {
     /// Scalar analysis.
     pub(crate) scalar_data: UnnamedYamlEmitterTScalarData,
     /// If the stream was already opened?
-    pub(crate) opened: bool,
+    pub opened: bool,
     /// If the stream was already closed?
-    pub(crate) closed: bool,
+    pub closed: bool,
     /// The information associated with the document nodes.
     pub(crate) anchors: *mut YamlAnchorsT,
     /// The last assigned anchor id.
@@ -1033,20 +1033,22 @@ impl Deref for YamlEmitterT {
 
 #[derive(Copy, Clone, Debug, Default)]
 #[repr(C)]
-pub(crate) struct UnnamedYamlEmitterTOutput {
+/// Represents the output data associated with a YAML emitter.
+pub struct UnnamedYamlEmitterTOutput {
     /// String output data.
-    pub(crate) string: UnnamedYamlEmitterTOutputString,
+    pub string: UnnamedYamlEmitterTOutputString,
 }
 
 #[derive(Copy, Clone, Debug)]
 #[repr(C)]
-pub(crate) struct UnnamedYamlEmitterTOutputString {
+/// Represents the unamed output string data associated with a YAML emitter.
+pub struct UnnamedYamlEmitterTOutputString {
     /// The buffer pointer.
-    pub(crate) buffer: *mut libc::c_uchar,
+    pub buffer: *mut libc::c_uchar,
     /// The buffer size.
-    pub(crate) size: size_t,
+    pub size: size_t,
     /// The number of written bytes.
-    pub(crate) size_written: *mut size_t,
+    pub size_written: *mut size_t,
 }
 
 #[derive(Copy, Clone, Debug)]
@@ -1110,15 +1112,16 @@ pub(crate) const NULL_STRING: YamlStringT = YamlStringT {
 
 #[derive(Copy, Clone, Debug)]
 #[repr(C)]
-pub(crate) struct YamlBufferT<T> {
+/// Represents the data associated with a YAML token.
+pub struct YamlBufferT<T> {
     /// The beginning of the buffer.
-    pub(crate) start: *mut T,
+    pub start: *mut T,
     /// The end of the buffer.
-    pub(crate) end: *mut T,
+    pub end: *mut T,
     /// The current position of the buffer.
-    pub(crate) pointer: *mut T,
+    pub pointer: *mut T,
     /// The last filled position of the buffer.
-    pub(crate) last: *mut T,
+    pub last: *mut T,
 }
 
 impl<T> YamlBufferT<T> {

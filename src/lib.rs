@@ -33,7 +33,7 @@
 //!
 //! ```toml
 //! [dependencies]
-//! libyml = "0.0.4"
+//! libyml = "0.0.5"
 //! ```
 //!
 //! Release notes are available under [GitHub releases][05].
@@ -136,7 +136,7 @@
 //! [build-badge]: https://img.shields.io/github/actions/workflow/status/sebastienrousseau/libyml/release.yml?branch=master&style=for-the-badge&logo=github
 //! [codecov-badge]: https://img.shields.io/codecov/c/github/sebastienrousseau/libyml?style=for-the-badge&token=yc9s578xIk&logo=codecov
 //! [crates-badge]: https://img.shields.io/crates/v/libyml.svg?style=for-the-badge&color=fc8d62&logo=rust
-//! [libs-badge]: https://img.shields.io/badge/lib.rs-v0.0.4-orange.svg?style=for-the-badge
+//! [libs-badge]: https://img.shields.io/badge/lib.rs-v0.0.5-orange.svg?style=for-the-badge
 //! [docs-badge]: https://img.shields.io/badge/docs.rs-libyml-66c2a5?style=for-the-badge&labelColor=555555&logo=docs.rs
 //! [github-badge]: https://img.shields.io/badge/github-sebastienrousseau/libyml-8da0cb?style=for-the-badge&labelColor=555555&logo=github
 
@@ -169,8 +169,8 @@ use core::mem::size_of;
 ///
 /// This module does not return any value. It only contains declarations for C library functions.
 pub mod libc {
-    pub(crate) use core::ffi::c_void;
-    pub(crate) use core::primitive::{
+    pub use core::ffi::c_void;
+    pub use core::primitive::{
         i32 as c_int, i64 as c_long, i8 as c_char, u32 as c_uint,
         u64 as c_ulong, u8 as c_uchar,
     };
@@ -205,9 +205,13 @@ pub mod externs {
         }
     };
 
-    pub(crate) unsafe fn malloc(
-        size: libc::c_ulong,
-    ) -> *mut libc::c_void {
+    /// Allocate memory.
+    ///
+    /// # Safety
+    ///
+    /// This function is unsafe because it directly manipulates raw memory.
+    /// The caller must ensure that the allocated memory is properly managed and freed when no longer needed.
+    pub unsafe fn malloc(size: libc::c_ulong) -> *mut libc::c_void {
         let size = HEADER.force_add(size.force_into());
         let layout = Layout::from_size_align(size, MALLOC_ALIGN)
             .ok()
@@ -476,7 +480,10 @@ pub mod api;
 /// String module for LibYML
 pub mod string;
 
-mod dumper;
+/// Dumper module for LibYML
+pub mod dumper;
+
+/// Emitter module for LibYML
 mod emitter;
 /// Loader module for LibYML
 pub mod loader;

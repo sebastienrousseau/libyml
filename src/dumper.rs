@@ -30,31 +30,46 @@ use core::ptr::{self, addr_of_mut};
 /// - The `YamlEmitterT` struct must be properly aligned and have the expected memory layout.
 ///
 pub unsafe fn yaml_emitter_open(emitter: *mut YamlEmitterT) -> Success {
+    if emitter.is_null() {
+        return FAIL;
+    }
+
+    // If the emitter is already opened, return FAIL
+    if (*emitter).opened {
+        return FAIL;
+    }
+
+    // If the emitter was previously closed, reset its state
+    if (*emitter).closed {
+        (*emitter).closed = false;
+    }
+
     let mut event = MaybeUninit::<YamlEventT>::uninit();
-    let event = event.as_mut_ptr();
+    let event_ptr = event.as_mut_ptr();
     let mark = YamlMarkT {
         index: 0_u64,
         line: 0_u64,
         column: 0_u64,
     };
-    __assert!(!emitter.is_null());
-    __assert!(!(*emitter).opened);
-    memset(
-        event as *mut libc::c_void,
+
+    let _ = memset(
+        event_ptr as *mut libc::c_void,
         0,
         size_of::<YamlEventT>() as libc::c_ulong,
     );
-    (*event).type_ = YamlStreamStartEvent;
-    (*event).start_mark = mark;
-    (*event).end_mark = mark;
-    (*event).data.stream_start.encoding = YamlAnyEncoding;
-    if yaml_emitter_emit(emitter, event).fail {
+    (*event_ptr).type_ = YamlStreamStartEvent;
+    (*event_ptr).start_mark = mark;
+    (*event_ptr).end_mark = mark;
+    (*event_ptr).data.stream_start.encoding = YamlAnyEncoding;
+
+    if yaml_emitter_emit(emitter, event_ptr).fail {
         return FAIL;
     }
+
     (*emitter).opened = true;
+    (*emitter).closed = false;
     OK
 }
-
 /// Finish a YAML stream.
 ///
 /// This function should be used after yaml_emitter_dump() is called.
@@ -68,6 +83,20 @@ pub unsafe fn yaml_emitter_open(emitter: *mut YamlEmitterT) -> Success {
 pub unsafe fn yaml_emitter_close(
     emitter: *mut YamlEmitterT,
 ) -> Success {
+    if emitter.is_null() {
+        return FAIL;
+    }
+
+    // If the emitter is not opened, we don't need to close it
+    if !(*emitter).opened {
+        return OK;
+    }
+
+    // If the emitter is already closed, we don't need to close it again
+    if (*emitter).closed {
+        return OK;
+    }
+
     let mut event = MaybeUninit::<YamlEventT>::uninit();
     let event = event.as_mut_ptr();
     let mark = YamlMarkT {
@@ -75,12 +104,8 @@ pub unsafe fn yaml_emitter_close(
         line: 0_u64,
         column: 0_u64,
     };
-    __assert!(!emitter.is_null());
-    __assert!((*emitter).opened);
-    if (*emitter).closed {
-        return OK;
-    }
-    memset(
+
+    let _ = memset(
         event as *mut libc::c_void,
         0,
         size_of::<YamlEventT>() as libc::c_ulong,
@@ -92,6 +117,7 @@ pub unsafe fn yaml_emitter_close(
         return FAIL;
     }
     (*emitter).closed = true;
+    (*emitter).opened = false;
     OK
 }
 
@@ -149,7 +175,7 @@ pub unsafe fn yaml_emitter_dump(
             ),
         ) as *mut YamlAnchorsT;
 
-        memset(
+        let _ = memset(
             (*emitter).anchors as *mut libc::c_void,
             0,
             (size_of::<YamlAnchorsT>() as libc::c_ulong).force_mul(
@@ -161,7 +187,7 @@ pub unsafe fn yaml_emitter_dump(
             ),
         );
 
-        memset(
+        let _ = memset(
             event as *mut libc::c_void,
             0,
             size_of::<YamlEventT>() as libc::c_ulong,
@@ -181,7 +207,7 @@ pub unsafe fn yaml_emitter_dump(
         if yaml_emitter_emit(emitter, event).ok {
             yaml_emitter_anchor_node(emitter, 1);
             if yaml_emitter_dump_node(emitter, 1).ok {
-                memset(
+                let _ = memset(
                     event as *mut libc::c_void,
                     0,
                     size_of::<YamlEventT>() as libc::c_ulong,
@@ -329,7 +355,24 @@ unsafe fn yaml_emitter_generate_anchor(
     anchor
 }
 
-unsafe fn yaml_emitter_dump_node(
+/// Emits a YAML node to the emitter.
+///
+/// This function handles the serialization of YAML nodes, including anchors, aliases, scalars, sequences, and mappings.
+/// It generates anchors for nodes that require them and serializes the nodes accordingly.
+///
+/// # Parameters
+///
+/// * `emitter`: A pointer to the YAML emitter.
+/// * `index`: The index of the node to be serialized.
+///
+/// # Returns
+///
+/// * `Success`: Indicates whether the serialization was successful.
+///
+/// # Errors
+///
+/// * If the serialization fails, an error is returned.
+pub unsafe fn yaml_emitter_dump_node(
     emitter: *mut YamlEmitterT,
     index: libc::c_int,
 ) -> Success {
@@ -377,7 +420,7 @@ unsafe fn yaml_emitter_dump_alias(
         line: 0_u64,
         column: 0_u64,
     };
-    memset(
+    let _ = memset(
         event as *mut libc::c_void,
         0,
         size_of::<YamlEventT>() as libc::c_ulong,
@@ -389,7 +432,25 @@ unsafe fn yaml_emitter_dump_alias(
     yaml_emitter_emit(emitter, event)
 }
 
-unsafe fn yaml_emitter_dump_scalar(
+/// Serializes a YAML scalar node to the emitter.
+///
+/// This function generates a YAML ScalarEvent based on the provided node and its properties.
+/// It sets the anchor, tag, value, length, implicit styles, and style of the scalar event.
+///
+/// # Parameters
+///
+/// * `emitter`: A pointer to the YAML emitter.
+/// * `node`: A pointer to the YAML node to be serialized.
+/// * `anchor`: A pointer to the anchor of the node.
+///
+/// # Returns
+///
+/// * `Success`: Indicates whether the serialization was successful.
+///
+/// # Errors
+///
+/// * If the serialization fails, an error is returned.
+pub unsafe fn yaml_emitter_dump_scalar(
     emitter: *mut YamlEmitterT,
     node: *mut YamlNodeT,
     anchor: *mut yaml_char_t,
@@ -409,7 +470,7 @@ unsafe fn yaml_emitter_dump_scalar(
         (*node).tag as *mut libc::c_char,
         b"tag:yaml.org,2002:str\0" as *const u8 as *const libc::c_char,
     ) == 0;
-    memset(
+    let _ = memset(
         event as *mut libc::c_void,
         0,
         size_of::<YamlEventT>() as libc::c_ulong,
@@ -427,7 +488,25 @@ unsafe fn yaml_emitter_dump_scalar(
     yaml_emitter_emit(emitter, event)
 }
 
-unsafe fn yaml_emitter_dump_sequence(
+/// Serializes a YAML sequence node to the emitter.
+///
+/// This function generates a YAML SequenceStartEvent and a YAML SequenceEndEvent based on the provided node and its properties.
+/// It sets the anchor, tag, implicit style, and style of the sequence events.
+///
+/// # Parameters
+///
+/// * `emitter`: A pointer to the YAML emitter.
+/// * `node`: A pointer to the YAML node to be serialized.
+/// * `anchor`: A pointer to the anchor of the node.
+///
+/// # Returns
+///
+/// * `Success`: Indicates whether the serialization was successful.
+///
+/// # Errors
+///
+/// * If the serialization fails, an error is returned.
+pub unsafe fn yaml_emitter_dump_sequence(
     emitter: *mut YamlEmitterT,
     node: *mut YamlNodeT,
     anchor: *mut yaml_char_t,
@@ -444,7 +523,7 @@ unsafe fn yaml_emitter_dump_sequence(
         b"tag:yaml.org,2002:seq\0" as *const u8 as *const libc::c_char,
     ) == 0;
     let mut item: *mut YamlNodeItemT;
-    memset(
+    let _ = memset(
         event as *mut libc::c_void,
         0,
         size_of::<YamlEventT>() as libc::c_ulong,
@@ -466,7 +545,7 @@ unsafe fn yaml_emitter_dump_sequence(
         }
         item = item.wrapping_offset(1);
     }
-    memset(
+    let _ = memset(
         event as *mut libc::c_void,
         0,
         size_of::<YamlEventT>() as libc::c_ulong,
@@ -477,7 +556,25 @@ unsafe fn yaml_emitter_dump_sequence(
     yaml_emitter_emit(emitter, event)
 }
 
-unsafe fn yaml_emitter_dump_mapping(
+/// Serializes a YAML mapping node to the emitter.
+///
+/// This function generates a YAML MappingStartEvent and a YAML MappingEndEvent based on the provided node and its properties.
+/// It sets the anchor, tag, implicit style, and style of the mapping events.
+///
+/// # Parameters
+///
+/// * `emitter`: A pointer to the YAML emitter.
+/// * `node`: A pointer to the YAML node to be serialized.
+/// * `anchor`: A pointer to the anchor of the node.
+///
+/// # Returns
+///
+/// * `Success`: Indicates whether the serialization was successful.
+///
+/// # Errors
+///
+/// * If the serialization fails, an error is returned.
+pub unsafe fn yaml_emitter_dump_mapping(
     emitter: *mut YamlEmitterT,
     node: *mut YamlNodeT,
     anchor: *mut yaml_char_t,
@@ -494,7 +591,7 @@ unsafe fn yaml_emitter_dump_mapping(
         b"tag:yaml.org,2002:map\0" as *const u8 as *const libc::c_char,
     ) == 0;
     let mut pair: *mut YamlNodePairT;
-    memset(
+    let _ = memset(
         event as *mut libc::c_void,
         0,
         size_of::<YamlEventT>() as libc::c_ulong,
@@ -519,7 +616,7 @@ unsafe fn yaml_emitter_dump_mapping(
         }
         pair = pair.wrapping_offset(1);
     }
-    memset(
+    let _ = memset(
         event as *mut libc::c_void,
         0,
         size_of::<YamlEventT>() as libc::c_ulong,

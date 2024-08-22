@@ -38,7 +38,7 @@ macro_rules! STRING_INIT {
         $string.start = yaml_malloc(16) as *mut yaml_char_t;
         $string.pointer = $string.start;
         $string.end = $string.start.wrapping_add(16);
-        memset($string.start as *mut libc::c_void, 0, 16);
+        let _ = memset($string.start as *mut libc::c_void, 0, 16);
     }};
 }
 
@@ -66,7 +66,7 @@ macro_rules! STRING_EXTEND {
 macro_rules! CLEAR {
     ($string:expr) => {{
         $string.pointer = $string.start;
-        memset(
+        let _ = memset(
             $string.start as *mut libc::c_void,
             0,
             $string.end.c_offset_from($string.start) as libc::c_ulong,
@@ -533,7 +533,7 @@ macro_rules! QUEUE_INSERT {
                 addr_of_mut!($queue.end) as *mut *mut libc::c_void,
             );
         }
-        memmove(
+        let _ = memmove(
             $queue
                 .head
                 .wrapping_offset($index as isize)

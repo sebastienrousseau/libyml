@@ -130,7 +130,7 @@ pub unsafe fn yaml_document_initialize(
         current_block = 14818589718467733107;
     }
     if current_block != 8142820162064489797 {
-        memset(
+        let _ = memset(
             document as *mut libc::c_void,
             0,
             size_of::<YamlDocumentT>() as libc::c_ulong,
@@ -178,8 +178,14 @@ pub unsafe fn yaml_document_initialize(
 /// - The `YamlDocumentT` struct and its associated nodes must be properly aligned and have the expected memory layout.
 ///
 pub unsafe fn yaml_document_delete(document: *mut YamlDocumentT) {
+    // Check if the document pointer is null
+    if document.is_null() {
+        return; // If the pointer is null, return early to avoid any dereferencing
+    }
+
     let mut tag_directive: *mut YamlTagDirectiveT;
-    __assert!(!document.is_null());
+
+    // Proceed with deletion only if the document pointer is valid (non-null)
     while !STACK_EMPTY!((*document).nodes) {
         let mut node = POP!((*document).nodes);
         yaml_free(node.tag as *mut libc::c_void);
@@ -200,6 +206,8 @@ pub unsafe fn yaml_document_delete(document: *mut YamlDocumentT) {
     }
     STACK_DEL!((*document).nodes);
     yaml_free((*document).version_directive as *mut libc::c_void);
+
+    // Handle tag directives
     tag_directive = (*document).tag_directives.start;
     while tag_directive != (*document).tag_directives.end {
         yaml_free((*tag_directive).handle as *mut libc::c_void);
@@ -207,7 +215,9 @@ pub unsafe fn yaml_document_delete(document: *mut YamlDocumentT) {
         tag_directive = tag_directive.wrapping_offset(1);
     }
     yaml_free((*document).tag_directives.start as *mut libc::c_void);
-    memset(
+
+    // Clear the memory of the document structure itself
+    let _ = memset(
         document as *mut libc::c_void,
         0,
         size_of::<YamlDocumentT>() as libc::c_ulong,
@@ -329,13 +339,13 @@ pub unsafe fn yaml_document_add_scalar(
             if yaml_check_utf8(value, length as size_t).ok {
                 value_copy = yaml_malloc(length.force_add(1) as size_t)
                     as *mut yaml_char_t;
-                memcpy(
+                let _ = memcpy(
                     value_copy as *mut libc::c_void,
                     value as *const libc::c_void,
                     length as libc::c_ulong,
                 );
                 *value_copy.wrapping_offset(length as isize) = b'\0';
-                memset(
+                let _ = memset(
                     node as *mut libc::c_void,
                     0,
                     size_of::<YamlNodeT>() as libc::c_ulong,
@@ -411,7 +421,7 @@ pub unsafe fn yaml_document_add_sequence(
         tag_copy = yaml_strdup(tag);
         if !tag_copy.is_null() {
             STACK_INIT!(items, YamlNodeItemT);
-            memset(
+            let _ = memset(
                 node as *mut libc::c_void,
                 0,
                 size_of::<YamlNodeT>() as libc::c_ulong,
@@ -487,7 +497,7 @@ pub unsafe fn yaml_document_add_mapping(
         tag_copy = yaml_strdup(tag);
         if !tag_copy.is_null() {
             STACK_INIT!(pairs, YamlNodePairT);
-            memset(
+            let _ = memset(
                 node as *mut libc::c_void,
                 0,
                 size_of::<YamlNodeT>() as libc::c_ulong,
@@ -636,7 +646,7 @@ pub unsafe fn yaml_document_end_event_initialize(
         column: 0_u64,
     };
     __assert!(!event.is_null());
-    memset(
+    let _ = memset(
         event as *mut libc::c_void,
         0,
         size_of::<YamlEventT>() as libc::c_ulong,
@@ -749,7 +759,7 @@ pub unsafe fn yaml_document_start_event_initialize(
         current_block = 16203760046146113240;
     }
     if current_block != 14964981520188694172 {
-        memset(
+        let _ = memset(
             event as *mut libc::c_void,
             0,
             size_of::<YamlEventT>() as libc::c_ulong,

@@ -1,8 +1,33 @@
 use std::error::Error;
+use std::fmt;
 use std::fs::File;
 use std::io::{Read, Write};
 use std::path::Path;
 use std::process::{Command, Stdio};
+
+// Define a custom error type
+#[derive(Debug)]
+pub(crate) enum MyError {
+    IoError(std::io::Error),
+    Other(String),
+}
+
+impl fmt::Display for MyError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            MyError::IoError(e) => write!(f, "I/O Error: {}", e),
+            MyError::Other(s) => write!(f, "Error: {}", s),
+        }
+    }
+}
+
+impl Error for MyError {}
+
+impl From<std::io::Error> for MyError {
+    fn from(error: std::io::Error) -> Self {
+        MyError::IoError(error)
+    }
+}
 
 pub(crate) struct Output {
     pub(crate) success: bool,
@@ -15,7 +40,7 @@ pub(crate) fn run(
     unsafe_main: unsafe fn(
         stdin: &mut dyn Read,
         stdout: &mut dyn Write,
-    ) -> Result<(), Box<dyn Error>>,
+    ) -> Result<(), MyError>,
     input: &Path,
 ) -> Output {
     if cfg!(miri) {
@@ -26,11 +51,10 @@ pub(crate) fn run(
         Output {
             success: result.is_ok(),
             stdout,
-            stderr: result
-                .err()
-                .as_ref()
-                .map_or_else(String::new, ToString::to_string)
-                .into(),
+            stderr: match result {
+                Ok(_) => Vec::new(),
+                Err(e) => e.to_string().into_bytes(),
+            },
         }
     } else {
         let output = Command::new(compiled)

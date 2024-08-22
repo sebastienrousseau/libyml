@@ -107,7 +107,7 @@ pub unsafe fn yaml_parser_parse(
 ) -> Success {
     __assert!(!parser.is_null());
     __assert!(!event.is_null());
-    memset(
+    let _ = memset(
         event as *mut libc::c_void,
         0,
         size_of::<YamlEventT>() as libc::c_ulong,
@@ -253,7 +253,7 @@ unsafe fn yaml_parser_parse_stream_start(
         return FAIL;
     }
     (*parser).state = YamlParseImplicitDocumentStartState;
-    memset(
+    let _ = memset(
         event as *mut libc::c_void,
         0,
         size_of::<YamlEventT>() as libc::c_ulong,
@@ -314,7 +314,7 @@ unsafe fn yaml_parser_parse_document_start(
         }
         PUSH!((*parser).states, YamlParseDocumentEndState);
         (*parser).state = YamlParseBlockNodeState;
-        memset(
+        let _ = memset(
             event as *mut libc::c_void,
             0,
             size_of::<YamlEventT>() as libc::c_ulong,
@@ -363,7 +363,7 @@ unsafe fn yaml_parser_parse_document_start(
                 PUSH!((*parser).states, YamlParseDocumentEndState);
                 (*parser).state = YamlParseDocumentContentState;
                 end_mark = (*token).end_mark;
-                memset(
+                let _ = memset(
                     event as *mut libc::c_void,
                     0,
                     size_of::<YamlEventT>() as libc::c_ulong,
@@ -407,7 +407,7 @@ unsafe fn yaml_parser_parse_document_start(
         FAIL
     } else {
         (*parser).state = YamlParseEndState;
-        memset(
+        let _ = memset(
             event as *mut libc::c_void,
             0,
             size_of::<YamlEventT>() as libc::c_ulong,
@@ -464,7 +464,7 @@ unsafe fn yaml_parser_parse_document_end(
         yaml_free(tag_directive.prefix as *mut libc::c_void);
     }
     (*parser).state = YamlParseDocumentStartState;
-    memset(
+    let _ = memset(
         event as *mut libc::c_void,
         0,
         size_of::<YamlEventT>() as libc::c_ulong,
@@ -504,7 +504,7 @@ unsafe fn yaml_parser_parse_node(
     }
     if (*token).type_ == YamlAliasToken {
         (*parser).state = POP!((*parser).states);
-        memset(
+        let _ = memset(
             event as *mut libc::c_void,
             0,
             size_of::<YamlEventT>() as libc::c_ulong,
@@ -603,13 +603,13 @@ unsafe fn yaml_parser_parse_node(
                                     .force_add(1_u64),
                             )
                                 as *mut yaml_char_t;
-                            memcpy(
+                            let _ = memcpy(
                                 tag as *mut libc::c_void,
                                 (*tag_directive).prefix
                                     as *const libc::c_void,
                                 prefix_len,
                             );
-                            memcpy(
+                            let _ = memcpy(
                                 tag.wrapping_offset(prefix_len as isize)
                                     as *mut libc::c_void,
                                 tag_suffix as *const libc::c_void,
@@ -659,7 +659,7 @@ unsafe fn yaml_parser_parse_node(
                     end_mark = (*token).end_mark;
                     (*parser).state =
                         YamlParseIndentlessSequenceEntryState;
-                    memset(
+                    let _ = memset(
                         event as *mut libc::c_void,
                         0,
                         size_of::<YamlEventT>() as libc::c_ulong,
@@ -697,7 +697,7 @@ unsafe fn yaml_parser_parse_node(
                         quoted_implicit = true;
                     }
                     (*parser).state = POP!((*parser).states);
-                    memset(
+                    let _ = memset(
                         event as *mut libc::c_void,
                         0,
                         size_of::<YamlEventT>() as libc::c_ulong,
@@ -728,7 +728,7 @@ unsafe fn yaml_parser_parse_node(
                     end_mark = (*token).end_mark;
                     (*parser).state =
                         YamlParseFlowSequenceFirstEntryState;
-                    memset(
+                    let _ = memset(
                         event as *mut libc::c_void,
                         0,
                         size_of::<YamlEventT>() as libc::c_ulong,
@@ -750,7 +750,7 @@ unsafe fn yaml_parser_parse_node(
                 } else if (*token).type_ == YamlFlowMappingStartToken {
                     end_mark = (*token).end_mark;
                     (*parser).state = YamlParseFlowMappingFirstKeyState;
-                    memset(
+                    let _ = memset(
                         event as *mut libc::c_void,
                         0,
                         size_of::<YamlEventT>() as libc::c_ulong,
@@ -775,7 +775,7 @@ unsafe fn yaml_parser_parse_node(
                     end_mark = (*token).end_mark;
                     (*parser).state =
                         YamlParseBlockSequenceFirstEntryState;
-                    memset(
+                    let _ = memset(
                         event as *mut libc::c_void,
                         0,
                         size_of::<YamlEventT>() as libc::c_ulong,
@@ -800,7 +800,7 @@ unsafe fn yaml_parser_parse_node(
                     end_mark = (*token).end_mark;
                     (*parser).state =
                         YamlParseBlockMappingFirstKeyState;
-                    memset(
+                    let _ = memset(
                         event as *mut libc::c_void,
                         0,
                         size_of::<YamlEventT>() as libc::c_ulong,
@@ -824,7 +824,7 @@ unsafe fn yaml_parser_parse_node(
                         yaml_malloc(1_u64) as *mut yaml_char_t;
                     *value = b'\0';
                     (*parser).state = POP!((*parser).states);
-                    memset(
+                    let _ = memset(
                         event as *mut libc::c_void,
                         0,
                         size_of::<YamlEventT>() as libc::c_ulong,
@@ -907,7 +907,7 @@ unsafe fn yaml_parser_parse_block_sequence_entry(
     } else if (*token).type_ == YamlBlockEndToken {
         (*parser).state = POP!((*parser).states);
         let _ = POP!((*parser).marks);
-        memset(
+        let _ = memset(
             event as *mut libc::c_void,
             0,
             size_of::<YamlEventT>() as libc::c_ulong,
@@ -963,7 +963,7 @@ unsafe fn yaml_parser_parse_indentless_sequence_entry(
         }
     } else {
         (*parser).state = POP!((*parser).states);
-        memset(
+        let _ = memset(
             event as *mut libc::c_void,
             0,
             size_of::<YamlEventT>() as libc::c_ulong,
@@ -1010,7 +1010,7 @@ unsafe fn yaml_parser_parse_block_mapping_key(
     } else if (*token).type_ == YamlBlockEndToken {
         (*parser).state = POP!((*parser).states);
         let _ = POP!((*parser).marks);
-        memset(
+        let _ = memset(
             event as *mut libc::c_void,
             0,
             size_of::<YamlEventT>() as libc::c_ulong,
@@ -1104,7 +1104,7 @@ unsafe fn yaml_parser_parse_flow_sequence_entry(
         }
         if (*token).type_ == YamlKeyToken {
             (*parser).state = YamlParseFlowSequenceEntryMappingKeyState;
-            memset(
+            let _ = memset(
                 event as *mut libc::c_void,
                 0,
                 size_of::<YamlEventT>() as libc::c_ulong,
@@ -1129,7 +1129,7 @@ unsafe fn yaml_parser_parse_flow_sequence_entry(
     }
     (*parser).state = POP!((*parser).states);
     let _ = POP!((*parser).marks);
-    memset(
+    let _ = memset(
         event as *mut libc::c_void,
         0,
         size_of::<YamlEventT>() as libc::c_ulong,
@@ -1204,7 +1204,7 @@ unsafe fn yaml_parser_parse_flow_sequence_entry_mapping_end(
         return FAIL;
     }
     (*parser).state = YamlParseFlowSequenceEntryState;
-    memset(
+    let _ = memset(
         event as *mut libc::c_void,
         0,
         size_of::<YamlEventT>() as libc::c_ulong,
@@ -1282,7 +1282,7 @@ unsafe fn yaml_parser_parse_flow_mapping_key(
     }
     (*parser).state = POP!((*parser).states);
     let _ = POP!((*parser).marks);
-    memset(
+    let _ = memset(
         event as *mut libc::c_void,
         0,
         size_of::<YamlEventT>() as libc::c_ulong,
@@ -1335,7 +1335,7 @@ unsafe fn yaml_parser_process_empty_scalar(
     let value: *mut yaml_char_t =
         yaml_malloc(1_u64) as *mut yaml_char_t;
     *value = b'\0';
-    memset(
+    let _ = memset(
         event as *mut libc::c_void,
         0,
         size_of::<YamlEventT>() as libc::c_ulong,

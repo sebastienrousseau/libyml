@@ -1,14 +1,49 @@
+//! This module contains tests for the YAML parser functionality.
+//! It includes both general parsing tests and specific test cases for various YAML features.
+
 #![allow(clippy::type_complexity, clippy::uninlined_format_args)]
+
+use std::fs;
+use std::io::{Read, Write};
+use std::path::Path;
 
 mod bin;
 #[path = "../src/bin/run-parser-test-suite.rs"]
 #[allow(dead_code)]
 mod run_parser_test_suite;
 
-use std::fs;
-use std::path::Path;
+/// Wrapper function to bridge the error types between the test suite and the parser.
+///
+/// # Safety
+///
+/// This function is unsafe because it calls an unsafe function `unsafe_main`.
+/// The caller must ensure that the provided `stdin` and `stdout` are valid for the lifetime of the call.
+///
+/// # Arguments
+///
+/// * `stdin` - A mutable reference to a type that implements `Read`
+/// * `stdout` - A mutable reference to a type that implements `Write`
+///
+/// # Returns
+///
+/// Returns `Ok(())` if parsing succeeds, or `Err(bin::MyError)` if an error occurs.
+unsafe fn unsafe_main_wrapper(
+    stdin: &mut dyn Read,
+    stdout: &mut dyn Write,
+) -> Result<(), bin::MyError> {
+    run_parser_test_suite::unsafe_main(stdin, stdout)
+        .map_err(|e| bin::MyError::Other(e.to_string()))
+}
 
 /// Test function for running parser tests from the YAML Test Suite
+///
+/// # Arguments
+///
+/// * `id` - A string slice that holds the identifier for the test case
+///
+/// # Panics
+///
+/// This function will panic if the parser output doesn't match the expected output or if the parser fails unexpectedly.
 fn test(id: &str) {
     let dir = Path::new("tests")
         .join("data")
@@ -17,7 +52,7 @@ fn test(id: &str) {
 
     let output = bin::run(
         env!("CARGO_BIN_EXE_run-parser-test-suite"),
-        run_parser_test_suite::unsafe_main,
+        unsafe_main_wrapper,
         &dir.join("in.yaml"),
     );
 
@@ -38,7 +73,7 @@ fn test_empty_file() {
 
     let output = bin::run(
         env!("CARGO_BIN_EXE_run-parser-test-suite"),
-        run_parser_test_suite::unsafe_main,
+        unsafe_main_wrapper,
         &temp_file,
     );
 
@@ -61,7 +96,7 @@ fn test_scalar_parsing() {
 
     let output = bin::run(
         env!("CARGO_BIN_EXE_run-parser-test-suite"),
-        run_parser_test_suite::unsafe_main,
+        unsafe_main_wrapper,
         &temp_file,
     );
 
@@ -98,7 +133,7 @@ fn test_sequence_parsing() {
 
     let output = bin::run(
         env!("CARGO_BIN_EXE_run-parser-test-suite"),
-        run_parser_test_suite::unsafe_main,
+        unsafe_main_wrapper,
         &temp_file,
     );
 
@@ -139,7 +174,7 @@ fn test_mapping_parsing() {
 
     let output = bin::run(
         env!("CARGO_BIN_EXE_run-parser-test-suite"),
-        run_parser_test_suite::unsafe_main,
+        unsafe_main_wrapper,
         &temp_file,
     );
 
@@ -190,7 +225,7 @@ fn test_nested_structures() {
 
     let output = bin::run(
         env!("CARGO_BIN_EXE_run-parser-test-suite"),
-        run_parser_test_suite::unsafe_main,
+        unsafe_main_wrapper,
         &temp_file,
     );
 
@@ -240,7 +275,7 @@ fn test_anchors_and_aliases() {
 
     let output = bin::run(
         env!("CARGO_BIN_EXE_run-parser-test-suite"),
-        run_parser_test_suite::unsafe_main,
+        unsafe_main_wrapper,
         &temp_file,
     );
 
@@ -275,7 +310,7 @@ fn test_multiline_strings() {
 
     let output = bin::run(
         env!("CARGO_BIN_EXE_run-parser-test-suite"),
-        run_parser_test_suite::unsafe_main,
+        unsafe_main_wrapper,
         &temp_file,
     );
 
@@ -303,7 +338,7 @@ fn test_flow_style() {
 
     let output = bin::run(
         env!("CARGO_BIN_EXE_run-parser-test-suite"),
-        run_parser_test_suite::unsafe_main,
+        unsafe_main_wrapper,
         &temp_file,
     );
 
@@ -345,7 +380,7 @@ fn test_unicode() {
 
     let output = bin::run(
         env!("CARGO_BIN_EXE_run-parser-test-suite"),
-        run_parser_test_suite::unsafe_main,
+        unsafe_main_wrapper,
         &temp_file,
     );
 
@@ -371,7 +406,7 @@ fn test_comments() {
 
     let output = bin::run(
         env!("CARGO_BIN_EXE_run-parser-test-suite"),
-        run_parser_test_suite::unsafe_main,
+        unsafe_main_wrapper,
         &temp_file,
     );
 
@@ -397,7 +432,7 @@ fn test_yaml_directive() {
 
     let output = bin::run(
         env!("CARGO_BIN_EXE_run-parser-test-suite"),
-        run_parser_test_suite::unsafe_main,
+        unsafe_main_wrapper,
         &temp_file,
     );
 
@@ -436,7 +471,7 @@ fn test_invalid_yaml() {
 
     let output = bin::run(
         env!("CARGO_BIN_EXE_run-parser-test-suite"),
-        run_parser_test_suite::unsafe_main,
+        unsafe_main_wrapper,
         &temp_file,
     );
 
@@ -445,4 +480,5 @@ fn test_invalid_yaml() {
     fs::remove_file(temp_file).unwrap();
 }
 
+// Run the test suite for parser
 libyml_test_suite::test_parser!();

@@ -19,6 +19,7 @@
 mod cstr;
 
 use self::cstr::CStr;
+use core::fmt;
 pub(crate) use core::primitive::u8 as yaml_char_t;
 use libyml::api::ScalarEventData;
 use libyml::document::{
@@ -51,14 +52,41 @@ use std::mem::MaybeUninit;
 use std::process::{self, ExitCode};
 use std::ptr::{self, addr_of_mut};
 
+#[derive(Debug)]
+pub(crate) enum EmitterError {
+    InitializationError(String),
+    MemoryError(String),
+    UnknownEvent(String),
+    EmittingError(String),
+    InternalError,
+}
+
+impl fmt::Display for EmitterError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            EmitterError::InitializationError(msg) => {
+                write!(f, "{}", msg)
+            }
+            EmitterError::MemoryError(msg) => write!(f, "{}", msg),
+            EmitterError::UnknownEvent(msg) => write!(f, "{}", msg),
+            EmitterError::EmittingError(msg) => write!(f, "{}", msg),
+            EmitterError::InternalError => write!(f, "Internal error"),
+        }
+    }
+}
+
+impl Error for EmitterError {}
+
 pub(crate) unsafe fn unsafe_main(
     stdin: &mut dyn Read,
     mut stdout: &mut dyn Write,
-) -> Result<(), Box<dyn Error>> {
+) -> Result<(), EmitterError> {
     let mut emitter = MaybeUninit::<YamlEmitterT>::uninit();
     let emitter = emitter.as_mut_ptr();
     if yaml_emitter_initialize(emitter).fail {
-        return Err("Could not initialize the emitter object".into());
+        return Err(EmitterError::InitializationError(
+            "Could not initialize the emitter object".into(),
+        ));
     }
 
     unsafe fn write_to_stdio(
@@ -146,16 +174,6 @@ pub(crate) unsafe fn unsafe_main(
             };
 
             yaml_scalar_event_initialize(event, scalar_event_data)
-            // yaml_scalar_event_initialize(
-            //     event,
-            //     get_anchor(b'&', line, anchor.as_mut_ptr()),
-            //     get_tag(line, tag.as_mut_ptr()),
-            //     value.as_mut_ptr() as *mut u8,
-            //     -1,
-            //     implicit,
-            //     implicit,
-            //     style,
-            // )
         } else if line.starts_with(b"=ALI") {
             yaml_alias_event_initialize(
                 event,
@@ -163,43 +181,43 @@ pub(crate) unsafe fn unsafe_main(
             )
         } else {
             let line = line.as_mut_ptr() as *mut i8;
-            break Err(format!(
+            break Err(EmitterError::UnknownEvent(format!(
                 "Unknown event: '{}'",
                 CStr::from_ptr(line)
-            )
-            .into());
+            )));
         };
 
         if result.fail {
-            break Err(
+            break Err(EmitterError::MemoryError(
                 "Memory error: Not enough memory for creating an event"
                     .into(),
-            );
+            ));
         }
         if yaml_emitter_emit(emitter, event).fail {
             break Err(match (*emitter).error {
-                YamlMemoryError => {
+                YamlMemoryError => EmitterError::MemoryError(
                     "Memory error: Not enough memory for emitting"
-                        .into()
+                        .into(),
+                ),
+                YamlWriterError => {
+                    EmitterError::EmittingError(format!(
+                        "Writer error: {}",
+                        CStr::from_ptr((*emitter).problem)
+                    ))
                 }
-                YamlWriterError => format!(
-                    "Writer error: {}",
-                    CStr::from_ptr((*emitter).problem)
-                )
-                .into(),
-                YamlEmitterError => format!(
-                    "Emitter error: {}",
-                    CStr::from_ptr((*emitter).problem)
-                )
-                .into(),
-                // Couldn't happen.
-                _ => "Internal error".into(),
+                YamlEmitterError => {
+                    EmitterError::EmittingError(format!(
+                        "Emitter error: {}",
+                        CStr::from_ptr((*emitter).problem)
+                    ))
+                }
+                _ => EmitterError::InternalError,
             });
         }
     };
 
     yaml_emitter_delete(emitter);
-    result
+    result.map_err(Into::into)
 }
 
 struct ReadBuf {

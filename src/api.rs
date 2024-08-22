@@ -52,7 +52,7 @@ unsafe fn yaml_string_read_handler(
             .c_offset_from((*parser).input.string.current)
             as size_t;
     }
-    memcpy(
+    let _ = memcpy(
         buffer as *mut libc::c_void,
         (*parser).input.string.current as *const libc::c_void,
         size,
@@ -153,7 +153,7 @@ pub unsafe fn yaml_emitter_initialize(
     emitter: *mut YamlEmitterT,
 ) -> Success {
     __assert!(!emitter.is_null());
-    memset(
+    let _ = memset(
         emitter as *mut libc::c_void,
         0,
         size_of::<YamlEmitterT>() as libc::c_ulong,
@@ -196,7 +196,7 @@ pub unsafe fn yaml_emitter_delete(emitter: *mut YamlEmitterT) {
     }
     STACK_DEL!((*emitter).tag_directives);
     yaml_free((*emitter).anchors as *mut libc::c_void);
-    memset(
+    let _ = memset(
         emitter as *mut libc::c_void,
         0,
         size_of::<YamlEmitterT>() as libc::c_ulong,
@@ -216,22 +216,21 @@ unsafe fn yaml_string_write_handler(
         .wrapping_sub(*(*emitter).output.string.size_written)
         < size
     {
-        memcpy(
-            (*emitter).output.string.buffer.wrapping_offset(
-                *(*emitter).output.string.size_written as isize,
-            ) as *mut libc::c_void,
-            buffer as *const libc::c_void,
-            (*emitter)
-                .output
-                .string
-                .size
-                .wrapping_sub(*(*emitter).output.string.size_written),
-        );
+        let _ =
+            memcpy(
+                (*emitter).output.string.buffer.wrapping_offset(
+                    *(*emitter).output.string.size_written as isize,
+                ) as *mut libc::c_void,
+                buffer as *const libc::c_void,
+                (*emitter).output.string.size.wrapping_sub(
+                    *(*emitter).output.string.size_written,
+                ),
+            );
         *(*emitter).output.string.size_written =
             (*emitter).output.string.size;
         return 0;
     }
-    memcpy(
+    let _ = memcpy(
         (*emitter).output.string.buffer.wrapping_offset(
             *(*emitter).output.string.size_written as isize,
         ) as *mut libc::c_void,
@@ -450,7 +449,7 @@ pub unsafe fn yaml_token_delete(token: *mut YamlTokenT) {
         }
         _ => {}
     }
-    memset(
+    let _ = memset(
         token as *mut libc::c_void,
         0,
         size_of::<YamlTokenT>() as libc::c_ulong,
@@ -477,7 +476,7 @@ pub unsafe fn yaml_stream_start_event_initialize(
         column: 0_u64,
     };
     __assert!(!event.is_null());
-    memset(
+    let _ = memset(
         event as *mut libc::c_void,
         0,
         size_of::<YamlEventT>() as libc::c_ulong,
@@ -508,7 +507,7 @@ pub unsafe fn yaml_stream_end_event_initialize(
         column: 0_u64,
     };
     __assert!(!event.is_null());
-    memset(
+    let _ = memset(
         event as *mut libc::c_void,
         0,
         size_of::<YamlEventT>() as libc::c_ulong,
@@ -547,7 +546,7 @@ pub unsafe fn yaml_alias_event_initialize(
     if anchor_copy.is_null() {
         return FAIL;
     }
-    memset(
+    let _ = memset(
         event as *mut libc::c_void,
         0,
         size_of::<YamlEventT>() as libc::c_ulong,
@@ -683,14 +682,14 @@ pub unsafe fn yaml_scalar_event_initialize(
                 value_copy =
                     yaml_malloc(data.length.force_add(1) as size_t)
                         as *mut yaml_char_t;
-                memcpy(
+                let _ = memcpy(
                     value_copy as *mut libc::c_void,
                     data.value as *const libc::c_void,
                     data.length as libc::c_ulong,
                 );
                 *value_copy.wrapping_offset(data.length as isize) =
                     b'\0';
-                memset(
+                let _ = memset(
                     event as *mut libc::c_void,
                     0,
                     size_of::<YamlEventT>() as libc::c_ulong,
@@ -787,7 +786,7 @@ pub unsafe fn yaml_sequence_start_event_initialize(
             current_block = 7651349459974463963;
         }
         if current_block != 8817775685815971442 {
-            memset(
+            let _ = memset(
                 event as *mut libc::c_void,
                 0,
                 size_of::<YamlEventT>() as libc::c_ulong,
@@ -830,7 +829,7 @@ pub unsafe fn yaml_sequence_end_event_initialize(
         column: 0_u64,
     };
     __assert!(!event.is_null());
-    memset(
+    let _ = memset(
         event as *mut libc::c_void,
         0,
         size_of::<YamlEventT>() as libc::c_ulong,
@@ -909,7 +908,7 @@ pub unsafe fn yaml_mapping_start_event_initialize(
             current_block = 7651349459974463963;
         }
         if current_block != 14748279734549812740 {
-            memset(
+            let _ = memset(
                 event as *mut libc::c_void,
                 0,
                 size_of::<YamlEventT>() as libc::c_ulong,
@@ -952,7 +951,7 @@ pub unsafe fn yaml_mapping_end_event_initialize(
         column: 0_u64,
     };
     __assert!(!event.is_null());
-    memset(
+    let _ = memset(
         event as *mut libc::c_void,
         0,
         size_of::<YamlEventT>() as libc::c_ulong,
@@ -1024,7 +1023,7 @@ pub unsafe fn yaml_event_delete(event: *mut YamlEventT) {
         }
         _ => {}
     }
-    memset(
+    let _ = memset(
         event as *mut libc::c_void,
         0,
         size_of::<YamlEventT>() as libc::c_ulong,

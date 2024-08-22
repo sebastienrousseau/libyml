@@ -116,7 +116,7 @@ unsafe fn yaml_parser_update_raw_buffer(
     if (*parser).raw_buffer.start < (*parser).raw_buffer.pointer
         && (*parser).raw_buffer.pointer < (*parser).raw_buffer.last
     {
-        memmove(
+        let _ = memmove(
             (*parser).raw_buffer.start as *mut libc::c_void,
             (*parser).raw_buffer.pointer as *const libc::c_void,
             (*parser)
@@ -188,7 +188,7 @@ pub(crate) unsafe fn yaml_parser_update_buffer(
             .last
             .c_offset_from((*parser).buffer.pointer)
             as size_t;
-        memmove(
+        let _ = memmove(
             (*parser).buffer.start as *mut libc::c_void,
             (*parser).buffer.pointer as *const libc::c_void,
             size,

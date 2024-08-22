@@ -355,23 +355,15 @@ unsafe fn yaml_emitter_generate_anchor(
     anchor
 }
 
-/// Emits a YAML node to the emitter.
+/// Dumps a YAML node to the emitter.
 ///
-/// This function handles the serialization of YAML nodes, including anchors, aliases, scalars, sequences, and mappings.
-/// It generates anchors for nodes that require them and serializes the nodes accordingly.
+/// This function is responsible for emitting a single YAML node from a document.
 ///
-/// # Parameters
+/// # Safety
 ///
-/// * `emitter`: A pointer to the YAML emitter.
-/// * `index`: The index of the node to be serialized.
-///
-/// # Returns
-///
-/// * `Success`: Indicates whether the serialization was successful.
-///
-/// # Errors
-///
-/// * If the serialization fails, an error is returned.
+/// - `emitter` must be a valid, non-null pointer to an initialized `YamlEmitterT` struct.
+/// - `index` must be a valid index within the YAML document associated with the emitter.
+/// - The caller must ensure that the node at `index` can be safely emitted without causing memory issues.
 pub unsafe fn yaml_emitter_dump_node(
     emitter: *mut YamlEmitterT,
     index: libc::c_int,
@@ -432,24 +424,16 @@ unsafe fn yaml_emitter_dump_alias(
     yaml_emitter_emit(emitter, event)
 }
 
-/// Serializes a YAML scalar node to the emitter.
+/// Dumps a YAML scalar node to the emitter.
 ///
-/// This function generates a YAML ScalarEvent based on the provided node and its properties.
-/// It sets the anchor, tag, value, length, implicit styles, and style of the scalar event.
+/// This function handles emitting a scalar node, which is a single key-value pair.
 ///
-/// # Parameters
+/// # Safety
 ///
-/// * `emitter`: A pointer to the YAML emitter.
-/// * `node`: A pointer to the YAML node to be serialized.
-/// * `anchor`: A pointer to the anchor of the node.
-///
-/// # Returns
-///
-/// * `Success`: Indicates whether the serialization was successful.
-///
-/// # Errors
-///
-/// * If the serialization fails, an error is returned.
+/// - `emitter` must be a valid, non-null pointer to an initialized `YamlEmitterT` struct.
+/// - `node` must be a valid, non-null pointer to a `YamlNodeT` struct representing the scalar node.
+/// - `anchor` must be a valid, non-null pointer to a `yaml_char_t` if provided, or null if no anchor is used.
+/// - The caller must ensure that the node and anchor pointers are valid and properly aligned.
 pub unsafe fn yaml_emitter_dump_scalar(
     emitter: *mut YamlEmitterT,
     node: *mut YamlNodeT,
@@ -488,24 +472,17 @@ pub unsafe fn yaml_emitter_dump_scalar(
     yaml_emitter_emit(emitter, event)
 }
 
-/// Serializes a YAML sequence node to the emitter.
+/// Dumps a YAML sequence node to the emitter.
 ///
-/// This function generates a YAML SequenceStartEvent and a YAML SequenceEndEvent based on the provided node and its properties.
-/// It sets the anchor, tag, implicit style, and style of the sequence events.
+/// This function handles emitting a sequence node, which is a list of items.
 ///
-/// # Parameters
+/// # Safety
 ///
-/// * `emitter`: A pointer to the YAML emitter.
-/// * `node`: A pointer to the YAML node to be serialized.
-/// * `anchor`: A pointer to the anchor of the node.
-///
-/// # Returns
-///
-/// * `Success`: Indicates whether the serialization was successful.
-///
-/// # Errors
-///
-/// * If the serialization fails, an error is returned.
+/// - `emitter` must be a valid, non-null pointer to an initialized `YamlEmitterT` struct.
+/// - `node` must be a valid, non-null pointer to a `YamlNodeT` struct representing the sequence node.
+/// - `anchor` must be a valid, non-null pointer to a `yaml_char_t` if provided, or null if no anchor is used.
+/// - The caller must ensure that the node and anchor pointers are valid and properly aligned.
+/// - The sequence node must contain a valid list of items that can be safely iterated and emitted.
 pub unsafe fn yaml_emitter_dump_sequence(
     emitter: *mut YamlEmitterT,
     node: *mut YamlNodeT,
@@ -556,24 +533,17 @@ pub unsafe fn yaml_emitter_dump_sequence(
     yaml_emitter_emit(emitter, event)
 }
 
-/// Serializes a YAML mapping node to the emitter.
+/// Dumps a YAML mapping node to the emitter.
 ///
-/// This function generates a YAML MappingStartEvent and a YAML MappingEndEvent based on the provided node and its properties.
-/// It sets the anchor, tag, implicit style, and style of the mapping events.
+/// This function handles emitting a mapping node, which is a set of key-value pairs.
 ///
-/// # Parameters
+/// # Safety
 ///
-/// * `emitter`: A pointer to the YAML emitter.
-/// * `node`: A pointer to the YAML node to be serialized.
-/// * `anchor`: A pointer to the anchor of the node.
-///
-/// # Returns
-///
-/// * `Success`: Indicates whether the serialization was successful.
-///
-/// # Errors
-///
-/// * If the serialization fails, an error is returned.
+/// - `emitter` must be a valid, non-null pointer to an initialized `YamlEmitterT` struct.
+/// - `node` must be a valid, non-null pointer to a `YamlNodeT` struct representing the mapping node.
+/// - `anchor` must be a valid, non-null pointer to a `yaml_char_t` if provided, or null if no anchor is used.
+/// - The caller must ensure that the node and anchor pointers are valid and properly aligned.
+/// - The mapping node must contain a valid set of key-value pairs that can be safely iterated and emitted.
 pub unsafe fn yaml_emitter_dump_mapping(
     emitter: *mut YamlEmitterT,
     node: *mut YamlNodeT,

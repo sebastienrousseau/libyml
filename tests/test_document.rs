@@ -1,7 +1,6 @@
 #[cfg(test)]
 mod tests {
     use core::mem::MaybeUninit;
-    use libyml::yaml::yaml_char_t;
     use libyml::{
         document::{
             yaml_document_add_mapping, yaml_document_add_scalar,
@@ -745,7 +744,7 @@ mod tests {
                 OK
             );
             assert_eq!(event.type_, YamlDocumentEndEvent);
-            assert_eq!(event.data.document_end.implicit, true);
+            assert!(event.data.document_end.implicit);
         }
     }
 
@@ -768,7 +767,7 @@ mod tests {
                 OK
             );
             assert_eq!(event.type_, YamlDocumentStartEvent);
-            assert_eq!(event.data.document_start.implicit, true);
+            assert!(event.data.document_start.implicit);
             assert!(!event
                 .data
                 .document_start
@@ -830,8 +829,7 @@ mod tests {
             );
 
             // Test adding a scalar with a custom tag
-            let custom_tag =
-                b"!custom\0".as_ptr() as *const yaml_char_t;
+            let custom_tag = b"!custom\0".as_ptr();
             let custom_tag_scalar_id = yaml_document_add_scalar(
                 &mut doc,
                 custom_tag,

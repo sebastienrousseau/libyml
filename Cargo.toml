@@ -13,7 +13,7 @@ name = "libyml"
 readme = "README.md"
 repository = "https://github.com/sebastienrousseau/libyml"
 rust-version = "1.60"
-version = "0.0.4"
+version = "0.0.5"
 
 # Included and excluded files
 include = [
@@ -36,6 +36,9 @@ include = [
 # [profile.bench]
 # debug = true
 
+[dependencies]
+anyhow = "1.0.86"
+
 [dev-dependencies]
 # Development dependencies
 pretty_assertions = "1.4.0"
@@ -44,6 +47,7 @@ libyml-test-suite = { path = "tests/data" }
 [features]
 # No default features
 default = []
+test-utils = []
 
 [lib]
 # Library configuration options
@@ -61,13 +65,12 @@ rustdoc-args = ["--generate-link-to-definition"]
 [lints.rust]
 
 ## Warn
-# box_pointers = "warn"
+box_pointers = "warn"
 missing_copy_implementations = "warn"
 missing_docs = "warn"
 unstable_features = "warn"
-# unused_crate_dependencies = "warn"
 unused_extern_crates = "warn"
-# unused_results = "warn"
+unused_results = "warn"
 
 ## Allow
 bare_trait_objects = "allow"
@@ -75,6 +78,7 @@ elided_lifetimes_in_paths = "allow"
 non_camel_case_types = "allow"
 non_upper_case_globals = "allow"
 trivial_bounds = "allow"
+unused_crate_dependencies = "allow"
 unsafe_code = "allow"
 
 ## Forbid
@@ -94,7 +98,6 @@ macro_use_extern_crate = "deny"
 meta_variable_misuse = "deny"
 missing_fragment_specifier = "deny"
 noop_method_call = "deny"
-pointer_structural_match = "deny"
 rust_2018_idioms = { level = "deny", priority = -1 }
 rust_2021_compatibility = { level = "deny", priority = -1 }
 single_use_lifetimes = "deny"

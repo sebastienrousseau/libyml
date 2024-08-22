@@ -40,7 +40,7 @@
 //!
 //! ### Rust Version Compatibility
 //!
-//! This library is compatible with Rust 1.60 and above.
+//! This library is compatible with Rust 1.56.0 and above.
 //!
 //! ## Features
 //!

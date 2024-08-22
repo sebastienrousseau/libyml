@@ -64,12 +64,12 @@ pub(crate) enum EmitterError {
 impl fmt::Display for EmitterError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            EmitterError::InitializationError(msg) => {
+            EmitterError::InitializationError(msg)
+            | EmitterError::MemoryError(msg)
+            | EmitterError::UnknownEvent(msg)
+            | EmitterError::EmittingError(msg) => {
                 write!(f, "{}", msg)
             }
-            EmitterError::MemoryError(msg) => write!(f, "{}", msg),
-            EmitterError::UnknownEvent(msg) => write!(f, "{}", msg),
-            EmitterError::EmittingError(msg) => write!(f, "{}", msg),
             EmitterError::InternalError => write!(f, "Internal error"),
         }
     }

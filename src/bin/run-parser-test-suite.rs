@@ -281,7 +281,7 @@ unsafe fn print_escaped(
             // Start of a UTF-8 sequence
             stdout.write_all(slice::from_ref(&byte))?;
             while let Some(&&next_byte) = chars.peek() {
-                if next_byte < 128 || next_byte >= 192 {
+                if !(128..192).contains(&next_byte) {
                     break;
                 }
                 stdout.write_all(slice::from_ref(&next_byte))?;
@@ -325,7 +325,7 @@ fn main() -> ExitCode {
         eprintln!("Error: No input files provided.");
         eprintln!(
             "Usage: {} <in.yaml>...",
-            env::args().next().unwrap_or_default().to_string()
+            env::args().next().unwrap_or_default()
         );
         eprintln!("Please provide one or more YAML files to parse.");
         return ExitCode::FAILURE;
@@ -347,7 +347,7 @@ fn main() -> ExitCode {
                 let mut stdout = io::stdout();
                 eprintln!("Processing file: {:?}", path);
                 match unsafe { unsafe_main(&mut file, &mut stdout) } {
-                    Ok(_) => eprintln!(
+                    Ok(()) => eprintln!(
                         "Successfully processed file: {:?}",
                         path
                     ),

@@ -133,9 +133,6 @@ mod tests {
         unsafe {
             let emitter_ptr = initialize_emitter();
             yaml_emitter_delete(emitter_ptr);
-            // After deletion, we can't access the emitter's fields safely,
-            // so we just check that the function doesn't crash
-            assert!(true);
             free(emitter_ptr as *mut libc::c_void);
         }
     }
@@ -181,7 +178,7 @@ mod tests {
                 let byte_ptr: *mut u8 = &mut mutable_byte; // Create a raw pointer from the byte variable
                 let result = ((*emitter_ptr).write_handler.unwrap())(
                     emitter_ptr as *mut _ as *mut libc::c_void, // Passing the emitter's context
-                    byte_ptr as *mut u8, // Cast to mutable pointer
+                    byte_ptr,
                     1,
                 );
                 assert_eq!(result, 1);

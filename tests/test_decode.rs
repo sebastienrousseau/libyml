@@ -66,7 +66,11 @@ mod tests {
                 let mut parser = MaybeUninit::<YamlParserT>::uninit();
                 let init_result =
                     yaml_parser_initialize(parser.as_mut_ptr());
-                assert!(init_result.ok, "Parser initialization should succeed on iteration {}", i);
+                assert!(
+                    init_result.ok,
+                    "Parser initialization should succeed on iteration {}",
+                    i
+                );
 
                 let parser_ptr = parser.as_mut_ptr();
                 yaml_parser_delete(parser_ptr);
@@ -110,7 +114,10 @@ mod tests {
 
             // After deletion, re-initializing should still work without issues
             let reinit_result = yaml_parser_initialize(parser_ptr);
-            assert!(reinit_result.ok, "Parser re-initialization after deletion should succeed");
+            assert!(
+                reinit_result.ok,
+                "Parser re-initialization after deletion should succeed"
+            );
 
             yaml_parser_delete(parser_ptr);
         }
@@ -169,7 +176,10 @@ mod tests {
         unsafe {
             let mut parser = MaybeUninit::<YamlParserT>::uninit();
             let result = yaml_parser_initialize(parser.as_mut_ptr());
-            assert!(result.ok, "Parser initialization should succeed with valid pointer");
+            assert!(
+                result.ok,
+                "Parser initialization should succeed with valid pointer"
+            );
 
             // Clean up
             yaml_parser_delete(parser.as_mut_ptr());

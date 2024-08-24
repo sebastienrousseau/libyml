@@ -177,7 +177,7 @@ pub unsafe fn yaml_parser_scan(
 ) -> Success {
     __assert!(!parser.is_null());
     __assert!(!token.is_null());
-    memset(
+    let _ = memset(
         token as *mut libc::c_void,
         0,
         size_of::<YamlTokenT>() as libc::c_ulong,
@@ -566,7 +566,7 @@ unsafe fn yaml_parser_roll_indent(
             return FAIL;
         }
         (*parser).indent = column as libc::c_int;
-        memset(
+        let _ = memset(
             token as *mut libc::c_void,
             0,
             size_of::<YamlTokenT>() as libc::c_ulong,
@@ -598,7 +598,7 @@ unsafe fn yaml_parser_unroll_indent(
         return;
     }
     while (*parser).indent as libc::c_long > column {
-        memset(
+        let _ = memset(
             token as *mut libc::c_void,
             0,
             size_of::<YamlTokenT>() as libc::c_ulong,
@@ -629,7 +629,7 @@ unsafe fn yaml_parser_fetch_stream_start(parser: *mut YamlParserT) {
     (*parser).not_simple_keys = 1;
     (*parser).simple_key_allowed = true;
     (*parser).stream_start_produced = true;
-    memset(
+    let _ = memset(
         token as *mut libc::c_void,
         0,
         size_of::<YamlTokenT>() as libc::c_ulong,
@@ -656,7 +656,7 @@ unsafe fn yaml_parser_fetch_stream_end(
         return FAIL;
     }
     (*parser).simple_key_allowed = false;
-    memset(
+    let _ = memset(
         token as *mut libc::c_void,
         0,
         size_of::<YamlTokenT>() as libc::c_ulong,
@@ -701,7 +701,7 @@ unsafe fn yaml_parser_fetch_document_indicator(
     skip(parser);
     skip(parser);
     let end_mark: YamlMarkT = (*parser).mark;
-    memset(
+    let _ = memset(
         token as *mut libc::c_void,
         0,
         size_of::<YamlTokenT>() as libc::c_ulong,
@@ -729,7 +729,7 @@ unsafe fn yaml_parser_fetch_flow_collection_start(
     let start_mark: YamlMarkT = (*parser).mark;
     skip(parser);
     let end_mark: YamlMarkT = (*parser).mark;
-    memset(
+    let _ = memset(
         token as *mut libc::c_void,
         0,
         size_of::<YamlTokenT>() as libc::c_ulong,
@@ -755,7 +755,7 @@ unsafe fn yaml_parser_fetch_flow_collection_end(
     let start_mark: YamlMarkT = (*parser).mark;
     skip(parser);
     let end_mark: YamlMarkT = (*parser).mark;
-    memset(
+    let _ = memset(
         token as *mut libc::c_void,
         0,
         size_of::<YamlTokenT>() as libc::c_ulong,
@@ -779,7 +779,7 @@ unsafe fn yaml_parser_fetch_flow_entry(
     let start_mark: YamlMarkT = (*parser).mark;
     skip(parser);
     let end_mark: YamlMarkT = (*parser).mark;
-    memset(
+    let _ = memset(
         token as *mut libc::c_void,
         0,
         size_of::<YamlTokenT>() as libc::c_ulong,
@@ -826,7 +826,7 @@ unsafe fn yaml_parser_fetch_block_entry(
     let start_mark: YamlMarkT = (*parser).mark;
     skip(parser);
     let end_mark: YamlMarkT = (*parser).mark;
-    memset(
+    let _ = memset(
         token as *mut libc::c_void,
         0,
         size_of::<YamlTokenT>() as libc::c_ulong,
@@ -871,7 +871,7 @@ unsafe fn yaml_parser_fetch_key(parser: *mut YamlParserT) -> Success {
     let start_mark: YamlMarkT = (*parser).mark;
     skip(parser);
     let end_mark: YamlMarkT = (*parser).mark;
-    memset(
+    let _ = memset(
         token as *mut libc::c_void,
         0,
         size_of::<YamlTokenT>() as libc::c_ulong,
@@ -889,7 +889,7 @@ unsafe fn yaml_parser_fetch_value(parser: *mut YamlParserT) -> Success {
     let simple_key: *mut YamlSimpleKeyT =
         (*parser).simple_keys.top.wrapping_offset(-1_isize);
     if (*simple_key).possible {
-        memset(
+        let _ = memset(
             token as *mut libc::c_void,
             0,
             size_of::<YamlTokenT>() as libc::c_ulong,
@@ -946,7 +946,7 @@ unsafe fn yaml_parser_fetch_value(parser: *mut YamlParserT) -> Success {
     let start_mark: YamlMarkT = (*parser).mark;
     skip(parser);
     let end_mark: YamlMarkT = (*parser).mark;
-    memset(
+    let _ = memset(
         token as *mut libc::c_void,
         0,
         size_of::<YamlTokenT>() as libc::c_ulong,
@@ -1125,7 +1125,7 @@ unsafe fn yaml_parser_scan_directive(
                 current_block = 11397968426844348457;
             } else {
                 end_mark = (*parser).mark;
-                memset(
+                let _ = memset(
                     token as *mut libc::c_void,
                     0,
                     size_of::<YamlTokenT>() as libc::c_ulong,
@@ -1153,7 +1153,7 @@ unsafe fn yaml_parser_scan_directive(
                 current_block = 11397968426844348457;
             } else {
                 end_mark = (*parser).mark;
-                memset(
+                let _ = memset(
                     token as *mut libc::c_void,
                     0,
                     size_of::<YamlTokenT>() as libc::c_ulong,
@@ -1537,7 +1537,7 @@ unsafe fn yaml_parser_scan_anchor(
                 );
             } else {
                 if type_ == YamlAnchorToken {
-                    memset(
+                    let _ = memset(
                         token as *mut libc::c_void,
                         0,
                         size_of::<YamlTokenT>() as libc::c_ulong,
@@ -1549,7 +1549,7 @@ unsafe fn yaml_parser_scan_anchor(
                         addr_of_mut!((*token).data.anchor.value);
                     *fresh220 = string.start;
                 } else {
-                    memset(
+                    let _ = memset(
                         token as *mut libc::c_void,
                         0,
                         size_of::<YamlTokenT>() as libc::c_ulong,
@@ -1685,7 +1685,7 @@ unsafe fn yaml_parser_scan_tag(
             }
             if current_block != 17708497480799081542 {
                 end_mark = (*parser).mark;
-                memset(
+                let _ = memset(
                     token as *mut libc::c_void,
                     0,
                     size_of::<YamlTokenT>() as libc::c_ulong,
@@ -1814,7 +1814,7 @@ unsafe fn yaml_parser_scan_tag_uri(
                     continue;
                 } else {
                     if length > 1_u64 {
-                        memcpy(
+                        let _ = memcpy(
                             string.start as *mut libc::c_void,
                             head.wrapping_offset(1_isize)
                                 as *const libc::c_void,
@@ -2117,8 +2117,7 @@ unsafe fn yaml_parser_scan_block_scalar(
                     if !IS_BREAKZ!((*parser).buffer) {
                         yaml_parser_set_scanner_error(
                             parser,
-                            b"while scanning a block scalar\0" as *const u8
-                                as *const libc::c_char,
+                            b"while scanning a block scalar\0" as *const u8 as *const libc::c_char,
                             start_mark,
                             b"did not find expected comment or line break\0" as *const u8
                                 as *const libc::c_char,
@@ -2238,7 +2237,7 @@ unsafe fn yaml_parser_scan_block_scalar(
                                                 trailing_breaks
                                             );
                                         }
-                                        memset(
+                                        let _ = memset(
                                             token as *mut libc::c_void,
                                             0,
                                             size_of::<YamlTokenT>()
@@ -2804,7 +2803,7 @@ unsafe fn yaml_parser_scan_flow_scalar(
     if current_block != 8114179180390253173 {
         skip(parser);
         end_mark = (*parser).mark;
-        memset(
+        let _ = memset(
             token as *mut libc::c_void,
             0,
             size_of::<YamlTokenT>() as libc::c_ulong,
@@ -2996,7 +2995,7 @@ unsafe fn yaml_parser_scan_plain_scalar(
         }
     }
     if current_block != 16642808987012640029 {
-        memset(
+        let _ = memset(
             token as *mut libc::c_void,
             0,
             size_of::<YamlTokenT>() as libc::c_ulong,

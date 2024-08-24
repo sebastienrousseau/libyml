@@ -54,7 +54,7 @@ pub unsafe fn yaml_parser_load(
     let event = event.as_mut_ptr();
     __assert!(!parser.is_null());
     __assert!(!document.is_null());
-    memset(
+    let _ = memset(
         document as *mut libc::c_void,
         0,
         size_of::<YamlDocumentT>() as libc::c_ulong,
@@ -413,7 +413,7 @@ unsafe fn yaml_parser_load_scalar(
             current_block = 11006700562992250127;
         }
         if current_block != 10579931339944277179 {
-            memset(
+            let _ = memset(
                 node as *mut libc::c_void,
                 0,
                 size_of::<YamlNodeT>() as libc::c_ulong,
@@ -492,7 +492,7 @@ unsafe fn yaml_parser_load_sequence(
         }
         if current_block != 13474536459355229096 {
             STACK_INIT!(items, YamlNodeItemT);
-            memset(
+            let _ = memset(
                 node as *mut libc::c_void,
                 0,
                 size_of::<YamlNodeT>() as libc::c_ulong,
@@ -604,7 +604,7 @@ unsafe fn yaml_parser_load_mapping(
         }
         if current_block != 13635467803606088781 {
             STACK_INIT!(pairs, YamlNodePairT);
-            memset(
+            let _ = memset(
                 node as *mut libc::c_void,
                 0,
                 size_of::<YamlNodeT>() as libc::c_ulong,

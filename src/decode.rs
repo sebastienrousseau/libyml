@@ -36,7 +36,7 @@ pub unsafe fn yaml_parser_initialize(
     parser: *mut YamlParserT,
 ) -> Success {
     __assert!(!parser.is_null());
-    memset(
+    let _ = memset(
         parser as *mut libc::c_void,
         0,
         size_of::<YamlParserT>() as libc::c_ulong,
@@ -82,7 +82,7 @@ pub unsafe fn yaml_parser_delete(parser: *mut YamlParserT) {
         yaml_free(tag_directive.prefix as *mut libc::c_void);
     }
     STACK_DEL!((*parser).tag_directives);
-    memset(
+    let _ = memset(
         parser as *mut libc::c_void,
         0,
         size_of::<YamlParserT>() as libc::c_ulong,

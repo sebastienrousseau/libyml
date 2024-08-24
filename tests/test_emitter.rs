@@ -6,7 +6,17 @@ mod bin;
 mod run_emitter_test_suite;
 
 use std::fs;
+use std::io::{Read, Write};
 use std::path::Path;
+
+// Add this wrapper function
+unsafe fn unsafe_main_wrapper(
+    stdin: &mut dyn Read,
+    stdout: &mut dyn Write,
+) -> Result<(), bin::MyError> {
+    run_emitter_test_suite::unsafe_main(stdin, stdout)
+        .map_err(|e| bin::MyError::Other(e.to_string()))
+}
 
 fn test(id: &str) {
     let dir = Path::new("tests")
@@ -16,7 +26,7 @@ fn test(id: &str) {
 
     let output = bin::run(
         env!("CARGO_BIN_EXE_run-emitter-test-suite"),
-        run_emitter_test_suite::unsafe_main,
+        unsafe_main_wrapper,
         &dir.join("test.event"),
     );
 

@@ -1,122 +1,51 @@
 //! # LibYML (a fork of unsafe-libyaml)
 //!
-//! [![GitHub][github-badge]][06]
-//! [![Crates.io][crates-badge]][07]
-//! [![lib.rs][libs-badge]][06]
-//! [![Docs.rs][docs-badge]][08]
-//! [![Codecov][codecov-badge]][09]
-//! [![Build Status][build-badge]][10]
+//! [![Made With Love][made-with-rust]][10]
+//! [![Crates.io][crates-badge]][06]
+//! [![lib.rs][libs-badge]][11]
+//! [![Docs.rs][docs-badge]][07]
+//! [![Codecov][codecov-badge]][08]
+//! [![Build Status][build-badge]][09]
+//! [![GitHub][github-badge]][05]
 //!
-//! This library is a fork of [unsafe-libyaml][01], a version of [libyaml][02]
-//! translated from C to unsafe Rust with the assistance of [c2rust][03].
-//!
-//! This project, has been renamed to [LibYML][00] for simplicity and to avoid
-//! confusion with the original [unsafe-libyaml][01] crate which is now
-//! archived and no longer maintained.
-//!
-//! ## Credits and Acknowledgements
-//!
-//! This library is a fork of the excellent work done by [David Tolnay][04] and the
-//! maintainers of the [unsafe-libyaml][01] library.
-//!
-//! LibYML has now evolved into a separate library with its own goals and direction
-//! in mind and does not intend to replace the original unsafe-libyaml crate.
-//!
-//! If you are currently using unsafe-libyaml in your projects, we recommend
-//! carefully evaluating your requirements and considering the stability and
-//! maturity of the original library as well as looking at the features and
-//! improvements offered by other libraries in the Rust ecosystem.
-//!
-//! I would like to express my sincere gratitude to [David Tolnay][04] and the
-//! [unsafe-libyaml][01] and [libyaml][02] maintainers for their valuable
-//! contributions to the Rust and C programming communities.
-//!
-//! ```toml
-//! [dependencies]
-//! libyml = "0.0.4"
-//! ```
-//!
-//! Release notes are available under [GitHub releases][05].
-//!
-//! ### Rust Version Compatibility
-//!
-//! This library is compatible with Rust 1.60 and above.
+//! LibYML is a Rust library for working with YAML data, forked from [unsafe-libyaml][01]. It offers a safe and efficient interface for parsing, emitting, and manipulating YAML data.
 //!
 //! ## Features
 //!
-//! - **Serialization and Deserialization**: LibYML provides easy-to-use APIs for
-//!   serializing Rust structs and enums into YAML format and deserializing YAML
-//!   data into Rust types.
-//! - **Custom Struct and Enum Support**: The library allows you to work with
-//!   custom structs and enums, enabling seamless serialization and deserialization
-//!   of your own data types.
-//! - **Error Handling**: LibYML provides comprehensive error handling mechanisms,
-//!   including detailed error messages and the ability to handle and recover from
-//!   parsing and emission errors.
-//! - **Streaming Support**: The library supports streaming of YAML data, allowing
-//!   you to efficiently process large YAML documents incrementally.
-//! - **Alias and Anchor Support**: LibYML handles YAML aliases and anchors,
-//!   enabling you to work with complex YAML structures that involve references and
-//!   duplicated data.
-//! - **Tag Handling**: The library provides support for custom tags, allowing you
-//!   to serialize and deserialize YAML data with specific type information.
-//! - **Configurable Emitter**: LibYML allows you to customize the emitter
-//!   settings, such as indentation, line width, and scalar style, to generate YAML
-//!   output according to your preferences.
-//! - **Extensive Documentation**: The library comes with detailed documentation
-//!   and examples, making it easy to get started and understand how to use its
-//!   various features effectively.
-//! - **Safety and Efficiency**: LibYML is designed with safety and efficiency in
-//!   mind. It minimizes the use of unsafe code and provides an interface that
-//!   helps prevent common pitfalls and errors.
+//! - **Serialization and Deserialization**: Easy-to-use APIs for serializing Rust structs and enums to YAML and vice versa.
+//! - **Custom Struct and Enum Support**: Seamless serialization and deserialization of custom data types.
+//! - **Comprehensive Error Handling**: Detailed error messages and recovery mechanisms.
+//! - **Streaming Support**: Efficient processing of large YAML documents.
+//! - **Alias and Anchor Support**: Handling of complex YAML structures with references.
+//! - **Tag Handling**: Support for custom tags and type-specific serialization.
+//! - **Configurable Emitter**: Customizable YAML output generation.
+//! - **Extensive Documentation**: Detailed docs and examples for easy onboarding.
+//! - **Safety and Efficiency**: Minimized unsafe code with an interface designed to prevent common pitfalls.
 //!
-//! ## Examples
+//! ## Installation
 //!
-//! To get started with LibYML, you can use the examples provided in the
-//! `examples` directory of the project.
+//! Add this to your `Cargo.toml`:
 //!
-//! LibYML provides a set of comprehensive examples to demonstrate its usage and
-//! capabilities. The examples cover various aspects of the library, including
-//! initializing and deleting parsers, setting input strings, memory management,
-//! string manipulation, and more.
-//!
-//! To run the examples, clone the repository and navigate to the examples
-//! directory. Each example is contained in a separate file, focusing on specific
-//! functionalities or use cases.
-//!
-//! For instance, to run all the example demonstrating the usage of the LibYML
-//! APIs, you can execute the following command:
-//!
-//! ```shell
-//! cargo run --example example
+//! ```toml
+//! [dependencies]
+//! libyml = "0.0.5"
 //! ```
 //!
-//! The command will execute all the examples code, demonstrating all the features
-//! and use cases of the LibYML library.
+//! ## Documentation
 //!
-//! Here are a few notable examples you can also run individually:
+//! For full API documentation, please visit [https://doc.libyml.com/libyml/][03] or [https://docs.rs/libyml][07].
 //!
-//! ### 1) The `apis` Example
+//! ## Rust Version Compatibility
 //!
-//! The `api.rs` file provides a set of low-level API functions for working with
-//! YAML data in the LibYML library. The `apis` example showcases the usage of
-//! these low-level APIs covering functions such as:
+//! Compiler support: requires rustc 1.56.0+
 //!
-//! - `yaml_parser_initialize` - Initialize a YAML parser,
-//! - `yaml_parser_delete` - Delete a YAML parser,
-//! - `yaml_parser_set_input_string` - Set the input string for the parser,
-//! - `yaml_malloc` - Allocate memory,
-//! - `yaml_realloc` - Reallocate memory,
-//! - `yaml_free` - Free memory,
-//! - `yaml_strdup` - Duplicate a string,
-//! - `yaml_string_extend` - Extend a string,
-//! - `yaml_string_join` - Join strings,
+//! ## Contributing
 //!
-//! You can run the `apis` example using the following command:
+//! Contributions are welcome! If you'd like to contribute, please feel free to submit a Pull Request on [GitHub][05].
 //!
-//! ```shell
-//! cargo run --example apis
-//! ```
+//! ## Credits and Acknowledgements
+//!
+//! LibYML is a fork of the work done by [David Tolnay][04] and the maintainers of [unsafe-libyaml][01]. While it has evolved into a separate library, we express our sincere gratitude to them as well as the [libyaml][02] maintainers for their contributions to the Rust and C programming communities.
 //!
 //! ## License
 //!
@@ -125,21 +54,23 @@
 //! [00]: https://libyml.com
 //! [01]: https://github.com/dtolnay/unsafe-libyaml
 //! [02]: https://github.com/yaml/libyaml/tree/2c891fc7a770e8ba2fec34fc6b545c672beb37e6
-//! [03]: https://github.com/immunant/c2rust
+//! [03]: https://doc.libyml.com/libyml/
 //! [04]: https://github.com/dtolnay
-//! [05]: https://github.com/sebastienrousseau/libyml/releases
-//! [06]: https://github.com/sebastienrousseau/libyml
-//! [07]: https://crates.io/crates/libyml
-//! [08]: https://docs.rs/libyml
-//! [09]: https://codecov.io/gh/sebastienrousseau/libyml
-//! [10]: https://github.com/sebastienrousseau/libyml/actions?query=branch%3Amaster
-//! [build-badge]: https://img.shields.io/github/actions/workflow/status/sebastienrousseau/libyml/release.yml?branch=master&style=for-the-badge&logo=github
-//! [codecov-badge]: https://img.shields.io/codecov/c/github/sebastienrousseau/libyml?style=for-the-badge&token=yc9s578xIk&logo=codecov
-//! [crates-badge]: https://img.shields.io/crates/v/libyml.svg?style=for-the-badge&color=fc8d62&logo=rust
-//! [libs-badge]: https://img.shields.io/badge/lib.rs-v0.0.4-orange.svg?style=for-the-badge
-//! [docs-badge]: https://img.shields.io/badge/docs.rs-libyml-66c2a5?style=for-the-badge&labelColor=555555&logo=docs.rs
-//! [github-badge]: https://img.shields.io/badge/github-sebastienrousseau/libyml-8da0cb?style=for-the-badge&labelColor=555555&logo=github
-
+//! [05]: https://github.com/sebastienrousseau/libyml
+//! [06]: https://crates.io/crates/libyml
+//! [07]: https://docs.rs/libyml
+//! [08]: https://codecov.io/gh/sebastienrousseau/libyml
+//! [09]: https://github.com/sebastienrousseau/libyml/actions?query=branch%3Amaster
+//! [10]: https://www.rust-lang.org/
+//! [11]: https://lib.rs/crates/libyml
+//!
+//! [build-badge]: https://img.shields.io/github/actions/workflow/status/sebastienrousseau/libyml/release.yml?branch=master&style=for-the-badge&logo=github "Build Status"
+//! [codecov-badge]: https://img.shields.io/codecov/c/github/sebastienrousseau/libyml?style=for-the-badge&logo=codecov&token=yc9s578xIk "Code Coverage"
+//! [crates-badge]: https://img.shields.io/crates/v/libyml.svg?style=for-the-badge&color=fc8d62&logo=rust "View on Crates.io"
+//! [libs-badge]: https://img.shields.io/badge/lib.rs-v0.0.5-orange.svg?style=for-the-badge "View on lib.rs"
+//! [docs-badge]: https://img.shields.io/badge/docs.rs-libyml-66c2a5?style=for-the-badge&labelColor=555555&logo=docs.rs "View Documentation"
+//! [github-badge]: https://img.shields.io/badge/github-sebastienrousseau/libyml-8da0cb?style=for-the-badge&labelColor=555555&logo=github "View on GitHub"
+//! [made-with-rust]: https://img.shields.io/badge/rust-f04041?style=for-the-badge&labelColor=c0282d&logo=rust 'Made With Rust'
 //!
 
 #![no_std]
@@ -154,29 +85,24 @@
 extern crate alloc;
 use core::mem::size_of;
 
-/// This module contains declarations for C library functions.
+/// Declarations for C library functions used within the LibYML library.
 ///
-/// # Purpose
-///
-/// This module provides declarations for C library functions that are used in the LibYAML library.
-/// These declarations are necessary for interfacing with the C library functions from Rust.
-///
-/// # Parameters
-///
-/// None.
-///
-/// # Return Value
-///
-/// This module does not return any value. It only contains declarations for C library functions.
+/// This module contains the necessary types and constants required for
+/// interfacing with C libraries, particularly in the context of memory management
+/// and low-level operations within LibYML.
 pub mod libc {
-    pub(crate) use core::ffi::c_void;
-    pub(crate) use core::primitive::{
+    pub use core::ffi::c_void;
+    pub use core::primitive::{
         i32 as c_int, i64 as c_long, i8 as c_char, u32 as c_uint,
         u64 as c_ulong, u8 as c_uchar,
     };
 }
 
-/// Externs for libyaml
+/// Extern functions and macros for interacting with the underlying libyaml C library.
+///
+/// This module includes low-level functions for memory allocation, comparison, and
+/// movement that bridge Rust and C. It also contains some internal macros for
+/// asserting conditions in a way that integrates with the C code.
 #[macro_use]
 pub mod externs {
     use crate::libc;
@@ -189,12 +115,9 @@ pub mod externs {
 
     const HEADER: usize = {
         let need_len = size_of::<usize>();
-        // Round up to multiple of MALLOC_ALIGN.
         (need_len + MALLOC_ALIGN - 1) & !(MALLOC_ALIGN - 1)
     };
 
-    // `max_align_t` may be bigger than this, but libyaml does not use `long
-    // double` or u128.
     const MALLOC_ALIGN: usize = {
         let int_align = align_of::<libc::c_ulong>();
         let ptr_align = align_of::<usize>();
@@ -205,9 +128,13 @@ pub mod externs {
         }
     };
 
-    pub(crate) unsafe fn malloc(
-        size: libc::c_ulong,
-    ) -> *mut libc::c_void {
+    /// Allocates memory.
+    ///
+    /// # Safety
+    ///
+    /// This function is unsafe because it directly manipulates raw memory. The caller must ensure that
+    /// the allocated memory is properly managed and freed when no longer needed.
+    pub unsafe fn malloc(size: libc::c_ulong) -> *mut libc::c_void {
         let size = HEADER.force_add(size.force_into());
         let layout = Layout::from_size_align(size, MALLOC_ALIGN)
             .ok()
@@ -220,6 +147,12 @@ pub mod externs {
         memory.add(HEADER).cast()
     }
 
+    /// Reallocates memory.
+    ///
+    /// # Safety
+    ///
+    /// This function is unsafe because it directly manipulates raw memory.
+    /// The caller must ensure that the original memory was allocated by `malloc`.
     pub(crate) unsafe fn realloc(
         ptr: *mut libc::c_void,
         new_size: libc::c_ulong,
@@ -237,15 +170,12 @@ pub mod externs {
         memory.add(HEADER).cast()
     }
 
-    /// Free memory.
+    /// Frees allocated memory.
     ///
     /// # Safety
     ///
     /// This function is unsafe because it deallocates memory pointed to by `ptr`.
-    /// The caller must ensure that:
-    /// - `ptr` is a valid pointer that was previously allocated by this allocator.
-    /// - `ptr` has not been freed before.
-    /// - After this call, `ptr` should not be used.
+    /// The caller must ensure that `ptr` was previously allocated by `malloc` or `realloc`.
     pub unsafe fn free(ptr: *mut libc::c_void) {
         let memory = ptr.cast::<u8>().sub(HEADER);
         let size = memory.cast::<usize>().read();
@@ -254,6 +184,12 @@ pub mod externs {
         rust::dealloc(memory, layout);
     }
 
+    /// Compares two memory blocks.
+    ///
+    /// # Safety
+    ///
+    /// This function is unsafe because it compares raw memory. The caller must ensure the pointers
+    /// and size are correct.
     pub(crate) unsafe fn memcmp(
         lhs: *const libc::c_void,
         rhs: *const libc::c_void,
@@ -266,6 +202,12 @@ pub mod externs {
         lhs.cmp(rhs) as libc::c_int
     }
 
+    /// Copies memory from `src` to `dest`.
+    ///
+    /// # Safety
+    ///
+    /// The caller must ensure that the memory areas do not overlap and that the destination is large
+    /// enough to hold the data.
     pub(crate) unsafe fn memcpy(
         dest: *mut libc::c_void,
         src: *const libc::c_void,
@@ -282,7 +224,12 @@ pub mod externs {
         dest
     }
 
-    pub(crate) unsafe fn memmove(
+    /// Moves memory from `src` to `dest`.
+    ///
+    /// # Safety
+    ///
+    /// The caller must ensure that the memory areas do not overlap or are correctly managed.
+    pub unsafe fn memmove(
         dest: *mut libc::c_void,
         src: *const libc::c_void,
         count: libc::c_ulong,
@@ -298,28 +245,11 @@ pub mod externs {
         dest
     }
 
-    /// Sets the first `count` bytes of the memory block pointed to by `dest` to the specified `ch` byte.
-    ///
-    /// # Purpose
-    ///
-    /// This function fills a block of memory with a specified byte value. It is commonly used to initialize or clear memory.
-    ///
-    /// # Parameters
-    ///
-    /// - `dest`: A pointer to the memory block to be filled.
-    /// - `ch`: The byte value to fill the memory block with.
-    /// - `count`: The number of bytes to fill in the memory block.
-    ///
-    /// # Return Value
-    ///
-    /// The function returns a pointer to the memory block (`dest`) after filling it.
+    /// Fills memory with a constant byte.
     ///
     /// # Safety
     ///
-    /// This function is unsafe because it directly manipulates raw memory. The caller must ensure that:
-    /// - `dest` is a valid pointer to a memory block.
-    /// - `count` is not greater than the size of the memory block pointed to by `dest`.
-    /// - The memory block pointed to by `dest` is properly aligned and initialized.
+    /// The caller must ensure the memory is valid and the length is correct.
     pub unsafe fn memset(
         dest: *mut libc::c_void,
         ch: libc::c_int,
@@ -329,6 +259,11 @@ pub mod externs {
         dest
     }
 
+    /// Compares two strings.
+    ///
+    /// # Safety
+    ///
+    /// The caller must ensure the strings are null-terminated and valid.
     pub(crate) unsafe fn strcmp(
         lhs: *const libc::c_char,
         rhs: *const libc::c_char,
@@ -347,6 +282,11 @@ pub mod externs {
         lhs.cmp(rhs) as libc::c_int
     }
 
+    /// Returns the length of a string.
+    ///
+    /// # Safety
+    ///
+    /// The caller must ensure the string is null-terminated and valid.
     pub(crate) unsafe fn strlen(
         str: *const libc::c_char,
     ) -> libc::c_ulong {
@@ -357,6 +297,11 @@ pub mod externs {
         end.offset_from(str) as libc::c_ulong
     }
 
+    /// Compares up to `count` characters of two strings.
+    ///
+    /// # Safety
+    ///
+    /// The caller must ensure the strings are null-terminated and valid.
     pub(crate) unsafe fn strncmp(
         lhs: *const libc::c_char,
         rhs: *const libc::c_char,
@@ -379,6 +324,9 @@ pub mod externs {
         }
     }
 
+    /// Macro for asserting conditions.
+    ///
+    /// This macro is used internally to assert conditions and handle failures.
     macro_rules! __assert {
         (false $(,)?) => {
             $crate::externs::__assert_fail(
@@ -398,6 +346,11 @@ pub mod externs {
         };
     }
 
+    /// Internal function for handling assertion failures.
+    ///
+    /// # Safety
+    ///
+    /// This function is called when an assertion fails, and it triggers a panic.
     pub(crate) unsafe fn __assert_fail(
         __assertion: &'static str,
         __file: &'static str,
@@ -417,20 +370,31 @@ pub mod externs {
     }
 }
 
+/// Module for formatting utilities.
+///
+/// This module provides utilities for formatting data,
+/// particularly for writing formatted strings to pointers.
 mod fmt {
     use crate::yaml::yaml_char_t;
     use core::fmt::{self, Write};
     use core::ptr;
 
+    /// Struct for writing formatted data to a pointer.
     pub(crate) struct WriteToPtr {
         ptr: *mut yaml_char_t,
     }
 
     impl WriteToPtr {
+        /// Creates a new `WriteToPtr`.
+        ///
+        /// # Safety
+        ///
+        /// This function is unsafe because it directly manipulates raw pointers.
         pub(crate) unsafe fn new(ptr: *mut yaml_char_t) -> Self {
             WriteToPtr { ptr }
         }
 
+        /// Writes formatted data to the pointer.
         pub(crate) fn write_fmt(&mut self, args: fmt::Arguments<'_>) {
             let _ = Write::write_fmt(self, args);
         }
@@ -447,6 +411,10 @@ mod fmt {
     }
 }
 
+/// Trait extension for pointers.
+///
+/// This trait provides methods for working with pointers,
+/// particularly for calculating the offset between two pointers.
 trait PointerExt: Sized {
     fn c_offset_from(self, origin: Self) -> isize;
 }
@@ -463,43 +431,78 @@ impl<T> PointerExt for *mut T {
     }
 }
 
+/// Macros module for LibYML.
+///
+/// This module contains various macros used throughout the LibYML library.
 #[macro_use]
-mod macros;
+pub mod macros;
 
-/// Macros module for LibYML
+/// Utility functions for LibYML.
+///
+/// This module contains utility functions and macros that are used throughout the LibYML library.
 #[macro_use]
 pub mod utils;
 
-/// API module for LibYML
+/// API module for LibYML.
+///
+/// This module provides the public API functions for working with YAML data.
 pub mod api;
 
-/// String module for LibYML
+/// String utilities for LibYML.
+///
+/// This module provides utilities for working with YAML strings.
 pub mod string;
 
-mod dumper;
+/// Dumper module for LibYML.
+///
+/// This module contains functions related to dumping YAML data.
+pub mod dumper;
+
+/// Emitter module for LibYML.
+///
+/// This module provides functions for emitting YAML data.
 mod emitter;
-/// Loader module for LibYML
+
+/// Loader module for LibYML.
+///
+/// This module contains functions for loading YAML data.
 pub mod loader;
 
-/// Decode module for LibYML
+/// Decode module for LibYML.
+///
+/// This module contains functions for decoding YAML data.
 pub mod decode;
 
-/// Document module for LibYML
+/// Document module for LibYML.
+///
+/// This module provides functions for working with YAML documents.
 pub mod document;
 
-/// Internal module for LibYML
+/// Internal utilities for LibYML.
+///
+/// This module contains internal utility functions and structures for the library.
 pub mod internal;
 
-/// Memory module for LibYML
+/// Memory management for LibYML.
+///
+/// This module provides functions for managing memory within the library.
 pub mod memory;
+
 mod ops;
 mod parser;
 mod reader;
 mod scanner;
-/// Success and Failure types for LibYML
+
+/// Success and Failure types for LibYML.
+///
+/// This module provides types for representing the success and failure of various operations within the library.
 pub mod success;
+
 mod writer;
-/// YAML API module for LibYML
+
+/// YAML API module for LibYML.
+///
+/// This module provides functions and types for working directly with YAML data structures.
 pub mod yaml;
 
 pub use crate::api::{

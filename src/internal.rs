@@ -98,7 +98,7 @@ pub unsafe fn yaml_queue_extend(
     }
     if *tail == *end {
         if *head != *tail {
-            memmove(
+            let _ = memmove(
                 *start,
                 *head,
                 (*tail as *mut libc::c_char)

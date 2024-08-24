@@ -1,1 +1,1 @@
-searchState.loadedDescShard("run_emitter_test_suite", 0, "Returns the argument unchanged.\nCalls <code>U::from(self)</code>.\nReturns the argument unchanged.\nCalls <code>U::from(self)</code>.")
+searchState.loadedDescShard("run_emitter_test_suite", 0, "Returns the argument unchanged.\nReturns the argument unchanged.\nCalls <code>U::from(self)</code>.\nCalls <code>U::from(self)</code>.\nReturns the argument unchanged.\nCalls <code>U::from(self)</code>.")

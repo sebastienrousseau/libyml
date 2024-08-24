@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `src/yaml.rs`."><title>yaml.rs - source</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-46f98efaafac5295.ttf.woff2,FiraSans-Regular-018c141bf0843ffd.woff2,FiraSans-Medium-8f9a781e4970d388.woff2,SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2,SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../static.files/rustdoc-c5d6553a23f1e5a6.css"><meta name="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="libyml" data-themes="" data-resource-suffix="" data-rustdoc-version="1.81.0-nightly (9057c3ffe 2024-07-19)" data-channel="nightly" data-search-js="search-d234aafac6c221dd.js" data-settings-js="settings-4313503d2e1961c2.js" ><script src="../../static.files/storage-118b08c4c78b968e.js"></script><script defer src="../../static.files/src-script-e66d777a5a92e9b2.js"></script><script defer src="../../src-files.js"></script><script defer src="../../static.files/main-d2fab2bf619172d3.js"></script><noscript><link rel="stylesheet" href="../../static.files/noscript-df360f571f6edeae.css"></noscript><link rel="icon" href="https://kura.pro/libyml/images/favicon.ico"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="src-sidebar-title"><h2>Files</h2></div></nav><div class="sidebar-resizer"></div><main><rustdoc-search></rustdoc-search><section id="main-content" class="content"><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers"><a href="#1" id="1">1</a>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `src/yaml.rs`."><title>yaml.rs - source</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-46f98efaafac5295.ttf.woff2,FiraSans-Regular-018c141bf0843ffd.woff2,FiraSans-Medium-8f9a781e4970d388.woff2,SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2,SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../static.files/rustdoc-492a78a4a87dcc01.css"><meta name="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="libyml" data-themes="" data-resource-suffix="" data-rustdoc-version="1.82.0-nightly (4074d4902 2024-08-23)" data-channel="nightly" data-search-js="search-a2a4ff0acfd716f8.js" data-settings-js="settings-4313503d2e1961c2.js" ><script src="../../static.files/storage-118b08c4c78b968e.js"></script><script defer src="../../static.files/src-script-e66d777a5a92e9b2.js"></script><script defer src="../../src-files.js"></script><script defer src="../../static.files/main-cb0df477c2d67d00.js"></script><noscript><link rel="stylesheet" href="../../static.files/noscript-3b12f09e550e0385.css"></noscript><link rel="icon" href="https://kura.pro/libyml/images/favicon.ico"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="src-sidebar-title"><h2>Files</h2></div></nav><div class="sidebar-resizer"></div><main><rustdoc-search></rustdoc-search><section id="main-content" class="content"><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers"><a href="#1" id="1">1</a>
 <a href="#2" id="2">2</a>
 <a href="#3" id="3">3</a>
 <a href="#4" id="4">4</a>
@@ -1508,6 +1508,9 @@
 <a href="#1508" id="1508">1508</a>
 <a href="#1509" id="1509">1509</a>
 <a href="#1510" id="1510">1510</a>
+<a href="#1511" id="1511">1511</a>
+<a href="#1512" id="1512">1512</a>
+<a href="#1513" id="1513">1513</a>
 </pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::libc;
 <span class="kw">use </span>core::ops::Deref;
 <span class="kw">use </span>core::ptr::{<span class="self">self</span>, addr_of};
@@ -2451,13 +2454,13 @@
     <span class="attr">#[cfg(not(doc))]
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) problem: <span class="kw-2">*const </span>libc::c_char,
     <span class="doccomment">/// Write handler.
-    </span><span class="kw">pub</span>(<span class="kw">crate</span>) write_handler: <span class="prelude-ty">Option</span>&lt;YamlWriteHandlerT&gt;,
+    </span><span class="kw">pub </span>write_handler: <span class="prelude-ty">Option</span>&lt;YamlWriteHandlerT&gt;,
     <span class="doccomment">/// A pointer for passing to the write handler.
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) write_handler_data: <span class="kw-2">*mut </span>libc::c_void,
     <span class="doccomment">/// Standard (string or file) output data.
-    </span><span class="kw">pub</span>(<span class="kw">crate</span>) output: UnnamedYamlEmitterTOutput,
+    </span><span class="kw">pub </span>output: UnnamedYamlEmitterTOutput,
     <span class="doccomment">/// The working buffer.
-    </span><span class="kw">pub</span>(<span class="kw">crate</span>) buffer: YamlBufferT&lt;yaml_char_t&gt;,
+    </span><span class="kw">pub </span>buffer: YamlBufferT&lt;yaml_char_t&gt;,
     <span class="doccomment">/// The raw buffer.
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) raw_buffer: YamlBufferT&lt;libc::c_uchar&gt;,
     <span class="doccomment">/// The stream encoding.
@@ -2511,9 +2514,9 @@
     <span class="doccomment">/// Scalar analysis.
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) scalar_data: UnnamedYamlEmitterTScalarData,
     <span class="doccomment">/// If the stream was already opened?
-    </span><span class="kw">pub</span>(<span class="kw">crate</span>) opened: bool,
+    </span><span class="kw">pub </span>opened: bool,
     <span class="doccomment">/// If the stream was already closed?
-    </span><span class="kw">pub</span>(<span class="kw">crate</span>) closed: bool,
+    </span><span class="kw">pub </span>closed: bool,
     <span class="doccomment">/// The information associated with the document nodes.
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) anchors: <span class="kw-2">*mut </span>YamlAnchorsT,
     <span class="doccomment">/// The last assigned anchor id.
@@ -2543,20 +2546,22 @@
 
 <span class="attr">#[derive(Copy, Clone, Debug, Default)]
 #[repr(C)]
-</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">struct </span>UnnamedYamlEmitterTOutput {
+</span><span class="doccomment">/// Represents the output data associated with a YAML emitter.
+</span><span class="kw">pub struct </span>UnnamedYamlEmitterTOutput {
     <span class="doccomment">/// String output data.
-    </span><span class="kw">pub</span>(<span class="kw">crate</span>) string: UnnamedYamlEmitterTOutputString,
+    </span><span class="kw">pub </span>string: UnnamedYamlEmitterTOutputString,
 }
 
 <span class="attr">#[derive(Copy, Clone, Debug)]
 #[repr(C)]
-</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">struct </span>UnnamedYamlEmitterTOutputString {
+</span><span class="doccomment">/// Represents the unamed output string data associated with a YAML emitter.
+</span><span class="kw">pub struct </span>UnnamedYamlEmitterTOutputString {
     <span class="doccomment">/// The buffer pointer.
-    </span><span class="kw">pub</span>(<span class="kw">crate</span>) buffer: <span class="kw-2">*mut </span>libc::c_uchar,
+    </span><span class="kw">pub </span>buffer: <span class="kw-2">*mut </span>libc::c_uchar,
     <span class="doccomment">/// The buffer size.
-    </span><span class="kw">pub</span>(<span class="kw">crate</span>) size: size_t,
+    </span><span class="kw">pub </span>size: size_t,
     <span class="doccomment">/// The number of written bytes.
-    </span><span class="kw">pub</span>(<span class="kw">crate</span>) size_written: <span class="kw-2">*mut </span>size_t,
+    </span><span class="kw">pub </span>size_written: <span class="kw-2">*mut </span>size_t,
 }
 
 <span class="attr">#[derive(Copy, Clone, Debug)]
@@ -2620,15 +2625,16 @@
 
 <span class="attr">#[derive(Copy, Clone, Debug)]
 #[repr(C)]
-</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">struct </span>YamlBufferT&lt;T&gt; {
+</span><span class="doccomment">/// Represents the data associated with a YAML token.
+</span><span class="kw">pub struct </span>YamlBufferT&lt;T&gt; {
     <span class="doccomment">/// The beginning of the buffer.
-    </span><span class="kw">pub</span>(<span class="kw">crate</span>) start: <span class="kw-2">*mut </span>T,
+    </span><span class="kw">pub </span>start: <span class="kw-2">*mut </span>T,
     <span class="doccomment">/// The end of the buffer.
-    </span><span class="kw">pub</span>(<span class="kw">crate</span>) end: <span class="kw-2">*mut </span>T,
+    </span><span class="kw">pub </span>end: <span class="kw-2">*mut </span>T,
     <span class="doccomment">/// The current position of the buffer.
-    </span><span class="kw">pub</span>(<span class="kw">crate</span>) pointer: <span class="kw-2">*mut </span>T,
+    </span><span class="kw">pub </span>pointer: <span class="kw-2">*mut </span>T,
     <span class="doccomment">/// The last filled position of the buffer.
-    </span><span class="kw">pub</span>(<span class="kw">crate</span>) last: <span class="kw-2">*mut </span>T,
+    </span><span class="kw">pub </span>last: <span class="kw-2">*mut </span>T,
 }
 
 <span class="kw">impl</span>&lt;T&gt; YamlBufferT&lt;T&gt; {

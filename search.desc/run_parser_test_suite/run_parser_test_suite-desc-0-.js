@@ -1,1 +1,1 @@
-searchState.loadedDescShard("run_parser_test_suite", 0, "Returns the argument unchanged.\nCalls <code>U::from(self)</code>.")
+searchState.loadedDescShard("run_parser_test_suite", 0, "A YAML parser and formatter using the libyml library.\nThe entry point of the program.\nWrites an escaped version of a byte slice to the given …\nThe main parsing function that processes YAML input and …\nReturns the argument unchanged.\nCalls <code>U::from(self)</code>.")

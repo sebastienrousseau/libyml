@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `src/bin/run-emitter-test-suite.rs`."><title>run-emitter-test-suite.rs - source</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-46f98efaafac5295.ttf.woff2,FiraSans-Regular-018c141bf0843ffd.woff2,FiraSans-Medium-8f9a781e4970d388.woff2,SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2,SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../static.files/rustdoc-c5d6553a23f1e5a6.css"><meta name="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="run_emitter_test_suite" data-themes="" data-resource-suffix="" data-rustdoc-version="1.81.0-nightly (9057c3ffe 2024-07-19)" data-channel="nightly" data-search-js="search-d234aafac6c221dd.js" data-settings-js="settings-4313503d2e1961c2.js" ><script src="../../static.files/storage-118b08c4c78b968e.js"></script><script defer src="../../static.files/src-script-e66d777a5a92e9b2.js"></script><script defer src="../../src-files.js"></script><script defer src="../../static.files/main-d2fab2bf619172d3.js"></script><noscript><link rel="stylesheet" href="../../static.files/noscript-df360f571f6edeae.css"></noscript><link rel="alternate icon" type="image/png" href="../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="src-sidebar-title"><h2>Files</h2></div></nav><div class="sidebar-resizer"></div><main><rustdoc-search></rustdoc-search><section id="main-content" class="content"><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers"><a href="#1" id="1">1</a>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `src/bin/run-emitter-test-suite.rs`."><title>run-emitter-test-suite.rs - source</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-46f98efaafac5295.ttf.woff2,FiraSans-Regular-018c141bf0843ffd.woff2,FiraSans-Medium-8f9a781e4970d388.woff2,SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2,SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../static.files/rustdoc-492a78a4a87dcc01.css"><meta name="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="run_emitter_test_suite" data-themes="" data-resource-suffix="" data-rustdoc-version="1.82.0-nightly (4074d4902 2024-08-23)" data-channel="nightly" data-search-js="search-a2a4ff0acfd716f8.js" data-settings-js="settings-4313503d2e1961c2.js" ><script src="../../static.files/storage-118b08c4c78b968e.js"></script><script defer src="../../static.files/src-script-e66d777a5a92e9b2.js"></script><script defer src="../../src-files.js"></script><script defer src="../../static.files/main-cb0df477c2d67d00.js"></script><noscript><link rel="stylesheet" href="../../static.files/noscript-3b12f09e550e0385.css"></noscript><link rel="alternate icon" type="image/png" href="../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="src-sidebar-title"><h2>Files</h2></div></nav><div class="sidebar-resizer"></div><main><rustdoc-search></rustdoc-search><section id="main-content" class="content"><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers"><a href="#1" id="1">1</a>
 <a href="#2" id="2">2</a>
 <a href="#3" id="3">3</a>
 <a href="#4" id="4">4</a>
@@ -367,6 +367,24 @@
 <a href="#367" id="367">367</a>
 <a href="#368" id="368">368</a>
 <a href="#369" id="369">369</a>
+<a href="#370" id="370">370</a>
+<a href="#371" id="371">371</a>
+<a href="#372" id="372">372</a>
+<a href="#373" id="373">373</a>
+<a href="#374" id="374">374</a>
+<a href="#375" id="375">375</a>
+<a href="#376" id="376">376</a>
+<a href="#377" id="377">377</a>
+<a href="#378" id="378">378</a>
+<a href="#379" id="379">379</a>
+<a href="#380" id="380">380</a>
+<a href="#381" id="381">381</a>
+<a href="#382" id="382">382</a>
+<a href="#383" id="383">383</a>
+<a href="#384" id="384">384</a>
+<a href="#385" id="385">385</a>
+<a href="#386" id="386">386</a>
+<a href="#387" id="387">387</a>
 </pre></div><pre class="rust"><code><span class="attr">#![allow(missing_docs)]
 #![warn(clippy::pedantic)]
 #![allow(
@@ -388,6 +406,7 @@
 </span><span class="kw">mod </span>cstr;
 
 <span class="kw">use </span><span class="self">self</span>::cstr::CStr;
+<span class="kw">use </span>core::fmt;
 <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">use </span>core::primitive::u8 <span class="kw">as </span>yaml_char_t;
 <span class="kw">use </span>libyml::api::ScalarEventData;
 <span class="kw">use </span>libyml::document::{
@@ -420,14 +439,41 @@
 <span class="kw">use </span>std::process::{<span class="self">self</span>, ExitCode};
 <span class="kw">use </span>std::ptr::{<span class="self">self</span>, addr_of_mut};
 
+<span class="attr">#[derive(Debug)]
+</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">enum </span>EmitterError {
+    InitializationError(String),
+    MemoryError(String),
+    UnknownEvent(String),
+    EmittingError(String),
+    InternalError,
+}
+
+<span class="kw">impl </span>fmt::Display <span class="kw">for </span>EmitterError {
+    <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>fmt::Formatter&lt;<span class="lifetime">'_</span>&gt;) -&gt; fmt::Result {
+        <span class="kw">match </span><span class="self">self </span>{
+            EmitterError::InitializationError(msg)
+            | EmitterError::MemoryError(msg)
+            | EmitterError::UnknownEvent(msg)
+            | EmitterError::EmittingError(msg) =&gt; {
+                <span class="macro">write!</span>(f, <span class="string">"{}"</span>, msg)
+            }
+            EmitterError::InternalError =&gt; <span class="macro">write!</span>(f, <span class="string">"Internal error"</span>),
+        }
+    }
+}
+
+<span class="kw">impl </span>Error <span class="kw">for </span>EmitterError {}
+
 <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">unsafe fn </span>unsafe_main(
     stdin: <span class="kw-2">&amp;mut </span><span class="kw">dyn </span>Read,
     <span class="kw-2">mut </span>stdout: <span class="kw-2">&amp;mut </span><span class="kw">dyn </span>Write,
-) -&gt; <span class="prelude-ty">Result</span>&lt;(), Box&lt;<span class="kw">dyn </span>Error&gt;&gt; {
+) -&gt; <span class="prelude-ty">Result</span>&lt;(), EmitterError&gt; {
     <span class="kw">let </span><span class="kw-2">mut </span>emitter = MaybeUninit::&lt;YamlEmitterT&gt;::uninit();
     <span class="kw">let </span>emitter = emitter.as_mut_ptr();
     <span class="kw">if </span>yaml_emitter_initialize(emitter).fail {
-        <span class="kw">return </span><span class="prelude-val">Err</span>(<span class="string">"Could not initialize the emitter object"</span>.into());
+        <span class="kw">return </span><span class="prelude-val">Err</span>(EmitterError::InitializationError(
+            <span class="string">"Could not initialize the emitter object"</span>.into(),
+        ));
     }
 
     <span class="kw">unsafe fn </span>write_to_stdio(
@@ -515,60 +561,50 @@
             };
 
             yaml_scalar_event_initialize(event, scalar_event_data)
-            <span class="comment">// yaml_scalar_event_initialize(
-            //     event,
-            //     get_anchor(b'&amp;', line, anchor.as_mut_ptr()),
-            //     get_tag(line, tag.as_mut_ptr()),
-            //     value.as_mut_ptr() as *mut u8,
-            //     -1,
-            //     implicit,
-            //     implicit,
-            //     style,
-            // )
-        </span>} <span class="kw">else if </span>line.starts_with(<span class="string">b"=ALI"</span>) {
+        } <span class="kw">else if </span>line.starts_with(<span class="string">b"=ALI"</span>) {
             yaml_alias_event_initialize(
                 event,
                 get_anchor(<span class="string">b'*'</span>, line, anchor.as_mut_ptr()),
             )
         } <span class="kw">else </span>{
             <span class="kw">let </span>line = line.as_mut_ptr() <span class="kw">as </span><span class="kw-2">*mut </span>i8;
-            <span class="kw">break </span><span class="prelude-val">Err</span>(<span class="macro">format!</span>(
+            <span class="kw">break </span><span class="prelude-val">Err</span>(EmitterError::UnknownEvent(<span class="macro">format!</span>(
                 <span class="string">"Unknown event: '{}'"</span>,
                 CStr::from_ptr(line)
-            )
-            .into());
+            )));
         };
 
         <span class="kw">if </span>result.fail {
-            <span class="kw">break </span><span class="prelude-val">Err</span>(
+            <span class="kw">break </span><span class="prelude-val">Err</span>(EmitterError::MemoryError(
                 <span class="string">"Memory error: Not enough memory for creating an event"
                     </span>.into(),
-            );
+            ));
         }
         <span class="kw">if </span>yaml_emitter_emit(emitter, event).fail {
             <span class="kw">break </span><span class="prelude-val">Err</span>(<span class="kw">match </span>(<span class="kw-2">*</span>emitter).error {
-                YamlMemoryError =&gt; {
+                YamlMemoryError =&gt; EmitterError::MemoryError(
                     <span class="string">"Memory error: Not enough memory for emitting"
-                        </span>.into()
+                        </span>.into(),
+                ),
+                YamlWriterError =&gt; {
+                    EmitterError::EmittingError(<span class="macro">format!</span>(
+                        <span class="string">"Writer error: {}"</span>,
+                        CStr::from_ptr((<span class="kw-2">*</span>emitter).problem)
+                    ))
                 }
-                YamlWriterError =&gt; <span class="macro">format!</span>(
-                    <span class="string">"Writer error: {}"</span>,
-                    CStr::from_ptr((<span class="kw-2">*</span>emitter).problem)
-                )
-                .into(),
-                YamlEmitterError =&gt; <span class="macro">format!</span>(
-                    <span class="string">"Emitter error: {}"</span>,
-                    CStr::from_ptr((<span class="kw-2">*</span>emitter).problem)
-                )
-                .into(),
-                <span class="comment">// Couldn't happen.
-                </span><span class="kw">_ </span>=&gt; <span class="string">"Internal error"</span>.into(),
+                YamlEmitterError =&gt; {
+                    EmitterError::EmittingError(<span class="macro">format!</span>(
+                        <span class="string">"Emitter error: {}"</span>,
+                        CStr::from_ptr((<span class="kw-2">*</span>emitter).problem)
+                    ))
+                }
+                <span class="kw">_ </span>=&gt; EmitterError::InternalError,
             });
         }
     };
 
     yaml_emitter_delete(emitter);
-    result
+    result.map_err(Into::into)
 }
 
 <span class="kw">struct </span>ReadBuf {

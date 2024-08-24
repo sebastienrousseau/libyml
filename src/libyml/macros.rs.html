@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `src/macros.rs`."><title>macros.rs - source</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-46f98efaafac5295.ttf.woff2,FiraSans-Regular-018c141bf0843ffd.woff2,FiraSans-Medium-8f9a781e4970d388.woff2,SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2,SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../static.files/rustdoc-c5d6553a23f1e5a6.css"><meta name="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="libyml" data-themes="" data-resource-suffix="" data-rustdoc-version="1.81.0-nightly (9057c3ffe 2024-07-19)" data-channel="nightly" data-search-js="search-d234aafac6c221dd.js" data-settings-js="settings-4313503d2e1961c2.js" ><script src="../../static.files/storage-118b08c4c78b968e.js"></script><script defer src="../../static.files/src-script-e66d777a5a92e9b2.js"></script><script defer src="../../src-files.js"></script><script defer src="../../static.files/main-d2fab2bf619172d3.js"></script><noscript><link rel="stylesheet" href="../../static.files/noscript-df360f571f6edeae.css"></noscript><link rel="icon" href="https://kura.pro/libyml/images/favicon.ico"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="src-sidebar-title"><h2>Files</h2></div></nav><div class="sidebar-resizer"></div><main><rustdoc-search></rustdoc-search><section id="main-content" class="content"><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers"><a href="#1" id="1">1</a>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `src/macros.rs`."><title>macros.rs - source</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-46f98efaafac5295.ttf.woff2,FiraSans-Regular-018c141bf0843ffd.woff2,FiraSans-Medium-8f9a781e4970d388.woff2,SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2,SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../static.files/rustdoc-492a78a4a87dcc01.css"><meta name="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="libyml" data-themes="" data-resource-suffix="" data-rustdoc-version="1.82.0-nightly (4074d4902 2024-08-23)" data-channel="nightly" data-search-js="search-a2a4ff0acfd716f8.js" data-settings-js="settings-4313503d2e1961c2.js" ><script src="../../static.files/storage-118b08c4c78b968e.js"></script><script defer src="../../static.files/src-script-e66d777a5a92e9b2.js"></script><script defer src="../../src-files.js"></script><script defer src="../../static.files/main-cb0df477c2d67d00.js"></script><noscript><link rel="stylesheet" href="../../static.files/noscript-3b12f09e550e0385.css"></noscript><link rel="icon" href="https://kura.pro/libyml/images/favicon.ico"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="src-sidebar-title"><h2>Files</h2></div></nav><div class="sidebar-resizer"></div><main><rustdoc-search></rustdoc-search><section id="main-content" class="content"><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers"><a href="#1" id="1">1</a>
 <a href="#2" id="2">2</a>
 <a href="#3" id="3">3</a>
 <a href="#4" id="4">4</a>
@@ -550,7 +550,656 @@
 <a href="#550" id="550">550</a>
 <a href="#551" id="551">551</a>
 <a href="#552" id="552">552</a>
-</pre></div><pre class="rust"><code><span class="macro">macro_rules!</span> BUFFER_INIT {
+<a href="#553" id="553">553</a>
+<a href="#554" id="554">554</a>
+<a href="#555" id="555">555</a>
+<a href="#556" id="556">556</a>
+<a href="#557" id="557">557</a>
+<a href="#558" id="558">558</a>
+<a href="#559" id="559">559</a>
+<a href="#560" id="560">560</a>
+<a href="#561" id="561">561</a>
+<a href="#562" id="562">562</a>
+<a href="#563" id="563">563</a>
+<a href="#564" id="564">564</a>
+<a href="#565" id="565">565</a>
+<a href="#566" id="566">566</a>
+<a href="#567" id="567">567</a>
+<a href="#568" id="568">568</a>
+<a href="#569" id="569">569</a>
+<a href="#570" id="570">570</a>
+<a href="#571" id="571">571</a>
+<a href="#572" id="572">572</a>
+<a href="#573" id="573">573</a>
+<a href="#574" id="574">574</a>
+<a href="#575" id="575">575</a>
+<a href="#576" id="576">576</a>
+<a href="#577" id="577">577</a>
+<a href="#578" id="578">578</a>
+<a href="#579" id="579">579</a>
+<a href="#580" id="580">580</a>
+<a href="#581" id="581">581</a>
+<a href="#582" id="582">582</a>
+<a href="#583" id="583">583</a>
+<a href="#584" id="584">584</a>
+<a href="#585" id="585">585</a>
+<a href="#586" id="586">586</a>
+<a href="#587" id="587">587</a>
+<a href="#588" id="588">588</a>
+<a href="#589" id="589">589</a>
+<a href="#590" id="590">590</a>
+<a href="#591" id="591">591</a>
+<a href="#592" id="592">592</a>
+<a href="#593" id="593">593</a>
+<a href="#594" id="594">594</a>
+<a href="#595" id="595">595</a>
+<a href="#596" id="596">596</a>
+<a href="#597" id="597">597</a>
+<a href="#598" id="598">598</a>
+<a href="#599" id="599">599</a>
+<a href="#600" id="600">600</a>
+<a href="#601" id="601">601</a>
+<a href="#602" id="602">602</a>
+<a href="#603" id="603">603</a>
+<a href="#604" id="604">604</a>
+<a href="#605" id="605">605</a>
+<a href="#606" id="606">606</a>
+<a href="#607" id="607">607</a>
+<a href="#608" id="608">608</a>
+<a href="#609" id="609">609</a>
+<a href="#610" id="610">610</a>
+<a href="#611" id="611">611</a>
+<a href="#612" id="612">612</a>
+<a href="#613" id="613">613</a>
+<a href="#614" id="614">614</a>
+<a href="#615" id="615">615</a>
+<a href="#616" id="616">616</a>
+<a href="#617" id="617">617</a>
+<a href="#618" id="618">618</a>
+<a href="#619" id="619">619</a>
+<a href="#620" id="620">620</a>
+<a href="#621" id="621">621</a>
+<a href="#622" id="622">622</a>
+<a href="#623" id="623">623</a>
+<a href="#624" id="624">624</a>
+<a href="#625" id="625">625</a>
+<a href="#626" id="626">626</a>
+<a href="#627" id="627">627</a>
+<a href="#628" id="628">628</a>
+<a href="#629" id="629">629</a>
+<a href="#630" id="630">630</a>
+<a href="#631" id="631">631</a>
+<a href="#632" id="632">632</a>
+<a href="#633" id="633">633</a>
+<a href="#634" id="634">634</a>
+<a href="#635" id="635">635</a>
+<a href="#636" id="636">636</a>
+<a href="#637" id="637">637</a>
+<a href="#638" id="638">638</a>
+<a href="#639" id="639">639</a>
+<a href="#640" id="640">640</a>
+<a href="#641" id="641">641</a>
+<a href="#642" id="642">642</a>
+<a href="#643" id="643">643</a>
+<a href="#644" id="644">644</a>
+<a href="#645" id="645">645</a>
+<a href="#646" id="646">646</a>
+<a href="#647" id="647">647</a>
+<a href="#648" id="648">648</a>
+<a href="#649" id="649">649</a>
+<a href="#650" id="650">650</a>
+<a href="#651" id="651">651</a>
+<a href="#652" id="652">652</a>
+<a href="#653" id="653">653</a>
+<a href="#654" id="654">654</a>
+<a href="#655" id="655">655</a>
+<a href="#656" id="656">656</a>
+<a href="#657" id="657">657</a>
+<a href="#658" id="658">658</a>
+<a href="#659" id="659">659</a>
+<a href="#660" id="660">660</a>
+<a href="#661" id="661">661</a>
+<a href="#662" id="662">662</a>
+<a href="#663" id="663">663</a>
+<a href="#664" id="664">664</a>
+<a href="#665" id="665">665</a>
+<a href="#666" id="666">666</a>
+<a href="#667" id="667">667</a>
+<a href="#668" id="668">668</a>
+<a href="#669" id="669">669</a>
+<a href="#670" id="670">670</a>
+<a href="#671" id="671">671</a>
+<a href="#672" id="672">672</a>
+<a href="#673" id="673">673</a>
+<a href="#674" id="674">674</a>
+<a href="#675" id="675">675</a>
+<a href="#676" id="676">676</a>
+<a href="#677" id="677">677</a>
+<a href="#678" id="678">678</a>
+<a href="#679" id="679">679</a>
+<a href="#680" id="680">680</a>
+<a href="#681" id="681">681</a>
+<a href="#682" id="682">682</a>
+<a href="#683" id="683">683</a>
+<a href="#684" id="684">684</a>
+<a href="#685" id="685">685</a>
+<a href="#686" id="686">686</a>
+<a href="#687" id="687">687</a>
+<a href="#688" id="688">688</a>
+<a href="#689" id="689">689</a>
+<a href="#690" id="690">690</a>
+<a href="#691" id="691">691</a>
+<a href="#692" id="692">692</a>
+<a href="#693" id="693">693</a>
+<a href="#694" id="694">694</a>
+<a href="#695" id="695">695</a>
+<a href="#696" id="696">696</a>
+<a href="#697" id="697">697</a>
+<a href="#698" id="698">698</a>
+<a href="#699" id="699">699</a>
+<a href="#700" id="700">700</a>
+<a href="#701" id="701">701</a>
+<a href="#702" id="702">702</a>
+<a href="#703" id="703">703</a>
+<a href="#704" id="704">704</a>
+<a href="#705" id="705">705</a>
+<a href="#706" id="706">706</a>
+<a href="#707" id="707">707</a>
+<a href="#708" id="708">708</a>
+<a href="#709" id="709">709</a>
+<a href="#710" id="710">710</a>
+<a href="#711" id="711">711</a>
+<a href="#712" id="712">712</a>
+<a href="#713" id="713">713</a>
+<a href="#714" id="714">714</a>
+<a href="#715" id="715">715</a>
+<a href="#716" id="716">716</a>
+<a href="#717" id="717">717</a>
+<a href="#718" id="718">718</a>
+<a href="#719" id="719">719</a>
+<a href="#720" id="720">720</a>
+<a href="#721" id="721">721</a>
+<a href="#722" id="722">722</a>
+<a href="#723" id="723">723</a>
+<a href="#724" id="724">724</a>
+<a href="#725" id="725">725</a>
+<a href="#726" id="726">726</a>
+<a href="#727" id="727">727</a>
+<a href="#728" id="728">728</a>
+<a href="#729" id="729">729</a>
+<a href="#730" id="730">730</a>
+<a href="#731" id="731">731</a>
+<a href="#732" id="732">732</a>
+<a href="#733" id="733">733</a>
+<a href="#734" id="734">734</a>
+<a href="#735" id="735">735</a>
+<a href="#736" id="736">736</a>
+<a href="#737" id="737">737</a>
+<a href="#738" id="738">738</a>
+<a href="#739" id="739">739</a>
+<a href="#740" id="740">740</a>
+<a href="#741" id="741">741</a>
+<a href="#742" id="742">742</a>
+<a href="#743" id="743">743</a>
+<a href="#744" id="744">744</a>
+<a href="#745" id="745">745</a>
+<a href="#746" id="746">746</a>
+<a href="#747" id="747">747</a>
+<a href="#748" id="748">748</a>
+<a href="#749" id="749">749</a>
+<a href="#750" id="750">750</a>
+<a href="#751" id="751">751</a>
+<a href="#752" id="752">752</a>
+<a href="#753" id="753">753</a>
+<a href="#754" id="754">754</a>
+<a href="#755" id="755">755</a>
+<a href="#756" id="756">756</a>
+<a href="#757" id="757">757</a>
+<a href="#758" id="758">758</a>
+<a href="#759" id="759">759</a>
+<a href="#760" id="760">760</a>
+<a href="#761" id="761">761</a>
+<a href="#762" id="762">762</a>
+<a href="#763" id="763">763</a>
+<a href="#764" id="764">764</a>
+<a href="#765" id="765">765</a>
+<a href="#766" id="766">766</a>
+<a href="#767" id="767">767</a>
+<a href="#768" id="768">768</a>
+<a href="#769" id="769">769</a>
+<a href="#770" id="770">770</a>
+<a href="#771" id="771">771</a>
+<a href="#772" id="772">772</a>
+<a href="#773" id="773">773</a>
+<a href="#774" id="774">774</a>
+<a href="#775" id="775">775</a>
+<a href="#776" id="776">776</a>
+<a href="#777" id="777">777</a>
+<a href="#778" id="778">778</a>
+<a href="#779" id="779">779</a>
+<a href="#780" id="780">780</a>
+<a href="#781" id="781">781</a>
+<a href="#782" id="782">782</a>
+<a href="#783" id="783">783</a>
+<a href="#784" id="784">784</a>
+<a href="#785" id="785">785</a>
+<a href="#786" id="786">786</a>
+<a href="#787" id="787">787</a>
+<a href="#788" id="788">788</a>
+<a href="#789" id="789">789</a>
+<a href="#790" id="790">790</a>
+<a href="#791" id="791">791</a>
+<a href="#792" id="792">792</a>
+<a href="#793" id="793">793</a>
+<a href="#794" id="794">794</a>
+<a href="#795" id="795">795</a>
+<a href="#796" id="796">796</a>
+<a href="#797" id="797">797</a>
+<a href="#798" id="798">798</a>
+<a href="#799" id="799">799</a>
+<a href="#800" id="800">800</a>
+<a href="#801" id="801">801</a>
+<a href="#802" id="802">802</a>
+<a href="#803" id="803">803</a>
+<a href="#804" id="804">804</a>
+<a href="#805" id="805">805</a>
+<a href="#806" id="806">806</a>
+<a href="#807" id="807">807</a>
+<a href="#808" id="808">808</a>
+<a href="#809" id="809">809</a>
+<a href="#810" id="810">810</a>
+<a href="#811" id="811">811</a>
+<a href="#812" id="812">812</a>
+<a href="#813" id="813">813</a>
+<a href="#814" id="814">814</a>
+<a href="#815" id="815">815</a>
+<a href="#816" id="816">816</a>
+<a href="#817" id="817">817</a>
+<a href="#818" id="818">818</a>
+<a href="#819" id="819">819</a>
+<a href="#820" id="820">820</a>
+<a href="#821" id="821">821</a>
+<a href="#822" id="822">822</a>
+<a href="#823" id="823">823</a>
+<a href="#824" id="824">824</a>
+<a href="#825" id="825">825</a>
+<a href="#826" id="826">826</a>
+<a href="#827" id="827">827</a>
+<a href="#828" id="828">828</a>
+<a href="#829" id="829">829</a>
+<a href="#830" id="830">830</a>
+<a href="#831" id="831">831</a>
+<a href="#832" id="832">832</a>
+<a href="#833" id="833">833</a>
+<a href="#834" id="834">834</a>
+<a href="#835" id="835">835</a>
+<a href="#836" id="836">836</a>
+<a href="#837" id="837">837</a>
+<a href="#838" id="838">838</a>
+<a href="#839" id="839">839</a>
+<a href="#840" id="840">840</a>
+<a href="#841" id="841">841</a>
+<a href="#842" id="842">842</a>
+<a href="#843" id="843">843</a>
+<a href="#844" id="844">844</a>
+<a href="#845" id="845">845</a>
+<a href="#846" id="846">846</a>
+<a href="#847" id="847">847</a>
+<a href="#848" id="848">848</a>
+<a href="#849" id="849">849</a>
+<a href="#850" id="850">850</a>
+<a href="#851" id="851">851</a>
+<a href="#852" id="852">852</a>
+<a href="#853" id="853">853</a>
+<a href="#854" id="854">854</a>
+<a href="#855" id="855">855</a>
+<a href="#856" id="856">856</a>
+<a href="#857" id="857">857</a>
+<a href="#858" id="858">858</a>
+<a href="#859" id="859">859</a>
+<a href="#860" id="860">860</a>
+<a href="#861" id="861">861</a>
+<a href="#862" id="862">862</a>
+<a href="#863" id="863">863</a>
+<a href="#864" id="864">864</a>
+<a href="#865" id="865">865</a>
+<a href="#866" id="866">866</a>
+<a href="#867" id="867">867</a>
+<a href="#868" id="868">868</a>
+<a href="#869" id="869">869</a>
+<a href="#870" id="870">870</a>
+<a href="#871" id="871">871</a>
+<a href="#872" id="872">872</a>
+<a href="#873" id="873">873</a>
+<a href="#874" id="874">874</a>
+<a href="#875" id="875">875</a>
+<a href="#876" id="876">876</a>
+<a href="#877" id="877">877</a>
+<a href="#878" id="878">878</a>
+<a href="#879" id="879">879</a>
+<a href="#880" id="880">880</a>
+<a href="#881" id="881">881</a>
+<a href="#882" id="882">882</a>
+<a href="#883" id="883">883</a>
+<a href="#884" id="884">884</a>
+<a href="#885" id="885">885</a>
+<a href="#886" id="886">886</a>
+<a href="#887" id="887">887</a>
+<a href="#888" id="888">888</a>
+<a href="#889" id="889">889</a>
+<a href="#890" id="890">890</a>
+<a href="#891" id="891">891</a>
+<a href="#892" id="892">892</a>
+<a href="#893" id="893">893</a>
+<a href="#894" id="894">894</a>
+<a href="#895" id="895">895</a>
+<a href="#896" id="896">896</a>
+<a href="#897" id="897">897</a>
+<a href="#898" id="898">898</a>
+<a href="#899" id="899">899</a>
+<a href="#900" id="900">900</a>
+<a href="#901" id="901">901</a>
+<a href="#902" id="902">902</a>
+<a href="#903" id="903">903</a>
+<a href="#904" id="904">904</a>
+<a href="#905" id="905">905</a>
+<a href="#906" id="906">906</a>
+<a href="#907" id="907">907</a>
+<a href="#908" id="908">908</a>
+<a href="#909" id="909">909</a>
+<a href="#910" id="910">910</a>
+<a href="#911" id="911">911</a>
+<a href="#912" id="912">912</a>
+<a href="#913" id="913">913</a>
+<a href="#914" id="914">914</a>
+<a href="#915" id="915">915</a>
+<a href="#916" id="916">916</a>
+<a href="#917" id="917">917</a>
+<a href="#918" id="918">918</a>
+<a href="#919" id="919">919</a>
+<a href="#920" id="920">920</a>
+<a href="#921" id="921">921</a>
+<a href="#922" id="922">922</a>
+<a href="#923" id="923">923</a>
+<a href="#924" id="924">924</a>
+<a href="#925" id="925">925</a>
+<a href="#926" id="926">926</a>
+<a href="#927" id="927">927</a>
+<a href="#928" id="928">928</a>
+<a href="#929" id="929">929</a>
+<a href="#930" id="930">930</a>
+<a href="#931" id="931">931</a>
+<a href="#932" id="932">932</a>
+<a href="#933" id="933">933</a>
+<a href="#934" id="934">934</a>
+<a href="#935" id="935">935</a>
+<a href="#936" id="936">936</a>
+<a href="#937" id="937">937</a>
+<a href="#938" id="938">938</a>
+<a href="#939" id="939">939</a>
+<a href="#940" id="940">940</a>
+<a href="#941" id="941">941</a>
+<a href="#942" id="942">942</a>
+<a href="#943" id="943">943</a>
+<a href="#944" id="944">944</a>
+<a href="#945" id="945">945</a>
+<a href="#946" id="946">946</a>
+<a href="#947" id="947">947</a>
+<a href="#948" id="948">948</a>
+<a href="#949" id="949">949</a>
+<a href="#950" id="950">950</a>
+<a href="#951" id="951">951</a>
+<a href="#952" id="952">952</a>
+<a href="#953" id="953">953</a>
+<a href="#954" id="954">954</a>
+<a href="#955" id="955">955</a>
+<a href="#956" id="956">956</a>
+<a href="#957" id="957">957</a>
+<a href="#958" id="958">958</a>
+<a href="#959" id="959">959</a>
+<a href="#960" id="960">960</a>
+<a href="#961" id="961">961</a>
+<a href="#962" id="962">962</a>
+<a href="#963" id="963">963</a>
+<a href="#964" id="964">964</a>
+<a href="#965" id="965">965</a>
+<a href="#966" id="966">966</a>
+<a href="#967" id="967">967</a>
+<a href="#968" id="968">968</a>
+<a href="#969" id="969">969</a>
+<a href="#970" id="970">970</a>
+<a href="#971" id="971">971</a>
+<a href="#972" id="972">972</a>
+<a href="#973" id="973">973</a>
+<a href="#974" id="974">974</a>
+<a href="#975" id="975">975</a>
+<a href="#976" id="976">976</a>
+<a href="#977" id="977">977</a>
+<a href="#978" id="978">978</a>
+<a href="#979" id="979">979</a>
+<a href="#980" id="980">980</a>
+<a href="#981" id="981">981</a>
+<a href="#982" id="982">982</a>
+<a href="#983" id="983">983</a>
+<a href="#984" id="984">984</a>
+<a href="#985" id="985">985</a>
+<a href="#986" id="986">986</a>
+<a href="#987" id="987">987</a>
+<a href="#988" id="988">988</a>
+<a href="#989" id="989">989</a>
+<a href="#990" id="990">990</a>
+<a href="#991" id="991">991</a>
+<a href="#992" id="992">992</a>
+<a href="#993" id="993">993</a>
+<a href="#994" id="994">994</a>
+<a href="#995" id="995">995</a>
+<a href="#996" id="996">996</a>
+<a href="#997" id="997">997</a>
+<a href="#998" id="998">998</a>
+<a href="#999" id="999">999</a>
+<a href="#1000" id="1000">1000</a>
+<a href="#1001" id="1001">1001</a>
+<a href="#1002" id="1002">1002</a>
+<a href="#1003" id="1003">1003</a>
+<a href="#1004" id="1004">1004</a>
+<a href="#1005" id="1005">1005</a>
+<a href="#1006" id="1006">1006</a>
+<a href="#1007" id="1007">1007</a>
+<a href="#1008" id="1008">1008</a>
+<a href="#1009" id="1009">1009</a>
+<a href="#1010" id="1010">1010</a>
+<a href="#1011" id="1011">1011</a>
+<a href="#1012" id="1012">1012</a>
+<a href="#1013" id="1013">1013</a>
+<a href="#1014" id="1014">1014</a>
+<a href="#1015" id="1015">1015</a>
+<a href="#1016" id="1016">1016</a>
+<a href="#1017" id="1017">1017</a>
+<a href="#1018" id="1018">1018</a>
+<a href="#1019" id="1019">1019</a>
+<a href="#1020" id="1020">1020</a>
+<a href="#1021" id="1021">1021</a>
+<a href="#1022" id="1022">1022</a>
+<a href="#1023" id="1023">1023</a>
+<a href="#1024" id="1024">1024</a>
+<a href="#1025" id="1025">1025</a>
+<a href="#1026" id="1026">1026</a>
+<a href="#1027" id="1027">1027</a>
+<a href="#1028" id="1028">1028</a>
+<a href="#1029" id="1029">1029</a>
+<a href="#1030" id="1030">1030</a>
+<a href="#1031" id="1031">1031</a>
+<a href="#1032" id="1032">1032</a>
+<a href="#1033" id="1033">1033</a>
+<a href="#1034" id="1034">1034</a>
+<a href="#1035" id="1035">1035</a>
+<a href="#1036" id="1036">1036</a>
+<a href="#1037" id="1037">1037</a>
+<a href="#1038" id="1038">1038</a>
+<a href="#1039" id="1039">1039</a>
+<a href="#1040" id="1040">1040</a>
+<a href="#1041" id="1041">1041</a>
+<a href="#1042" id="1042">1042</a>
+<a href="#1043" id="1043">1043</a>
+<a href="#1044" id="1044">1044</a>
+<a href="#1045" id="1045">1045</a>
+<a href="#1046" id="1046">1046</a>
+<a href="#1047" id="1047">1047</a>
+<a href="#1048" id="1048">1048</a>
+<a href="#1049" id="1049">1049</a>
+<a href="#1050" id="1050">1050</a>
+<a href="#1051" id="1051">1051</a>
+<a href="#1052" id="1052">1052</a>
+<a href="#1053" id="1053">1053</a>
+<a href="#1054" id="1054">1054</a>
+<a href="#1055" id="1055">1055</a>
+<a href="#1056" id="1056">1056</a>
+<a href="#1057" id="1057">1057</a>
+<a href="#1058" id="1058">1058</a>
+<a href="#1059" id="1059">1059</a>
+<a href="#1060" id="1060">1060</a>
+<a href="#1061" id="1061">1061</a>
+<a href="#1062" id="1062">1062</a>
+<a href="#1063" id="1063">1063</a>
+<a href="#1064" id="1064">1064</a>
+<a href="#1065" id="1065">1065</a>
+<a href="#1066" id="1066">1066</a>
+<a href="#1067" id="1067">1067</a>
+<a href="#1068" id="1068">1068</a>
+<a href="#1069" id="1069">1069</a>
+<a href="#1070" id="1070">1070</a>
+<a href="#1071" id="1071">1071</a>
+<a href="#1072" id="1072">1072</a>
+<a href="#1073" id="1073">1073</a>
+<a href="#1074" id="1074">1074</a>
+<a href="#1075" id="1075">1075</a>
+<a href="#1076" id="1076">1076</a>
+<a href="#1077" id="1077">1077</a>
+<a href="#1078" id="1078">1078</a>
+<a href="#1079" id="1079">1079</a>
+<a href="#1080" id="1080">1080</a>
+<a href="#1081" id="1081">1081</a>
+<a href="#1082" id="1082">1082</a>
+<a href="#1083" id="1083">1083</a>
+<a href="#1084" id="1084">1084</a>
+<a href="#1085" id="1085">1085</a>
+<a href="#1086" id="1086">1086</a>
+<a href="#1087" id="1087">1087</a>
+<a href="#1088" id="1088">1088</a>
+<a href="#1089" id="1089">1089</a>
+<a href="#1090" id="1090">1090</a>
+<a href="#1091" id="1091">1091</a>
+<a href="#1092" id="1092">1092</a>
+<a href="#1093" id="1093">1093</a>
+<a href="#1094" id="1094">1094</a>
+<a href="#1095" id="1095">1095</a>
+<a href="#1096" id="1096">1096</a>
+<a href="#1097" id="1097">1097</a>
+<a href="#1098" id="1098">1098</a>
+<a href="#1099" id="1099">1099</a>
+<a href="#1100" id="1100">1100</a>
+<a href="#1101" id="1101">1101</a>
+<a href="#1102" id="1102">1102</a>
+<a href="#1103" id="1103">1103</a>
+<a href="#1104" id="1104">1104</a>
+<a href="#1105" id="1105">1105</a>
+<a href="#1106" id="1106">1106</a>
+<a href="#1107" id="1107">1107</a>
+<a href="#1108" id="1108">1108</a>
+<a href="#1109" id="1109">1109</a>
+<a href="#1110" id="1110">1110</a>
+<a href="#1111" id="1111">1111</a>
+<a href="#1112" id="1112">1112</a>
+<a href="#1113" id="1113">1113</a>
+<a href="#1114" id="1114">1114</a>
+<a href="#1115" id="1115">1115</a>
+<a href="#1116" id="1116">1116</a>
+<a href="#1117" id="1117">1117</a>
+<a href="#1118" id="1118">1118</a>
+<a href="#1119" id="1119">1119</a>
+<a href="#1120" id="1120">1120</a>
+<a href="#1121" id="1121">1121</a>
+<a href="#1122" id="1122">1122</a>
+<a href="#1123" id="1123">1123</a>
+<a href="#1124" id="1124">1124</a>
+<a href="#1125" id="1125">1125</a>
+<a href="#1126" id="1126">1126</a>
+<a href="#1127" id="1127">1127</a>
+<a href="#1128" id="1128">1128</a>
+<a href="#1129" id="1129">1129</a>
+<a href="#1130" id="1130">1130</a>
+<a href="#1131" id="1131">1131</a>
+<a href="#1132" id="1132">1132</a>
+<a href="#1133" id="1133">1133</a>
+<a href="#1134" id="1134">1134</a>
+<a href="#1135" id="1135">1135</a>
+<a href="#1136" id="1136">1136</a>
+<a href="#1137" id="1137">1137</a>
+<a href="#1138" id="1138">1138</a>
+<a href="#1139" id="1139">1139</a>
+<a href="#1140" id="1140">1140</a>
+<a href="#1141" id="1141">1141</a>
+<a href="#1142" id="1142">1142</a>
+<a href="#1143" id="1143">1143</a>
+<a href="#1144" id="1144">1144</a>
+<a href="#1145" id="1145">1145</a>
+<a href="#1146" id="1146">1146</a>
+<a href="#1147" id="1147">1147</a>
+<a href="#1148" id="1148">1148</a>
+<a href="#1149" id="1149">1149</a>
+<a href="#1150" id="1150">1150</a>
+<a href="#1151" id="1151">1151</a>
+<a href="#1152" id="1152">1152</a>
+<a href="#1153" id="1153">1153</a>
+<a href="#1154" id="1154">1154</a>
+<a href="#1155" id="1155">1155</a>
+<a href="#1156" id="1156">1156</a>
+<a href="#1157" id="1157">1157</a>
+<a href="#1158" id="1158">1158</a>
+<a href="#1159" id="1159">1159</a>
+<a href="#1160" id="1160">1160</a>
+<a href="#1161" id="1161">1161</a>
+<a href="#1162" id="1162">1162</a>
+<a href="#1163" id="1163">1163</a>
+<a href="#1164" id="1164">1164</a>
+<a href="#1165" id="1165">1165</a>
+<a href="#1166" id="1166">1166</a>
+<a href="#1167" id="1167">1167</a>
+<a href="#1168" id="1168">1168</a>
+<a href="#1169" id="1169">1169</a>
+<a href="#1170" id="1170">1170</a>
+<a href="#1171" id="1171">1171</a>
+<a href="#1172" id="1172">1172</a>
+<a href="#1173" id="1173">1173</a>
+<a href="#1174" id="1174">1174</a>
+<a href="#1175" id="1175">1175</a>
+<a href="#1176" id="1176">1176</a>
+<a href="#1177" id="1177">1177</a>
+<a href="#1178" id="1178">1178</a>
+<a href="#1179" id="1179">1179</a>
+<a href="#1180" id="1180">1180</a>
+<a href="#1181" id="1181">1181</a>
+<a href="#1182" id="1182">1182</a>
+</pre></div><pre class="rust"><code><span class="comment">// ------------------------------------
+// Buffer Management Macros
+// ------------------------------------
+
+</span><span class="doccomment">/// Initializes a buffer with a given size.
+///
+/// # Parameters
+///
+/// * `buffer`: A mutable reference to a `YamlBufferT` struct that needs to be initialized.
+/// * `size`: The size of the buffer in bytes.
+///
+/// # Return
+///
+/// This macro does not return a value. It initializes the provided buffer with the given size.
+///
+/// # Safety
+///
+/// This macro assumes that the `yaml_malloc` function is correctly implemented and handles memory allocation.
+</span><span class="attr">#[macro_export]
+</span><span class="macro">macro_rules!</span> BUFFER_INIT {
     (<span class="macro-nonterminal">$buffer</span>:expr, <span class="macro-nonterminal">$size</span>:expr) =&gt; {{
         <span class="kw">let </span>start = <span class="macro">addr_of_mut!</span>(<span class="macro-nonterminal">$buffer</span>.start);
         <span class="kw-2">*</span>start = yaml_malloc(<span class="macro-nonterminal">$size </span><span class="kw">as </span>size_t) <span class="kw">as </span><span class="kw-2">*mut </span>yaml_char_t;
@@ -563,19 +1212,49 @@
     }};
 }
 
-<span class="macro">macro_rules!</span> BUFFER_DEL {
+<span class="doccomment">/// Deletes the buffer and frees the allocated memory.
+///
+/// # Parameters
+///
+/// * `buffer`: A mutable reference to the buffer to be deleted.
+///
+/// # Return
+///
+/// This function does not return a value.
+</span><span class="attr">#[macro_export]
+</span><span class="macro">macro_rules!</span> BUFFER_DEL {
     (<span class="macro-nonterminal">$buffer</span>:expr) =&gt; {{
-        yaml_free(<span class="macro-nonterminal">$buffer</span>.start <span class="kw">as </span><span class="kw-2">*mut </span>libc::c_void);
-        <span class="kw">let </span>end = <span class="macro">addr_of_mut!</span>(<span class="macro-nonterminal">$buffer</span>.end);
-        <span class="kw-2">*</span>end = ptr::null_mut::&lt;yaml_char_t&gt;();
-        <span class="kw">let </span>pointer = <span class="macro">addr_of_mut!</span>(<span class="macro-nonterminal">$buffer</span>.pointer);
-        <span class="kw-2">*</span>pointer = <span class="kw-2">*</span>end;
-        <span class="kw">let </span>start = <span class="macro">addr_of_mut!</span>(<span class="macro-nonterminal">$buffer</span>.start);
-        <span class="kw-2">*</span>start = <span class="kw-2">*</span>pointer;
+        <span class="comment">// Free the allocated memory
+        </span>yaml_free(<span class="macro-nonterminal">$buffer</span>.start <span class="kw">as </span><span class="kw-2">*mut </span>libc::c_void);
+
+        <span class="comment">// Set all pointers to null after freeing the memory
+        </span><span class="macro-nonterminal">$buffer</span>.start = ptr::null_mut::&lt;yaml_char_t&gt;();
+        <span class="macro-nonterminal">$buffer</span>.pointer = ptr::null_mut::&lt;yaml_char_t&gt;();
+        <span class="macro-nonterminal">$buffer</span>.last = ptr::null_mut::&lt;yaml_char_t&gt;();
+        <span class="macro-nonterminal">$buffer</span>.end = ptr::null_mut::&lt;yaml_char_t&gt;();
     }};
 }
 
-<span class="macro">macro_rules!</span> STRING_ASSIGN {
+<span class="comment">// ------------------------------------
+// String Management Macros
+// ------------------------------------
+
+</span><span class="doccomment">/// Assigns a new value to a `YamlStringT` struct.
+///
+/// This macro creates a new `YamlStringT` instance with the given start and end pointers.
+/// The end pointer is calculated by offsetting the start pointer by the given length.
+/// The pointer is set to the start pointer.
+///
+/// # Parameters
+///
+/// * `string`: A pointer to the start of the string.
+/// * `length`: The length of the string.
+///
+/// # Return
+///
+/// A new `YamlStringT` instance with the given start, end, and pointer values.
+</span><span class="attr">#[macro_export]
+</span><span class="macro">macro_rules!</span> STRING_ASSIGN {
     (<span class="macro-nonterminal">$string</span>:expr, <span class="macro-nonterminal">$length</span>:expr) =&gt; {
         YamlStringT {
             start: <span class="macro-nonterminal">$string</span>,
@@ -585,16 +1264,44 @@
     };
 }
 
-<span class="macro">macro_rules!</span> STRING_INIT {
+<span class="doccomment">/// Initializes a string for use with the yaml library.
+///
+/// This macro allocates memory for a string, initializes the start, pointer, and end pointers,
+/// and sets the memory to all zeros.
+///
+/// # Parameters
+///
+/// * `$string`: A mutable reference to a `YamlStringT` struct, representing the string to be initialized.
+///
+/// # Return
+///
+/// This macro does not return a value.
+</span><span class="attr">#[macro_export]
+</span><span class="macro">macro_rules!</span> STRING_INIT {
     (<span class="macro-nonterminal">$string</span>:expr) =&gt; {{
         <span class="macro-nonterminal">$string</span>.start = yaml_malloc(<span class="number">16</span>) <span class="kw">as </span><span class="kw-2">*mut </span>yaml_char_t;
         <span class="macro-nonterminal">$string</span>.pointer = <span class="macro-nonterminal">$string</span>.start;
         <span class="macro-nonterminal">$string</span>.end = <span class="macro-nonterminal">$string</span>.start.wrapping_add(<span class="number">16</span>);
-        memset(<span class="macro-nonterminal">$string</span>.start <span class="kw">as </span><span class="kw-2">*mut </span>libc::c_void, <span class="number">0</span>, <span class="number">16</span>);
+        <span class="kw">let _ </span>= memset(<span class="macro-nonterminal">$string</span>.start <span class="kw">as </span><span class="kw-2">*mut </span>libc::c_void, <span class="number">0</span>, <span class="number">16</span>);
     }};
 }
 
-<span class="macro">macro_rules!</span> STRING_DEL {
+<span class="doccomment">/// Deletes a string and frees the allocated memory.
+///
+/// # Parameters
+///
+/// * `string`: A mutable reference to a `YamlStringT` struct representing the string to be deleted.
+///
+/// # Return
+///
+/// This function does not return a value.
+///
+/// # Safety
+///
+/// This function assumes that the `string` parameter is a valid pointer to a `YamlStringT` struct.
+/// It calls the `yaml_free` function to free the allocated memory for the string.
+</span><span class="attr">#[macro_export]
+</span><span class="macro">macro_rules!</span> STRING_DEL {
     (<span class="macro-nonterminal">$string</span>:expr) =&gt; {{
         yaml_free(<span class="macro-nonterminal">$string</span>.start <span class="kw">as </span><span class="kw-2">*mut </span>libc::c_void);
         <span class="macro-nonterminal">$string</span>.end = ptr::null_mut::&lt;yaml_char_t&gt;();
@@ -603,7 +1310,17 @@
     }};
 }
 
-<span class="macro">macro_rules!</span> STRING_EXTEND {
+<span class="doccomment">/// Extends the capacity of a string by reallocating memory if the current capacity is insufficient.
+///
+/// # Parameters
+///
+/// * `string`: A mutable reference to a `YamlStringT` struct representing the string.
+///
+/// # Return
+///
+/// This macro does not return a value. It extends the capacity of the string by reallocating memory if necessary.
+</span><span class="attr">#[macro_export]
+</span><span class="macro">macro_rules!</span> STRING_EXTEND {
     (<span class="macro-nonterminal">$string</span>:expr) =&gt; {
         <span class="kw">if </span><span class="macro-nonterminal">$string</span>.pointer.wrapping_add(<span class="number">5</span>) &gt;= <span class="macro-nonterminal">$string</span>.end {
             yaml_string_extend(
@@ -615,44 +1332,109 @@
     };
 }
 
-<span class="macro">macro_rules!</span> CLEAR {
+<span class="doccomment">/// Clears the content of the string by setting the pointer to the start and filling the memory
+/// from the start to the end with zeros.
+///
+/// # Parameters
+///
+/// * `string`: A mutable reference to a struct containing the start, pointer, and end pointers representing the string.
+///
+/// # Return
+///
+/// This macro does not return a value. It modifies the content of the string in place.
+</span><span class="attr">#[macro_export]
+</span><span class="macro">macro_rules!</span> CLEAR {
     (<span class="macro-nonterminal">$string</span>:expr) =&gt; {{
         <span class="macro-nonterminal">$string</span>.pointer = <span class="macro-nonterminal">$string</span>.start;
-        memset(
+        <span class="kw">let _ </span>= memset(
             <span class="macro-nonterminal">$string</span>.start <span class="kw">as </span><span class="kw-2">*mut </span>libc::c_void,
             <span class="number">0</span>,
-            <span class="macro-nonterminal">$string</span>.end.c_offset_from(<span class="macro-nonterminal">$string</span>.start) <span class="kw">as </span>libc::c_ulong,
+            <span class="macro-nonterminal">$string</span>.end.offset_from(<span class="macro-nonterminal">$string</span>.start) <span class="kw">as </span>libc::c_ulong,
         );
     }};
 }
 
-<span class="macro">macro_rules!</span> JOIN {
+<span class="doccomment">/// Joins two strings together by appending the contents of `string_b` to `string_a`.
+///
+/// # Parameters
+///
+/// * `string_a`: A mutable reference to the first string. Its contents will be modified.
+/// * `string_b`: A mutable reference to the second string. Its contents will not be modified.
+///
+/// # Return
+///
+/// This macro does not return a value. It modifies the contents of `string_a` in-place.
+</span><span class="attr">#[macro_export]
+</span><span class="macro">macro_rules!</span> JOIN {
     (<span class="macro-nonterminal">$string_a</span>:expr, <span class="macro-nonterminal">$string_b</span>:expr) =&gt; {{
-        yaml_string_join(
-            <span class="macro">addr_of_mut!</span>(<span class="macro-nonterminal">$string_a</span>.start),
-            <span class="macro">addr_of_mut!</span>(<span class="macro-nonterminal">$string_a</span>.pointer),
-            <span class="macro">addr_of_mut!</span>(<span class="macro-nonterminal">$string_a</span>.end),
-            <span class="macro">addr_of_mut!</span>(<span class="macro-nonterminal">$string_b</span>.start),
-            <span class="macro">addr_of_mut!</span>(<span class="macro-nonterminal">$string_b</span>.pointer),
-            <span class="macro">addr_of_mut!</span>(<span class="macro-nonterminal">$string_b</span>.end),
-        );
-        <span class="macro-nonterminal">$string_b</span>.pointer = <span class="macro-nonterminal">$string_b</span>.start;
+        <span class="comment">// Check the length to ensure we don't overflow
+        </span><span class="kw">let </span>a_len = <span class="macro-nonterminal">$string_a</span>.pointer.offset_from(<span class="macro-nonterminal">$string_a</span>.start) <span class="kw">as </span>usize;
+        <span class="kw">let </span>b_len = <span class="macro-nonterminal">$string_b</span>.pointer.offset_from(<span class="macro-nonterminal">$string_b</span>.start) <span class="kw">as </span>usize;
+
+        <span class="comment">// If the combined length would exceed available space, reallocate
+        </span><span class="kw">if </span>a_len.checked_add(b_len).is_some() &amp;&amp; <span class="macro-nonterminal">$string_a</span>.pointer.add(b_len) &lt;= <span class="macro-nonterminal">$string_a</span>.end {
+            yaml_string_join(
+                <span class="macro">addr_of_mut!</span>(<span class="macro-nonterminal">$string_a</span>.start),
+                <span class="macro">addr_of_mut!</span>(<span class="macro-nonterminal">$string_a</span>.pointer),
+                <span class="macro">addr_of_mut!</span>(<span class="macro-nonterminal">$string_a</span>.end),
+                <span class="macro">addr_of_mut!</span>(<span class="macro-nonterminal">$string_b</span>.start),
+                <span class="macro">addr_of_mut!</span>(<span class="macro-nonterminal">$string_b</span>.pointer),
+                <span class="macro">addr_of_mut!</span>(<span class="macro-nonterminal">$string_b</span>.end),
+            );
+            <span class="macro-nonterminal">$string_b</span>.pointer = <span class="macro-nonterminal">$string_b</span>.start;
+        } <span class="kw">else </span>{
+            <span class="macro">panic!</span>(<span class="string">"String join would overflow memory bounds"</span>);
+        }
     }};
 }
 
-<span class="macro">macro_rules!</span> CHECK_AT {
+<span class="doccomment">/// This macro checks if the octet at the specified offset in the given string matches the provided octet.
+///
+/// # Parameters
+///
+/// * `string`: A reference to the string where the octet will be checked.
+/// * `octet`: The octet to be checked.
+/// * `offset`: The offset from the start of the string where the octet will be checked.
+///
+/// # Return
+///
+/// * `bool`: Returns `true` if the octet at the specified offset matches the provided octet, otherwise returns `false`.
+</span><span class="attr">#[macro_export]
+</span><span class="macro">macro_rules!</span> CHECK_AT {
     (<span class="macro-nonterminal">$string</span>:expr, <span class="macro-nonterminal">$octet</span>:expr, <span class="macro-nonterminal">$offset</span>:expr) =&gt; {
         <span class="kw-2">*</span><span class="macro-nonterminal">$string</span>.pointer.offset(<span class="macro-nonterminal">$offset</span>) == <span class="macro-nonterminal">$octet
     </span>};
 }
 
-<span class="macro">macro_rules!</span> CHECK {
+<span class="doccomment">/// A macro that checks if the current byte in the given string matches a specific octet.
+///
+/// # Parameters
+///
+/// * `string`: A reference to the string to be checked.
+/// * `octet`: The octet to be matched.
+///
+/// # Return
+///
+/// * `bool`: Returns `true` if the current byte in the string matches the given octet, otherwise `false`.
+</span><span class="attr">#[macro_export]
+</span><span class="macro">macro_rules!</span> CHECK {
     (<span class="macro-nonterminal">$string</span>:expr, <span class="macro-nonterminal">$octet</span>:expr) =&gt; {
         <span class="kw-2">*</span><span class="macro-nonterminal">$string</span>.pointer == <span class="macro-nonterminal">$octet
     </span>};
 }
 
-<span class="macro">macro_rules!</span> IS_ALPHA {
+<span class="doccomment">/// Checks if the current character in the string is an alphabetic character.
+///
+/// # Parameters
+///
+/// * `string`: A mutable reference to a struct containing a pointer to a byte array.
+///
+/// # Return
+///
+/// Returns `true` if the current character is an alphabetic character (A-Z, a-z, 0-9, '_', '-'),
+/// and `false` otherwise.
+</span><span class="attr">#[macro_export]
+</span><span class="macro">macro_rules!</span> IS_ALPHA {
     (<span class="macro-nonterminal">$string</span>:expr) =&gt; {
         <span class="kw-2">*</span><span class="macro-nonterminal">$string</span>.pointer &gt;= <span class="string">b'0' </span>&amp;&amp; <span class="kw-2">*</span><span class="macro-nonterminal">$string</span>.pointer &lt;= <span class="string">b'9'
             </span>|| <span class="kw-2">*</span><span class="macro-nonterminal">$string</span>.pointer &gt;= <span class="string">b'A' </span>&amp;&amp; <span class="kw-2">*</span><span class="macro-nonterminal">$string</span>.pointer &lt;= <span class="string">b'Z'
@@ -662,19 +1444,53 @@
     </span>};
 }
 
-<span class="macro">macro_rules!</span> IS_DIGIT {
+<span class="doccomment">/// Checks if the byte pointed to by the `pointer` in the given string is a digit (0-9).
+///
+/// # Parameters
+///
+/// * `string`: A reference to a struct containing a `pointer` field pointing to a byte in a string.
+///
+/// # Return value
+///
+/// Returns `true` if the byte pointed to by the `pointer` is a digit (0-9), and `false` otherwise.
+</span><span class="attr">#[macro_export]
+</span><span class="macro">macro_rules!</span> IS_DIGIT {
     (<span class="macro-nonterminal">$string</span>:expr) =&gt; {
         <span class="kw-2">*</span><span class="macro-nonterminal">$string</span>.pointer &gt;= <span class="string">b'0' </span>&amp;&amp; <span class="kw-2">*</span><span class="macro-nonterminal">$string</span>.pointer &lt;= <span class="string">b'9'
     </span>};
 }
 
-<span class="macro">macro_rules!</span> AS_DIGIT {
+<span class="doccomment">/// Converts the byte at the current pointer in the string to its corresponding integer value.
+///
+/// # Parameters
+///
+/// * `string`: A mutable reference to a struct containing a pointer to a byte array.
+///
+/// # Return
+///
+/// * Returns the integer value of the byte at the current pointer in the string.
+///   The byte is assumed to be in the ASCII range (0-9), so the function subtracts the ASCII value of '0' (48)
+///   to convert it to its integer representation.
+</span><span class="attr">#[macro_export]
+</span><span class="macro">macro_rules!</span> AS_DIGIT {
     (<span class="macro-nonterminal">$string</span>:expr) =&gt; {
         (<span class="kw-2">*</span><span class="macro-nonterminal">$string</span>.pointer - <span class="string">b'0'</span>) <span class="kw">as </span>libc::c_int
     };
 }
 
-<span class="macro">macro_rules!</span> IS_HEX_AT {
+<span class="doccomment">/// Checks if the character at the given offset in the string is a hexadecimal digit.
+///
+/// # Parameters
+///
+/// * `string`: A reference to the string to check.
+/// * `offset`: The offset in the string to check.
+///
+/// # Return
+///
+/// Returns `true` if the character at the given offset is a hexadecimal digit (0-9, A-F, a-f),
+/// and `false` otherwise.
+</span><span class="attr">#[macro_export]
+</span><span class="macro">macro_rules!</span> IS_HEX_AT {
     (<span class="macro-nonterminal">$string</span>:expr, <span class="macro-nonterminal">$offset</span>:expr) =&gt; {
         <span class="kw-2">*</span><span class="macro-nonterminal">$string</span>.pointer.wrapping_offset(<span class="macro-nonterminal">$offset</span>) &gt;= <span class="string">b'0'
             </span>&amp;&amp; <span class="kw-2">*</span><span class="macro-nonterminal">$string</span>.pointer.wrapping_offset(<span class="macro-nonterminal">$offset</span>) &lt;= <span class="string">b'9'
@@ -685,7 +1501,22 @@
     </span>};
 }
 
-<span class="macro">macro_rules!</span> AS_HEX_AT {
+<span class="doccomment">/// Converts a hexadecimal character at a given offset in a string to its corresponding integer value.
+///
+/// # Parameters
+///
+/// * `string`: A reference to a string containing hexadecimal characters.
+/// * `offset`: The offset in the string where the hexadecimal character is located.
+///
+/// # Return
+///
+/// An integer representing the hexadecimal value of the character at the given offset.
+///
+/// # Note
+///
+/// This macro assumes that the input string contains valid hexadecimal characters.
+</span><span class="attr">#[macro_export]
+</span><span class="macro">macro_rules!</span> AS_HEX_AT {
     (<span class="macro-nonterminal">$string</span>:expr, <span class="macro-nonterminal">$offset</span>:expr) =&gt; {
         <span class="kw">if </span><span class="kw-2">*</span><span class="macro-nonterminal">$string</span>.pointer.wrapping_offset(<span class="macro-nonterminal">$offset</span>) &gt;= <span class="string">b'A'
             </span>&amp;&amp; <span class="kw-2">*</span><span class="macro-nonterminal">$string</span>.pointer.wrapping_offset(<span class="macro-nonterminal">$offset</span>) &lt;= <span class="string">b'F'
@@ -701,13 +1532,45 @@
     };
 }
 
-<span class="macro">macro_rules!</span> IS_ASCII {
+<span class="doccomment">/// Checks if the current character in the string is an ASCII character.
+///
+/// # Parameters
+///
+/// * `string`: A reference to a struct containing a pointer to the current character in the string.
+///
+/// # Return
+///
+/// Returns `true` if the current character is an ASCII character (i.e., its value is less than or equal to 0x7F),
+/// and `false` otherwise.
+</span><span class="attr">#[macro_export]
+</span><span class="macro">macro_rules!</span> IS_ASCII {
     (<span class="macro-nonterminal">$string</span>:expr) =&gt; {
         <span class="kw-2">*</span><span class="macro-nonterminal">$string</span>.pointer &lt;= <span class="string">b'\x7F'
     </span>};
 }
 
-<span class="macro">macro_rules!</span> IS_PRINTABLE {
+<span class="doccomment">/// Checks if the character at the current pointer in the given string is printable.
+///
+/// # Parameters
+///
+/// * `string`: A reference to a struct containing a pointer to the current character in the string.
+///
+/// # Return
+///
+/// * `bool`: Returns `true` if the character is printable, and `false` otherwise.
+///
+/// # Details
+///
+/// This macro checks if the character at the current pointer in the given string is printable.
+/// It considers various Unicode ranges and special characters to determine printability.
+///
+/// The macro uses pattern matching to check the byte value of the character and its position in the string.
+/// It checks for ASCII printable characters, Unicode printable characters in specific ranges,
+/// and special characters that are considered printable.
+///
+/// The macro returns `true` if the character is printable, and `false` otherwise.
+</span><span class="attr">#[macro_export]
+</span><span class="macro">macro_rules!</span> IS_PRINTABLE {
     (<span class="macro-nonterminal">$string</span>:expr) =&gt; {
         <span class="kw">match </span><span class="kw-2">*</span><span class="macro-nonterminal">$string</span>.pointer {
             <span class="comment">// ASCII
@@ -746,19 +1609,50 @@
     };
 }
 
-<span class="macro">macro_rules!</span> IS_Z_AT {
+<span class="doccomment">/// Checks if the character at the specified offset in the given string is a null character (ASCII 0).
+///
+/// # Parameters
+///
+/// * `$string`: A reference to the string to check.
+/// * `$offset`: The offset within the string to check.
+///
+/// # Return
+///
+/// Returns `true` if the character at the specified offset is a null character, and `false` otherwise.
+</span><span class="attr">#[macro_export]
+</span><span class="macro">macro_rules!</span> IS_Z_AT {
     (<span class="macro-nonterminal">$string</span>:expr, <span class="macro-nonterminal">$offset</span>:expr) =&gt; {
         <span class="macro">CHECK_AT!</span>(<span class="macro-nonterminal">$string</span>, <span class="string">b'\0'</span>, <span class="macro-nonterminal">$offset</span>)
     };
 }
 
-<span class="macro">macro_rules!</span> IS_Z {
+<span class="doccomment">/// Checks if the character at the current pointer in the given string is a null character (ASCII 0).
+///
+/// # Parameters
+///
+/// * `$string`: A reference to the string to check.
+///
+/// # Return
+///
+/// * `bool`: Returns `true` if the character is a null character, and `false` otherwise.
+</span><span class="attr">#[macro_export]
+</span><span class="macro">macro_rules!</span> IS_Z {
     (<span class="macro-nonterminal">$string</span>:expr) =&gt; {
         <span class="macro">IS_Z_AT!</span>(<span class="macro-nonterminal">$string</span>, <span class="number">0</span>)
     };
 }
 
-<span class="macro">macro_rules!</span> IS_BOM {
+<span class="doccomment">/// Checks if the first three bytes of the given string form the UTF-8 byte order mark (BOM) for UTF-8 encoding.
+///
+/// # Parameters
+///
+/// * `string`: A reference to the string to check.
+///
+/// # Return
+///
+/// * `bool`: Returns `true` if the first three bytes of the string form the UTF-8 BOM, and `false` otherwise.
+</span><span class="attr">#[macro_export]
+</span><span class="macro">macro_rules!</span> IS_BOM {
     (<span class="macro-nonterminal">$string</span>:expr) =&gt; {
         <span class="macro">CHECK_AT!</span>(<span class="macro-nonterminal">$string</span>, <span class="string">b'\xEF'</span>, <span class="number">0</span>)
             &amp;&amp; <span class="macro">CHECK_AT!</span>(<span class="macro-nonterminal">$string</span>, <span class="string">b'\xBB'</span>, <span class="number">1</span>)
@@ -766,43 +1660,118 @@
     };
 }
 
-<span class="macro">macro_rules!</span> IS_SPACE_AT {
+<span class="doccomment">/// Checks if the character at the specified offset in the given string is a space character (ASCII 0x20).
+///
+/// # Parameters
+///
+/// * `$string`: A reference to the string to check.
+/// * `$offset`: The offset within the string to check.
+///
+/// # Return
+///
+/// * `bool`: Returns `true` if the character at the specified offset is a space character, and `false` otherwise.
+</span><span class="attr">#[macro_export]
+</span><span class="macro">macro_rules!</span> IS_SPACE_AT {
     (<span class="macro-nonterminal">$string</span>:expr, <span class="macro-nonterminal">$offset</span>:expr) =&gt; {
         <span class="macro">CHECK_AT!</span>(<span class="macro-nonterminal">$string</span>, <span class="string">b' '</span>, <span class="macro-nonterminal">$offset</span>)
     };
 }
 
-<span class="macro">macro_rules!</span> IS_SPACE {
+<span class="doccomment">/// Checks if the character at the current pointer in the given string is a space character (ASCII 0x20).
+///
+/// # Parameters
+///
+/// * `string`: A reference to the string to check.
+///
+/// # Return
+///
+/// * `bool`: Returns `true` if the character is a space character, and `false` otherwise.
+</span><span class="attr">#[macro_export]
+</span><span class="macro">macro_rules!</span> IS_SPACE {
     (<span class="macro-nonterminal">$string</span>:expr) =&gt; {
         <span class="macro">IS_SPACE_AT!</span>(<span class="macro-nonterminal">$string</span>, <span class="number">0</span>)
     };
 }
 
-<span class="macro">macro_rules!</span> IS_TAB_AT {
+<span class="doccomment">/// Checks if the character at the specified offset in the given string is a tab character (ASCII 0x09).
+///
+/// # Parameters
+///
+/// * `$string`: A reference to the string to check.
+/// * `$offset`: The offset within the string to check.
+///
+/// # Return
+///
+/// * `bool`: Returns `true` if the character at the specified offset is a tab character, and `false` otherwise.
+</span><span class="attr">#[macro_export]
+</span><span class="macro">macro_rules!</span> IS_TAB_AT {
     (<span class="macro-nonterminal">$string</span>:expr, <span class="macro-nonterminal">$offset</span>:expr) =&gt; {
         <span class="macro">CHECK_AT!</span>(<span class="macro-nonterminal">$string</span>, <span class="string">b'\t'</span>, <span class="macro-nonterminal">$offset</span>)
     };
 }
 
-<span class="macro">macro_rules!</span> IS_TAB {
+<span class="doccomment">/// Checks if the character at the current pointer in the given string is a tab character (ASCII 0x09).
+///
+/// # Parameters
+///
+/// * `string`: A reference to the string to check.
+///
+/// # Return
+///
+/// * `bool`: Returns `true` if the character is a tab character, and `false` otherwise.
+</span><span class="attr">#[macro_export]
+</span><span class="macro">macro_rules!</span> IS_TAB {
     (<span class="macro-nonterminal">$string</span>:expr) =&gt; {
         <span class="macro">IS_TAB_AT!</span>(<span class="macro-nonterminal">$string</span>, <span class="number">0</span>)
     };
 }
 
-<span class="macro">macro_rules!</span> IS_BLANK_AT {
+<span class="doccomment">/// Checks if the character at the specified offset in the given string is a space or tab character.
+///
+/// # Parameters
+///
+/// * `$string`: A reference to the string to check.
+/// * `$offset`: The offset within the string to check.
+///
+/// # Return
+///
+/// * `bool`: Returns `true` if the character at the specified offset is a space or tab character, and `false` otherwise.
+</span><span class="attr">#[macro_export]
+</span><span class="macro">macro_rules!</span> IS_BLANK_AT {
     (<span class="macro-nonterminal">$string</span>:expr, <span class="macro-nonterminal">$offset</span>:expr) =&gt; {
         <span class="macro">IS_SPACE_AT!</span>(<span class="macro-nonterminal">$string</span>, <span class="macro-nonterminal">$offset</span>) || <span class="macro">IS_TAB_AT!</span>(<span class="macro-nonterminal">$string</span>, <span class="macro-nonterminal">$offset</span>)
     };
 }
 
-<span class="macro">macro_rules!</span> IS_BLANK {
+<span class="doccomment">/// Checks if the character at the current pointer in the given string is a space or tab character.
+///
+/// # Parameters
+///
+/// * `$string`: A reference to the string to check.
+///
+/// # Return
+///
+/// * `bool`: Returns `true` if the character is a space or tab character, and `false` otherwise.
+</span><span class="attr">#[macro_export]
+</span><span class="macro">macro_rules!</span> IS_BLANK {
     (<span class="macro-nonterminal">$string</span>:expr) =&gt; {
         <span class="macro">IS_BLANK_AT!</span>(<span class="macro-nonterminal">$string</span>, <span class="number">0</span>)
     };
 }
 
-<span class="macro">macro_rules!</span> IS_BREAK_AT {
+<span class="doccomment">/// Checks if the character at the specified offset in the given string is a line break character.
+///
+/// # Parameters
+///
+/// * `$string`: A reference to the string to check.
+/// * `$offset`: The offset within the string to check.
+///
+/// # Return
+///
+/// Returns `true` if the character at the specified offset is a line break character (CR, LF, NEL, LS, PS),
+/// and `false` otherwise.
+</span><span class="attr">#[macro_export]
+</span><span class="macro">macro_rules!</span> IS_BREAK_AT {
     (<span class="macro-nonterminal">$string</span>:expr, <span class="macro-nonterminal">$offset</span>:expr) =&gt; {
         <span class="macro">CHECK_AT!</span>(<span class="macro-nonterminal">$string</span>, <span class="string">b'\r'</span>, <span class="macro-nonterminal">$offset</span>)
             || <span class="macro">CHECK_AT!</span>(<span class="macro-nonterminal">$string</span>, <span class="string">b'\n'</span>, <span class="macro-nonterminal">$offset</span>)
@@ -837,44 +1806,126 @@
     };
 }
 
-<span class="macro">macro_rules!</span> IS_BREAK {
+<span class="doccomment">/// Checks if the character at the current pointer in the given string is a line break character.
+///
+/// # Parameters
+///
+/// * `string`: A reference to the string to check.
+///
+/// # Return
+///
+/// Returns `true` if the character is a line break character (CR, LF, NEL, LS, PS), and `false` otherwise.
+</span><span class="attr">#[macro_export]
+</span><span class="macro">macro_rules!</span> IS_BREAK {
     (<span class="macro-nonterminal">$string</span>:expr) =&gt; {
         <span class="macro">IS_BREAK_AT!</span>(<span class="macro-nonterminal">$string</span>, <span class="number">0</span>)
     };
 }
 
-<span class="macro">macro_rules!</span> IS_CRLF {
+<span class="doccomment">/// Checks if the character at the current pointer in the given string is a carriage return followed by a line feed.
+///
+/// # Parameters
+///
+/// * `string`: A reference to the string to check.
+///
+/// # Return
+///
+/// Returns `true` if the character at the current pointer is a carriage return followed by a line feed, and `false` otherwise.
+</span><span class="attr">#[macro_export]
+</span><span class="macro">macro_rules!</span> IS_CRLF {
     (<span class="macro-nonterminal">$string</span>:expr) =&gt; {
         <span class="macro">CHECK_AT!</span>(<span class="macro-nonterminal">$string</span>, <span class="string">b'\r'</span>, <span class="number">0</span>) &amp;&amp; <span class="macro">CHECK_AT!</span>(<span class="macro-nonterminal">$string</span>, <span class="string">b'\n'</span>, <span class="number">1</span>)
     };
 }
 
-<span class="macro">macro_rules!</span> IS_BREAKZ_AT {
+<span class="doccomment">/// Checks if the character at the specified offset in the given string is a line break character or a null character.
+///
+/// # Parameters
+///
+/// * `string`: A reference to the string to check.
+/// * `offset`: The offset within the string to check.
+///
+/// # Return
+///
+/// Returns `true` if the character at the specified offset is a line break character or a null character, and `false` otherwise.
+</span><span class="attr">#[macro_export]
+</span><span class="macro">macro_rules!</span> IS_BREAKZ_AT {
     (<span class="macro-nonterminal">$string</span>:expr, <span class="macro-nonterminal">$offset</span>:expr) =&gt; {
         <span class="macro">IS_BREAK_AT!</span>(<span class="macro-nonterminal">$string</span>, <span class="macro-nonterminal">$offset</span>) || <span class="macro">IS_Z_AT!</span>(<span class="macro-nonterminal">$string</span>, <span class="macro-nonterminal">$offset</span>)
     };
 }
 
-<span class="macro">macro_rules!</span> IS_BREAKZ {
+<span class="doccomment">/// Checks if the character at the current pointer in the given string is a line break character or a null character.
+///
+/// # Parameters
+///
+/// * `string`: A reference to the string to check.
+///
+/// # Return
+///
+/// Returns `true` if the character is a line break character (CR, LF, NEL, LS, PS) or a null character, and `false` otherwise.
+</span><span class="attr">#[macro_export]
+</span><span class="macro">macro_rules!</span> IS_BREAKZ {
     (<span class="macro-nonterminal">$string</span>:expr) =&gt; {
         <span class="macro">IS_BREAKZ_AT!</span>(<span class="macro-nonterminal">$string</span>, <span class="number">0</span>)
     };
 }
 
-<span class="macro">macro_rules!</span> IS_BLANKZ_AT {
+<span class="doccomment">/// Checks if the character at the specified offset in the given string is a space, tab, or line break character,
+/// or if it is a null character.
+///
+/// # Parameters
+///
+/// * `$string`: A reference to the string to check.
+/// * `$offset`: The offset within the string to check.
+///
+/// # Return
+///
+/// Returns `true` if the character at the specified offset is a space, tab, line break character, or null character,
+/// and `false` otherwise.
+</span><span class="attr">#[macro_export]
+</span><span class="macro">macro_rules!</span> IS_BLANKZ_AT {
     (<span class="macro-nonterminal">$string</span>:expr, <span class="macro-nonterminal">$offset</span>:expr) =&gt; {
         <span class="macro">IS_BLANK_AT!</span>(<span class="macro-nonterminal">$string</span>, <span class="macro-nonterminal">$offset</span>)
             || <span class="macro">IS_BREAKZ_AT!</span>(<span class="macro-nonterminal">$string</span>, <span class="macro-nonterminal">$offset</span>)
     };
 }
 
-<span class="macro">macro_rules!</span> IS_BLANKZ {
+<span class="doccomment">/// Checks if the character at the current pointer in the given string is a space, tab, line break character,
+/// or if it is a null character.
+///
+/// # Parameters
+///
+/// * `string`: A reference to the string to check.
+///
+/// # Return
+///
+/// Returns `true` if the character is a space, tab, line break character, or null character,
+/// and `false` otherwise.
+</span><span class="attr">#[macro_export]
+</span><span class="macro">macro_rules!</span> IS_BLANKZ {
     (<span class="macro-nonterminal">$string</span>:expr) =&gt; {
         <span class="macro">IS_BLANKZ_AT!</span>(<span class="macro-nonterminal">$string</span>, <span class="number">0</span>)
     };
 }
 
-<span class="macro">macro_rules!</span> WIDTH_AT {
+<span class="doccomment">/// Returns the width of a Unicode character at the given offset in a string.
+///
+/// # Parameters
+///
+/// * `string`: A reference to the string containing the Unicode characters.
+/// * `offset`: The offset in the string where the Unicode character is located.
+///
+/// # Return
+///
+/// The width of the Unicode character at the given offset. The width is determined by the first byte of the character:
+/// - If the first byte is 0x00-0x7F, the width is 1.
+/// - If the first byte is 0xC0-0xDF, the width is 2.
+/// - If the first byte is 0xE0-0xEF, the width is 3.
+/// - If the first byte is 0xF0-0xF7, the width is 4.
+/// - If the first byte does not match any of the above patterns, the width is 0.
+</span><span class="attr">#[macro_export]
+</span><span class="macro">macro_rules!</span> WIDTH_AT {
     (<span class="macro-nonterminal">$string</span>:expr, <span class="macro-nonterminal">$offset</span>:expr) =&gt; {
         <span class="kw">if </span><span class="kw-2">*</span><span class="macro-nonterminal">$string</span>.pointer.wrapping_offset(<span class="macro-nonterminal">$offset</span>) &amp; <span class="number">0x80 </span>== <span class="number">0x00 </span>{
             <span class="number">1
@@ -896,20 +1947,76 @@
     };
 }
 
-<span class="macro">macro_rules!</span> WIDTH {
+<span class="doccomment">/// Returns the width of the Unicode character at the current position in a string.
+///
+/// This macro calculates the width of the Unicode character that the `pointer` in the given string is currently pointing to.
+/// The width is determined by checking the first byte of the character at the current position in the string, using the
+/// `WIDTH_AT!` macro with an offset of `0`.
+///
+/// # Parameters
+///
+/// * `string`: A reference to a struct containing a `pointer` field that points to a byte in a string.
+///   This byte is expected to be the start of a Unicode character.
+///
+/// # Return
+///
+/// The width of the Unicode character at the current position of the `pointer` in the string:
+///
+/// - If the first byte is in the range `0x00` to `0x7F`, the width is 1 byte.
+/// - If the first byte is in the range `0xC0` to `0xDF`, the width is 2 bytes.
+/// - If the first byte is in the range `0xE0` to `0xEF`, the width is 3 bytes.
+/// - If the first byte is in the range `0xF0` to `0xF7`, the width is 4 bytes.
+/// - If the first byte does not match any of the above patterns, the width is 0, indicating an invalid or unsupported character.
+///
+/// # Safety
+///
+/// The caller must ensure that the `pointer` in the `string` is pointing to valid memory and that the memory contains a valid Unicode sequence.
+/// Using this macro on an invalid or corrupted string may result in undefined behavior or incorrect results.
+</span><span class="attr">#[macro_export]
+</span><span class="macro">macro_rules!</span> WIDTH {
     (<span class="macro-nonterminal">$string</span>:expr) =&gt; {
         <span class="macro">WIDTH_AT!</span>(<span class="macro-nonterminal">$string</span>, <span class="number">0</span>)
     };
 }
 
-<span class="macro">macro_rules!</span> MOVE {
+<span class="doccomment">/// Moves the pointer of the given string to the next Unicode character.
+///
+/// This macro moves the pointer of the given string to the next Unicode character,
+/// taking into account the width of the Unicode character. The width is determined
+/// by the first byte of the character.
+///
+/// # Parameters
+///
+/// * `string`: A mutable reference to the string whose pointer will be moved.
+///
+/// # Return
+///
+/// This macro does not return a value. It moves the pointer of the given string
+/// to the next Unicode character.
+</span><span class="attr">#[macro_export]
+</span><span class="macro">macro_rules!</span> MOVE {
     (<span class="macro-nonterminal">$string</span>:expr) =&gt; {
         <span class="macro-nonterminal">$string</span>.pointer =
             <span class="macro-nonterminal">$string</span>.pointer.wrapping_offset(<span class="macro">WIDTH!</span>(<span class="macro-nonterminal">$string</span>))
     };
 }
 
-<span class="macro">macro_rules!</span> copy {
+<span class="doccomment">/// Copies the content of a string to another string.
+///
+/// This macro copies the content of a string to another string. It handles different Unicode character
+/// encodings by checking the first byte of the character. If the character is a single-byte character, it
+/// is copied directly. If the character is a multi-byte character, it is copied byte by byte.
+///
+/// # Parameters
+///
+/// * `string_a`: A mutable reference to the destination string where the content will be copied.
+/// * `string_b`: A mutable reference to the source string from which the content will be copied.
+///
+/// # Return
+///
+/// This macro does not return a value. It copies the content of a string to another string.
+</span><span class="attr">#[macro_export]
+</span><span class="macro">macro_rules!</span> copy {
     (<span class="macro-nonterminal">$string_a</span>:expr, <span class="macro-nonterminal">$string_b</span>:expr) =&gt; {
         <span class="kw">if </span><span class="kw-2">*</span><span class="macro-nonterminal">$string_b</span>.pointer &amp; <span class="number">0x80 </span>== <span class="number">0x00 </span>{
             <span class="kw-2">*</span><span class="macro-nonterminal">$string_a</span>.pointer = <span class="kw-2">*</span><span class="macro-nonterminal">$string_b</span>.pointer;
@@ -949,7 +2056,23 @@
     };
 }
 
-<span class="macro">macro_rules!</span> STACK_INIT {
+<span class="comment">// ------------------------------------
+// Stack Management Macros
+// ------------------------------------
+
+</span><span class="doccomment">/// Initializes a stack with a specified type and allocates memory for it.
+///
+/// # Parameters
+///
+/// * `stack`: A mutable reference to the stack to be initialized.
+/// * `type`: The type of elements that will be stored in the stack.
+///
+/// # Return
+///
+/// This function does not return a value. It initializes the stack with the given type and allocates memory for it.
+/// The memory is allocated using the `yaml_malloc` function, and the start, top, and end pointers of the stack are set accordingly.
+</span><span class="attr">#[macro_export]
+</span><span class="macro">macro_rules!</span> STACK_INIT {
     (<span class="macro-nonterminal">$stack</span>:expr, <span class="macro-nonterminal">$</span><span class="kw">type</span>:<span class="macro-nonterminal">ty</span>) =&gt; {{
         <span class="macro-nonterminal">$stack</span>.start =
             yaml_malloc(<span class="number">16 </span>* size_of::&lt;<span class="macro-nonterminal">$</span><span class="kw">type</span>&gt;() <span class="kw">as </span><span class="macro-nonterminal">libc::c_ulong</span>)
@@ -959,7 +2082,17 @@
     }};
 }
 
-<span class="macro">macro_rules!</span> STACK_DEL {
+<span class="doccomment">/// Deallocates the memory used by the stack and sets all pointers to null.
+///
+/// # Parameters
+///
+/// * `stack`: A mutable reference to the stack to be deallocated.
+///
+/// # Return
+///
+/// This function does not return a value. It deallocates the memory used by the stack and sets all pointers to null.
+</span><span class="attr">#[macro_export]
+</span><span class="macro">macro_rules!</span> STACK_DEL {
     (<span class="macro-nonterminal">$stack</span>:expr) =&gt; {
         yaml_free(<span class="macro-nonterminal">$stack</span>.start <span class="kw">as </span><span class="kw-2">*mut </span>libc::c_void);
         <span class="macro-nonterminal">$stack</span>.end = ptr::null_mut();
@@ -968,13 +2101,46 @@
     };
 }
 
-<span class="macro">macro_rules!</span> STACK_EMPTY {
+<span class="doccomment">/// Checks if the stack has no elements.
+///
+/// This macro checks if the stack has no elements by comparing the start and top pointers.
+/// If the start and top pointers are equal, it means the stack is empty and the function returns `true`.
+/// Otherwise, it means the stack has elements and the function returns `false`.
+///
+/// # Parameters
+///
+/// * `stack`: A mutable reference to the stack to be checked.
+///
+/// # Return
+///
+/// * `true` if the stack is empty, i.e., the start and top pointers are equal.
+/// * `false` if the stack is not empty, i.e., the start and top pointers are not equal.
+</span><span class="attr">#[macro_export]
+</span><span class="macro">macro_rules!</span> STACK_EMPTY {
     (<span class="macro-nonterminal">$stack</span>:expr) =&gt; {
         <span class="macro-nonterminal">$stack</span>.start == <span class="macro-nonterminal">$stack</span>.top
     };
 }
 
-<span class="macro">macro_rules!</span> STACK_LIMIT {
+<span class="doccomment">/// Checks if the stack has enough memory to push a new element.
+///
+/// This macro checks if the stack has enough memory to push a new element by comparing the distance
+/// between the top and start pointers with the maximum allowed distance. If the distance is less than
+/// the maximum allowed distance minus one, it means the stack has enough memory and the function
+/// returns `OK`. Otherwise, it sets the error field of the context to `YamlMemoryError` and returns
+/// `FAIL`.
+///
+/// # Parameters
+///
+/// * `$context`: A mutable reference to the context in which the stack is being used.
+/// * `$stack`: A mutable reference to the stack being checked.
+///
+/// # Return
+///
+/// * `OK` if the stack has enough memory to push a new element.
+/// * `FAIL` if the stack does not have enough memory to push a new element.
+</span><span class="attr">#[macro_export]
+</span><span class="macro">macro_rules!</span> STACK_LIMIT {
     (<span class="macro-nonterminal">$context</span>:expr, <span class="macro-nonterminal">$stack</span>:expr) =&gt; {
         <span class="kw">if </span><span class="macro-nonterminal">$stack</span>.top.c_offset_from(<span class="macro-nonterminal">$stack</span>.start)
             &lt; libc::c_int::MAX <span class="kw">as </span>isize - <span class="number">1
@@ -987,7 +2153,21 @@
     };
 }
 
-<span class="macro">macro_rules!</span> PUSH {
+<span class="doccomment">/// Pushes a value onto the stack.
+///
+/// This macro pushes a value onto the stack. If the stack is full, it extends the stack by allocating
+/// additional memory.
+///
+/// # Parameters
+///
+/// * `stack`: A mutable reference to the stack onto which the value will be pushed.
+/// * `value`: The value to be pushed onto the stack.
+///
+/// # Return
+///
+/// This macro does not return a value. It pushes the value onto the stack.
+</span><span class="attr">#[macro_export]
+</span><span class="macro">macro_rules!</span> PUSH {
     (<span class="kw">do </span><span class="macro-nonterminal">$stack</span>:expr, <span class="macro-nonterminal">$push</span>:expr) =&gt; {{
         <span class="kw">if </span><span class="macro-nonterminal">$stack</span>.top == <span class="macro-nonterminal">$stack</span>.end {
             yaml_stack_extend(
@@ -1007,7 +2187,17 @@
     };
 }
 
-<span class="macro">macro_rules!</span> POP {
+<span class="doccomment">/// Removes and returns the last element from the stack.
+///
+/// # Parameters
+///
+/// * `stack`: A mutable reference to the stack from which the last element will be removed.
+///
+/// # Return
+///
+/// * The last element from the stack.
+</span><span class="attr">#[macro_export]
+</span><span class="macro">macro_rules!</span> POP {
     (<span class="macro-nonterminal">$stack</span>:expr) =&gt; {
         <span class="kw-2">*</span>{
             <span class="macro-nonterminal">$stack</span>.top = <span class="macro-nonterminal">$stack</span>.top.offset(-<span class="number">1</span>);
@@ -1016,7 +2206,22 @@
     };
 }
 
-<span class="macro">macro_rules!</span> QUEUE_INIT {
+<span class="comment">// ------------------------------------
+// Queue Management Macros
+// ------------------------------------
+
+</span><span class="doccomment">/// Initializes a queue with a specified type and allocates memory for it.
+///
+/// # Parameters
+///
+/// * `queue`: A mutable reference to the queue to be initialized.
+/// * `type`: The type of elements that will be stored in the queue.
+///
+/// # Return
+///
+/// This function does not return a value. It initializes the queue with the given type and allocates memory for it.
+</span><span class="attr">#[macro_export]
+</span><span class="macro">macro_rules!</span> QUEUE_INIT {
     (<span class="macro-nonterminal">$queue</span>:expr, <span class="macro-nonterminal">$</span><span class="kw">type</span>:<span class="macro-nonterminal">ty</span>) =&gt; {{
         <span class="macro-nonterminal">$queue</span>.start =
             yaml_malloc(<span class="number">16 </span>* size_of::&lt;<span class="macro-nonterminal">$</span><span class="kw">type</span>&gt;() <span class="kw">as </span><span class="macro-nonterminal">libc::c_ulong</span>)
@@ -1027,7 +2232,17 @@
     }};
 }
 
-<span class="macro">macro_rules!</span> QUEUE_DEL {
+<span class="doccomment">/// Deallocates the memory used by the queue and sets all pointers to null.
+///
+/// # Parameters
+///
+/// * `queue`: A mutable reference to the queue to be deallocated.
+///
+/// # Return
+///
+/// This function does not return a value.
+</span><span class="attr">#[macro_export]
+</span><span class="macro">macro_rules!</span> QUEUE_DEL {
     (<span class="macro-nonterminal">$queue</span>:expr) =&gt; {
         yaml_free(<span class="macro-nonterminal">$queue</span>.start <span class="kw">as </span><span class="kw-2">*mut </span>libc::c_void);
         <span class="macro-nonterminal">$queue</span>.end = ptr::null_mut();
@@ -1037,13 +2252,37 @@
     };
 }
 
-<span class="macro">macro_rules!</span> QUEUE_EMPTY {
+<span class="doccomment">/// Checks if the queue is empty.
+///
+/// # Parameters
+///
+/// * `queue`: A mutable reference to the queue to be checked.
+///
+/// # Return
+///
+/// * `true` if the queue is empty, i.e., the head and tail pointers are equal.
+/// * `false` if the queue is not empty, i.e., the head and tail pointers are not equal.
+</span><span class="attr">#[macro_export]
+</span><span class="macro">macro_rules!</span> QUEUE_EMPTY {
     (<span class="macro-nonterminal">$queue</span>:expr) =&gt; {
         <span class="macro-nonterminal">$queue</span>.head == <span class="macro-nonterminal">$queue</span>.tail
     };
 }
 
-<span class="macro">macro_rules!</span> ENQUEUE {
+<span class="doccomment">/// Enqueues a value onto the queue.
+///
+/// This macro enqueues a value onto the queue. If the queue is full, it extends the queue by allocating additional memory.
+///
+/// # Parameters
+///
+/// * `queue`: A mutable reference to the queue onto which the value will be enqueued.
+/// * `value`: The value to be enqueued onto the queue. This can be a reference or a direct value.
+///
+/// # Return
+///
+/// This macro does not return a value. It enqueues the value onto the queue.
+</span><span class="attr">#[macro_export]
+</span><span class="macro">macro_rules!</span> ENQUEUE {
     (<span class="kw">do </span><span class="macro-nonterminal">$queue</span>:expr, <span class="macro-nonterminal">$enqueue</span>:expr) =&gt; {{
         <span class="kw">if </span><span class="macro-nonterminal">$queue</span>.tail == <span class="macro-nonterminal">$queue</span>.end {
             yaml_queue_extend(
@@ -1059,13 +2298,22 @@
     (<span class="macro-nonterminal">$queue</span>:expr, <span class="kw-2">*</span><span class="macro-nonterminal">$value</span>:expr) =&gt; {
         <span class="macro">ENQUEUE!</span>(<span class="kw">do </span><span class="macro-nonterminal">$queue</span>, ptr::copy_nonoverlapping(<span class="macro-nonterminal">$value</span>, <span class="macro-nonterminal">$queue</span>.tail, <span class="number">1</span>))
     };
-    <span class="comment">//FIXME: macro `ENQUEUE` is never used
-    // ($queue:expr, $value:expr) =&gt; {
-    //     ENQUEUE!(do $queue, ptr::write($queue.tail, $value))
-    // };
-</span>}
+    (<span class="macro-nonterminal">$queue</span>:expr, <span class="macro-nonterminal">$value</span>:expr) =&gt; {
+        <span class="macro">ENQUEUE!</span>(<span class="kw">do </span><span class="macro-nonterminal">$queue</span>, ptr::write(<span class="macro-nonterminal">$queue</span>.tail, <span class="macro-nonterminal">$value</span>))
+    };
+}
 
-<span class="macro">macro_rules!</span> DEQUEUE {
+<span class="doccomment">/// Removes and returns the first element from the queue.
+///
+/// # Parameters
+///
+/// * `queue`: A mutable reference to the queue from which the first element will be removed.
+///
+/// # Return
+///
+/// * The first element from the queue.
+</span><span class="attr">#[macro_export]
+</span><span class="macro">macro_rules!</span> DEQUEUE {
     (<span class="macro-nonterminal">$queue</span>:expr) =&gt; {
         <span class="kw-2">*</span>{
             <span class="kw">let </span>head = <span class="macro-nonterminal">$queue</span>.head;
@@ -1075,7 +2323,19 @@
     };
 }
 
-<span class="macro">macro_rules!</span> QUEUE_INSERT {
+<span class="doccomment">/// Inserts a value into the queue at the specified index.
+///
+/// # Parameters
+///
+/// * `queue`: A mutable reference to the queue where the value will be inserted.
+/// * `index`: The index at which the value will be inserted.
+/// * `value`: The value to be inserted into the queue.
+///
+/// # Return
+///
+/// This macro does not return a value.
+</span><span class="attr">#[macro_export]
+</span><span class="macro">macro_rules!</span> QUEUE_INSERT {
     (<span class="macro-nonterminal">$queue</span>:expr, <span class="macro-nonterminal">$index</span>:expr, <span class="macro-nonterminal">$value</span>:expr) =&gt; {{
         <span class="kw">if </span><span class="macro-nonterminal">$queue</span>.tail == <span class="macro-nonterminal">$queue</span>.end {
             yaml_queue_extend(
@@ -1085,7 +2345,7 @@
                 <span class="macro">addr_of_mut!</span>(<span class="macro-nonterminal">$queue</span>.end) <span class="kw">as </span><span class="kw-2">*mut *mut </span>libc::c_void,
             );
         }
-        memmove(
+        <span class="kw">let _ </span>= memmove(
             <span class="macro-nonterminal">$queue
                 </span>.head
                 .wrapping_offset(<span class="macro-nonterminal">$index </span><span class="kw">as </span>isize)

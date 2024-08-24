@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["get_anchor","get_tag","get_value","main","unsafe_main"],"mod":["cstr"],"struct":["ReadBuf"]};
+window.SIDEBAR_ITEMS = {"enum":["EmitterError"],"fn":["get_anchor","get_tag","get_value","main","unsafe_main"],"mod":["cstr"],"struct":["ReadBuf"]};

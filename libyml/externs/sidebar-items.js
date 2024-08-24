@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["free","memset"]};
+window.SIDEBAR_ITEMS = {"fn":["free","malloc","memmove","memset"]};

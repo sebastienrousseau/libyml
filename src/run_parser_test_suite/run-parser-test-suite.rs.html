@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `src/bin/run-parser-test-suite.rs`."><title>run-parser-test-suite.rs - source</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-46f98efaafac5295.ttf.woff2,FiraSans-Regular-018c141bf0843ffd.woff2,FiraSans-Medium-8f9a781e4970d388.woff2,SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2,SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../static.files/rustdoc-c5d6553a23f1e5a6.css"><meta name="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="run_parser_test_suite" data-themes="" data-resource-suffix="" data-rustdoc-version="1.81.0-nightly (9057c3ffe 2024-07-19)" data-channel="nightly" data-search-js="search-d234aafac6c221dd.js" data-settings-js="settings-4313503d2e1961c2.js" ><script src="../../static.files/storage-118b08c4c78b968e.js"></script><script defer src="../../static.files/src-script-e66d777a5a92e9b2.js"></script><script defer src="../../src-files.js"></script><script defer src="../../static.files/main-d2fab2bf619172d3.js"></script><noscript><link rel="stylesheet" href="../../static.files/noscript-df360f571f6edeae.css"></noscript><link rel="alternate icon" type="image/png" href="../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="src-sidebar-title"><h2>Files</h2></div></nav><div class="sidebar-resizer"></div><main><rustdoc-search></rustdoc-search><section id="main-content" class="content"><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers"><a href="#1" id="1">1</a>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `src/bin/run-parser-test-suite.rs`."><title>run-parser-test-suite.rs - source</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-46f98efaafac5295.ttf.woff2,FiraSans-Regular-018c141bf0843ffd.woff2,FiraSans-Medium-8f9a781e4970d388.woff2,SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2,SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../static.files/rustdoc-492a78a4a87dcc01.css"><meta name="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="run_parser_test_suite" data-themes="" data-resource-suffix="" data-rustdoc-version="1.82.0-nightly (4074d4902 2024-08-23)" data-channel="nightly" data-search-js="search-a2a4ff0acfd716f8.js" data-settings-js="settings-4313503d2e1961c2.js" ><script src="../../static.files/storage-118b08c4c78b968e.js"></script><script defer src="../../static.files/src-script-e66d777a5a92e9b2.js"></script><script defer src="../../src-files.js"></script><script defer src="../../static.files/main-cb0df477c2d67d00.js"></script><noscript><link rel="stylesheet" href="../../static.files/noscript-3b12f09e550e0385.css"></noscript><link rel="alternate icon" type="image/png" href="../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="src-sidebar-title"><h2>Files</h2></div></nav><div class="sidebar-resizer"></div><main><rustdoc-search></rustdoc-search><section id="main-content" class="content"><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers"><a href="#1" id="1">1</a>
 <a href="#2" id="2">2</a>
 <a href="#3" id="3">3</a>
 <a href="#4" id="4">4</a>
@@ -255,7 +255,129 @@
 <a href="#255" id="255">255</a>
 <a href="#256" id="256">256</a>
 <a href="#257" id="257">257</a>
-</pre></div><pre class="rust"><code><span class="attr">#![allow(missing_docs)]
+<a href="#258" id="258">258</a>
+<a href="#259" id="259">259</a>
+<a href="#260" id="260">260</a>
+<a href="#261" id="261">261</a>
+<a href="#262" id="262">262</a>
+<a href="#263" id="263">263</a>
+<a href="#264" id="264">264</a>
+<a href="#265" id="265">265</a>
+<a href="#266" id="266">266</a>
+<a href="#267" id="267">267</a>
+<a href="#268" id="268">268</a>
+<a href="#269" id="269">269</a>
+<a href="#270" id="270">270</a>
+<a href="#271" id="271">271</a>
+<a href="#272" id="272">272</a>
+<a href="#273" id="273">273</a>
+<a href="#274" id="274">274</a>
+<a href="#275" id="275">275</a>
+<a href="#276" id="276">276</a>
+<a href="#277" id="277">277</a>
+<a href="#278" id="278">278</a>
+<a href="#279" id="279">279</a>
+<a href="#280" id="280">280</a>
+<a href="#281" id="281">281</a>
+<a href="#282" id="282">282</a>
+<a href="#283" id="283">283</a>
+<a href="#284" id="284">284</a>
+<a href="#285" id="285">285</a>
+<a href="#286" id="286">286</a>
+<a href="#287" id="287">287</a>
+<a href="#288" id="288">288</a>
+<a href="#289" id="289">289</a>
+<a href="#290" id="290">290</a>
+<a href="#291" id="291">291</a>
+<a href="#292" id="292">292</a>
+<a href="#293" id="293">293</a>
+<a href="#294" id="294">294</a>
+<a href="#295" id="295">295</a>
+<a href="#296" id="296">296</a>
+<a href="#297" id="297">297</a>
+<a href="#298" id="298">298</a>
+<a href="#299" id="299">299</a>
+<a href="#300" id="300">300</a>
+<a href="#301" id="301">301</a>
+<a href="#302" id="302">302</a>
+<a href="#303" id="303">303</a>
+<a href="#304" id="304">304</a>
+<a href="#305" id="305">305</a>
+<a href="#306" id="306">306</a>
+<a href="#307" id="307">307</a>
+<a href="#308" id="308">308</a>
+<a href="#309" id="309">309</a>
+<a href="#310" id="310">310</a>
+<a href="#311" id="311">311</a>
+<a href="#312" id="312">312</a>
+<a href="#313" id="313">313</a>
+<a href="#314" id="314">314</a>
+<a href="#315" id="315">315</a>
+<a href="#316" id="316">316</a>
+<a href="#317" id="317">317</a>
+<a href="#318" id="318">318</a>
+<a href="#319" id="319">319</a>
+<a href="#320" id="320">320</a>
+<a href="#321" id="321">321</a>
+<a href="#322" id="322">322</a>
+<a href="#323" id="323">323</a>
+<a href="#324" id="324">324</a>
+<a href="#325" id="325">325</a>
+<a href="#326" id="326">326</a>
+<a href="#327" id="327">327</a>
+<a href="#328" id="328">328</a>
+<a href="#329" id="329">329</a>
+<a href="#330" id="330">330</a>
+<a href="#331" id="331">331</a>
+<a href="#332" id="332">332</a>
+<a href="#333" id="333">333</a>
+<a href="#334" id="334">334</a>
+<a href="#335" id="335">335</a>
+<a href="#336" id="336">336</a>
+<a href="#337" id="337">337</a>
+<a href="#338" id="338">338</a>
+<a href="#339" id="339">339</a>
+<a href="#340" id="340">340</a>
+<a href="#341" id="341">341</a>
+<a href="#342" id="342">342</a>
+<a href="#343" id="343">343</a>
+<a href="#344" id="344">344</a>
+<a href="#345" id="345">345</a>
+<a href="#346" id="346">346</a>
+<a href="#347" id="347">347</a>
+<a href="#348" id="348">348</a>
+<a href="#349" id="349">349</a>
+<a href="#350" id="350">350</a>
+<a href="#351" id="351">351</a>
+<a href="#352" id="352">352</a>
+<a href="#353" id="353">353</a>
+<a href="#354" id="354">354</a>
+<a href="#355" id="355">355</a>
+<a href="#356" id="356">356</a>
+<a href="#357" id="357">357</a>
+<a href="#358" id="358">358</a>
+<a href="#359" id="359">359</a>
+<a href="#360" id="360">360</a>
+<a href="#361" id="361">361</a>
+<a href="#362" id="362">362</a>
+<a href="#363" id="363">363</a>
+<a href="#364" id="364">364</a>
+<a href="#365" id="365">365</a>
+<a href="#366" id="366">366</a>
+<a href="#367" id="367">367</a>
+<a href="#368" id="368">368</a>
+<a href="#369" id="369">369</a>
+<a href="#370" id="370">370</a>
+<a href="#371" id="371">371</a>
+<a href="#372" id="372">372</a>
+<a href="#373" id="373">373</a>
+<a href="#374" id="374">374</a>
+</pre></div><pre class="rust"><code><span class="doccomment">//! A YAML parser and formatter using the libyml library.
+//!
+//! This program reads YAML files, parses them using the libyml library,
+//! and outputs a formatted representation of the YAML structure.
+
+</span><span class="attr">#![allow(missing_docs)]
 #![warn(clippy::pedantic)]
 #![allow(
     clippy::cast_lossless,
@@ -273,6 +395,7 @@
 </span><span class="kw">mod </span>cstr;
 
 <span class="kw">use </span><span class="self">self</span>::cstr::CStr;
+<span class="kw">use </span>anyhow::{bail, Error, <span class="prelude-ty">Result</span>};
 <span class="kw">use </span>libyml::{
     yaml_event_delete, yaml_parser_delete, yaml_parser_initialize,
     yaml_parser_parse, yaml_parser_set_input, YamlAliasEvent,
@@ -285,27 +408,50 @@
     YamlStreamEndEvent, YamlStreamStartEvent,
 };
 <span class="kw">use </span>std::env;
-<span class="kw">use </span>std::error::Error;
 <span class="kw">use </span>std::ffi::c_void;
-<span class="kw">use </span>std::fmt::Write <span class="kw">as _</span>;
 <span class="kw">use </span>std::fs::File;
 <span class="kw">use </span>std::io::{<span class="self">self</span>, Read, Write};
 <span class="kw">use </span>std::mem::MaybeUninit;
-<span class="kw">use </span>std::process::{<span class="self">self</span>, ExitCode};
+<span class="kw">use </span>std::path::Path;
+<span class="kw">use </span>std::process::ExitCode;
 <span class="kw">use </span>std::ptr::addr_of_mut;
 <span class="kw">use </span>std::slice;
 
-<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">unsafe fn </span>unsafe_main(
+<span class="doccomment">/// The main parsing function that processes YAML input and writes formatted output.
+///
+/// # Safety
+///
+/// This function is unsafe because it deals with raw pointers and FFI.
+/// Callers must ensure that the provided `stdin` and `stdout` are valid
+/// and that the FFI calls are used correctly.
+///
+/// # Arguments
+///
+/// * `stdin` - A mutable reference to a type that implements `Read`, from which YAML will be read.
+/// * `stdout` - A mutable reference to a type that implements `Write`, to which formatted output will be written.
+///
+/// # Returns
+///
+/// Returns `Ok(())` if parsing and formatting succeed, or an `Error` if any issues occur.
+</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">unsafe fn </span>unsafe_main(
     <span class="kw-2">mut </span>stdin: <span class="kw-2">&amp;mut </span><span class="kw">dyn </span>Read,
     stdout: <span class="kw-2">&amp;mut </span><span class="kw">dyn </span>Write,
-) -&gt; <span class="prelude-ty">Result</span>&lt;(), Box&lt;<span class="kw">dyn </span>Error&gt;&gt; {
+) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
     <span class="kw">let </span><span class="kw-2">mut </span>parser = MaybeUninit::&lt;YamlParserT&gt;::uninit();
     <span class="kw">let </span>parser = parser.as_mut_ptr();
     <span class="kw">if </span>yaml_parser_initialize(parser).fail {
-        <span class="kw">return </span><span class="prelude-val">Err</span>(<span class="string">"Could not initialize the parser object"</span>.into());
+        <span class="macro">bail!</span>(<span class="string">"Could not initialize the parser object"</span>);
     }
 
-    <span class="kw">unsafe fn </span>read_from_stdio(
+    <span class="doccomment">/// Callback function for reading input from stdio.
+    ///
+    /// This function is called by the YAML parser to read input data.
+    ///
+    /// # Safety
+    ///
+    /// This function is unsafe because it deals with raw pointers.
+    /// It assumes that `data` is a valid pointer to a `Read` trait object.
+    </span><span class="kw">unsafe fn </span>read_from_stdio(
         data: <span class="kw-2">*mut </span>c_void,
         buffer: <span class="kw-2">*mut </span>u8,
         size: u64,
@@ -333,133 +479,138 @@
     <span class="kw">let </span>event = event.as_mut_ptr();
     <span class="kw">loop </span>{
         <span class="kw">if </span>yaml_parser_parse(parser, event).fail {
-            <span class="kw">let </span><span class="kw-2">mut </span>error = <span class="macro">format!</span>(
+            <span class="kw">let </span>error = <span class="macro">format!</span>(
                 <span class="string">"Parse error: {}"</span>,
                 CStr::from_ptr((<span class="kw-2">*</span>parser).problem)
             );
-            <span class="kw">if </span>(<span class="kw-2">*</span>parser).problem_mark.line != <span class="number">0
+            <span class="kw">let </span>error = <span class="kw">if </span>(<span class="kw-2">*</span>parser).problem_mark.line != <span class="number">0
                 </span>|| (<span class="kw-2">*</span>parser).problem_mark.column != <span class="number">0
             </span>{
-                <span class="kw">let _ </span>= <span class="macro">write!</span>(
+                <span class="macro">format!</span>(
+                    <span class="string">"{}\nLine: {} Column: {}"</span>,
                     error,
-                    <span class="string">"\nLine: {} Column: {}"</span>,
-                    ((<span class="kw-2">*</span>parser).problem_mark.line).wrapping_add(<span class="number">1_u64</span>),
-                    ((<span class="kw-2">*</span>parser).problem_mark.column).wrapping_add(<span class="number">1_u64</span>),
-                );
-            }
+                    ((<span class="kw-2">*</span>parser).problem_mark.line).wrapping_add(<span class="number">1</span>),
+                    ((<span class="kw-2">*</span>parser).problem_mark.column).wrapping_add(<span class="number">1</span>),
+                )
+            } <span class="kw">else </span>{
+                error
+            };
             yaml_parser_delete(parser);
-            <span class="kw">return </span><span class="prelude-val">Err</span>(error.into());
+            <span class="kw">return </span><span class="prelude-val">Err</span>(Error::msg(error));
         }
 
         <span class="kw">let </span>type_: YamlEventTypeT = (<span class="kw-2">*</span>event).type_;
-        <span class="kw">if </span>type_ == YamlNoEvent {
-            <span class="kw">let _ </span>= <span class="macro">writeln!</span>(stdout, <span class="string">"???"</span>);
-        } <span class="kw">else if </span>type_ == YamlStreamStartEvent {
-            <span class="kw">let _ </span>= <span class="macro">writeln!</span>(stdout, <span class="string">"+STR"</span>);
-        } <span class="kw">else if </span>type_ == YamlStreamEndEvent {
-            <span class="kw">let _ </span>= <span class="macro">writeln!</span>(stdout, <span class="string">"-STR"</span>);
-        } <span class="kw">else if </span>type_ == YamlDocumentStartEvent {
-            <span class="kw">let _ </span>= <span class="macro">write!</span>(stdout, <span class="string">"+DOC"</span>);
-            <span class="kw">if </span>!(<span class="kw-2">*</span>event).data.document_start.implicit {
-                <span class="kw">let _ </span>= <span class="macro">write!</span>(stdout, <span class="string">" ---"</span>);
+        <span class="kw">match </span>type_ {
+            YamlNoEvent =&gt; <span class="macro">writeln!</span>(stdout, <span class="string">"???"</span>)<span class="question-mark">?</span>,
+            YamlStreamStartEvent =&gt; <span class="macro">writeln!</span>(stdout, <span class="string">"+STR"</span>)<span class="question-mark">?</span>,
+            YamlStreamEndEvent =&gt; <span class="macro">writeln!</span>(stdout, <span class="string">"-STR"</span>)<span class="question-mark">?</span>,
+            YamlDocumentStartEvent =&gt; {
+                <span class="macro">write!</span>(stdout, <span class="string">"+DOC"</span>)<span class="question-mark">?</span>;
+                <span class="kw">if </span>!(<span class="kw-2">*</span>event).data.document_start.implicit {
+                    <span class="macro">write!</span>(stdout, <span class="string">" ---"</span>)<span class="question-mark">?</span>;
+                }
+                <span class="macro">writeln!</span>(stdout)<span class="question-mark">?</span>;
             }
-            <span class="kw">let _ </span>= <span class="macro">writeln!</span>(stdout);
-        } <span class="kw">else if </span>type_ == YamlDocumentEndEvent {
-            <span class="kw">let _ </span>= <span class="macro">write!</span>(stdout, <span class="string">"-DOC"</span>);
-            <span class="kw">if </span>!(<span class="kw-2">*</span>event).data.document_end.implicit {
-                <span class="kw">let _ </span>= <span class="macro">write!</span>(stdout, <span class="string">" ..."</span>);
+            YamlDocumentEndEvent =&gt; {
+                <span class="macro">write!</span>(stdout, <span class="string">"-DOC"</span>)<span class="question-mark">?</span>;
+                <span class="kw">if </span>!(<span class="kw-2">*</span>event).data.document_end.implicit {
+                    <span class="macro">write!</span>(stdout, <span class="string">" ..."</span>)<span class="question-mark">?</span>;
+                }
+                <span class="macro">writeln!</span>(stdout)<span class="question-mark">?</span>;
             }
-            <span class="kw">let _ </span>= <span class="macro">writeln!</span>(stdout);
-        } <span class="kw">else if </span>type_ == YamlMappingStartEvent {
-            <span class="kw">let _ </span>= <span class="macro">write!</span>(stdout, <span class="string">"+MAP"</span>);
-            <span class="kw">if </span>!(<span class="kw-2">*</span>event).data.mapping_start.anchor.is_null() {
-                <span class="kw">let _ </span>= <span class="macro">write!</span>(
-                    stdout,
-                    <span class="string">" &amp;{}"</span>,
-                    CStr::from_ptr(
-                        (<span class="kw-2">*</span>event).data.mapping_start.anchor <span class="kw">as </span><span class="kw-2">*const </span>i8
-                    ),
-                );
+            YamlMappingStartEvent =&gt; {
+                <span class="macro">write!</span>(stdout, <span class="string">"+MAP"</span>)<span class="question-mark">?</span>;
+                <span class="kw">if </span>!(<span class="kw-2">*</span>event).data.mapping_start.anchor.is_null() {
+                    <span class="macro">write!</span>(
+                        stdout,
+                        <span class="string">" &amp;{}"</span>,
+                        CStr::from_ptr(
+                            (<span class="kw-2">*</span>event).data.mapping_start.anchor
+                                <span class="kw">as </span><span class="kw-2">*const </span>i8
+                        ),
+                    )<span class="question-mark">?</span>;
+                }
+                <span class="kw">if </span>!(<span class="kw-2">*</span>event).data.mapping_start.tag.is_null() {
+                    <span class="macro">write!</span>(
+                        stdout,
+                        <span class="string">" &lt;{}&gt;"</span>,
+                        CStr::from_ptr(
+                            (<span class="kw-2">*</span>event).data.mapping_start.tag
+                                <span class="kw">as </span><span class="kw-2">*const </span>i8
+                        ),
+                    )<span class="question-mark">?</span>;
+                }
+                <span class="macro">writeln!</span>(stdout)<span class="question-mark">?</span>;
             }
-            <span class="kw">if </span>!(<span class="kw-2">*</span>event).data.mapping_start.tag.is_null() {
-                <span class="kw">let _ </span>= <span class="macro">write!</span>(
-                    stdout,
-                    <span class="string">" &lt;{}&gt;"</span>,
-                    CStr::from_ptr(
-                        (<span class="kw-2">*</span>event).data.mapping_start.tag <span class="kw">as </span><span class="kw-2">*const </span>i8
-                    ),
-                );
+            YamlMappingEndEvent =&gt; <span class="macro">writeln!</span>(stdout, <span class="string">"-MAP"</span>)<span class="question-mark">?</span>,
+            YamlSequenceStartEvent =&gt; {
+                <span class="macro">write!</span>(stdout, <span class="string">"+SEQ"</span>)<span class="question-mark">?</span>;
+                <span class="kw">if </span>!(<span class="kw-2">*</span>event).data.sequence_start.anchor.is_null() {
+                    <span class="macro">write!</span>(
+                        stdout,
+                        <span class="string">" &amp;{}"</span>,
+                        CStr::from_ptr(
+                            (<span class="kw-2">*</span>event).data.sequence_start.anchor
+                                <span class="kw">as </span><span class="kw-2">*const </span>i8
+                        ),
+                    )<span class="question-mark">?</span>;
+                }
+                <span class="kw">if </span>!(<span class="kw-2">*</span>event).data.sequence_start.tag.is_null() {
+                    <span class="macro">write!</span>(
+                        stdout,
+                        <span class="string">" &lt;{}&gt;"</span>,
+                        CStr::from_ptr(
+                            (<span class="kw-2">*</span>event).data.sequence_start.tag
+                                <span class="kw">as </span><span class="kw-2">*const </span>i8
+                        ),
+                    )<span class="question-mark">?</span>;
+                }
+                <span class="macro">writeln!</span>(stdout)<span class="question-mark">?</span>;
             }
-            <span class="kw">let _ </span>= <span class="macro">writeln!</span>(stdout);
-        } <span class="kw">else if </span>type_ == YamlMappingEndEvent {
-            <span class="kw">let _ </span>= <span class="macro">writeln!</span>(stdout, <span class="string">"-MAP"</span>);
-        } <span class="kw">else if </span>type_ == YamlSequenceStartEvent {
-            <span class="kw">let _ </span>= <span class="macro">write!</span>(stdout, <span class="string">"+SEQ"</span>);
-            <span class="kw">if </span>!(<span class="kw-2">*</span>event).data.sequence_start.anchor.is_null() {
-                <span class="kw">let _ </span>= <span class="macro">write!</span>(
-                    stdout,
-                    <span class="string">" &amp;{}"</span>,
-                    CStr::from_ptr(
-                        (<span class="kw-2">*</span>event).data.sequence_start.anchor
-                            <span class="kw">as </span><span class="kw-2">*const </span>i8
-                    ),
-                );
-            }
-            <span class="kw">if </span>!(<span class="kw-2">*</span>event).data.sequence_start.tag.is_null() {
-                <span class="kw">let _ </span>= <span class="macro">write!</span>(
-                    stdout,
-                    <span class="string">" &lt;{}&gt;"</span>,
-                    CStr::from_ptr(
-                        (<span class="kw-2">*</span>event).data.sequence_start.tag <span class="kw">as </span><span class="kw-2">*const </span>i8
-                    ),
-                );
-            }
-            <span class="kw">let _ </span>= <span class="macro">writeln!</span>(stdout);
-        } <span class="kw">else if </span>type_ == YamlSequenceEndEvent {
-            <span class="kw">let _ </span>= <span class="macro">writeln!</span>(stdout, <span class="string">"-SEQ"</span>);
-        } <span class="kw">else if </span>type_ == YamlScalarEvent {
-            <span class="kw">let _ </span>= <span class="macro">write!</span>(stdout, <span class="string">"=VAL"</span>);
-            <span class="kw">if </span>!(<span class="kw-2">*</span>event).data.scalar.anchor.is_null() {
-                <span class="kw">let _ </span>= <span class="macro">write!</span>(
-                    stdout,
-                    <span class="string">" &amp;{}"</span>,
-                    CStr::from_ptr(
-                        (<span class="kw-2">*</span>event).data.scalar.anchor <span class="kw">as </span><span class="kw-2">*const </span>i8
-                    ),
-                );
-            }
-            <span class="kw">if </span>!(<span class="kw-2">*</span>event).data.scalar.tag.is_null() {
-                <span class="kw">let _ </span>= <span class="macro">write!</span>(
-                    stdout,
-                    <span class="string">" &lt;{}&gt;"</span>,
-                    CStr::from_ptr(
-                        (<span class="kw-2">*</span>event).data.scalar.tag <span class="kw">as </span><span class="kw-2">*const </span>i8
-                    ),
-                );
-            }
-            <span class="kw">let _ </span>=
+            YamlSequenceEndEvent =&gt; <span class="macro">writeln!</span>(stdout, <span class="string">"-SEQ"</span>)<span class="question-mark">?</span>,
+            YamlScalarEvent =&gt; {
+                <span class="macro">write!</span>(stdout, <span class="string">"=VAL"</span>)<span class="question-mark">?</span>;
+                <span class="kw">if </span>!(<span class="kw-2">*</span>event).data.scalar.anchor.is_null() {
+                    <span class="macro">write!</span>(
+                        stdout,
+                        <span class="string">" &amp;{}"</span>,
+                        CStr::from_ptr(
+                            (<span class="kw-2">*</span>event).data.scalar.anchor <span class="kw">as </span><span class="kw-2">*const </span>i8
+                        ),
+                    )<span class="question-mark">?</span>;
+                }
+                <span class="kw">if </span>!(<span class="kw-2">*</span>event).data.scalar.tag.is_null() {
+                    <span class="macro">write!</span>(
+                        stdout,
+                        <span class="string">" &lt;{}&gt;"</span>,
+                        CStr::from_ptr(
+                            (<span class="kw-2">*</span>event).data.scalar.tag <span class="kw">as </span><span class="kw-2">*const </span>i8
+                        ),
+                    )<span class="question-mark">?</span>;
+                }
                 stdout.write_all(<span class="kw">match </span>(<span class="kw-2">*</span>event).data.scalar.style {
                     YamlPlainScalarStyle =&gt; <span class="string">b" :"</span>,
                     YamlSingleQuotedScalarStyle =&gt; <span class="string">b" '"</span>,
                     YamlDoubleQuotedScalarStyle =&gt; <span class="string">b" \""</span>,
                     YamlLiteralScalarStyle =&gt; <span class="string">b" |"</span>,
                     YamlFoldedScalarStyle =&gt; <span class="string">b" &gt;"</span>,
-                    <span class="kw">_ </span>=&gt; process::abort(),
-                });
-            print_escaped(
-                stdout,
-                (<span class="kw-2">*</span>event).data.scalar.value,
-                (<span class="kw-2">*</span>event).data.scalar.length,
-            );
-            <span class="kw">let _ </span>= <span class="macro">writeln!</span>(stdout);
-        } <span class="kw">else if </span>type_ == YamlAliasEvent {
-            <span class="kw">let _ </span>= <span class="macro">writeln!</span>(
+                    <span class="kw">_ </span>=&gt; {
+                        <span class="kw">return </span><span class="prelude-val">Err</span>(Error::msg(<span class="string">"Unknown scalar style"</span>))
+                    }
+                })<span class="question-mark">?</span>;
+                print_escaped(
+                    stdout,
+                    (<span class="kw-2">*</span>event).data.scalar.value,
+                    (<span class="kw-2">*</span>event).data.scalar.length,
+                )<span class="question-mark">?</span>;
+                <span class="macro">writeln!</span>(stdout)<span class="question-mark">?</span>;
+            }
+            YamlAliasEvent =&gt; <span class="macro">writeln!</span>(
                 stdout,
                 <span class="string">"=ALI *{}"</span>,
                 CStr::from_ptr((<span class="kw-2">*</span>event).data.alias.anchor <span class="kw">as </span><span class="kw-2">*const </span>i8),
-            );
-        } <span class="kw">else </span>{
-            process::abort();
+            )<span class="question-mark">?</span>,
+            <span class="kw">_ </span>=&gt; <span class="kw">return </span><span class="prelude-val">Err</span>(Error::msg(<span class="string">"Unknown event type"</span>)),
         }
 
         yaml_event_delete(event);
@@ -471,45 +622,128 @@
     <span class="prelude-val">Ok</span>(())
 }
 
-<span class="kw">unsafe fn </span>print_escaped(
+<span class="doccomment">/// Writes an escaped version of a byte slice to the given output.
+///
+/// This function handles proper escaping of special characters and
+/// preserves UTF-8 encoded characters.
+///
+/// # Safety
+///
+/// This function is unsafe because it works with raw pointers.
+/// The caller must ensure that `str` points to a valid memory location
+/// containing at least `length` bytes.
+///
+/// # Arguments
+///
+/// * `stdout` - A mutable reference to a type that implements `Write`, to which the escaped output will be written.
+/// * `str` - A raw pointer to the start of the byte slice to be escaped.
+/// * `length` - The length of the byte slice.
+///
+/// # Returns
+///
+/// Returns `Ok(())` if writing succeeds, or an `io::Error` if any issues occur during writing.
+</span><span class="kw">unsafe fn </span>print_escaped(
     stdout: <span class="kw-2">&amp;mut </span><span class="kw">dyn </span>Write,
-    <span class="kw-2">mut </span>str: <span class="kw-2">*mut </span>u8,
+    str: <span class="kw-2">*const </span>u8,
     length: u64,
-) {
-    <span class="kw">let </span>end = str.offset(length <span class="kw">as </span>isize);
-    <span class="kw">while </span>str &lt; end {
-        <span class="kw">let </span>repr = <span class="kw">match </span><span class="kw-2">&amp;*</span>str {
-            <span class="string">b'\\' </span>=&gt; <span class="string">b"\\\\"</span>,
-            <span class="string">b'\0' </span>=&gt; <span class="string">b"\\0"</span>,
-            <span class="string">b'\x08' </span>=&gt; <span class="string">b"\\b"</span>,
-            <span class="string">b'\n' </span>=&gt; <span class="string">b"\\n"</span>,
-            <span class="string">b'\r' </span>=&gt; <span class="string">b"\\r"</span>,
-            <span class="string">b'\t' </span>=&gt; <span class="string">b"\\t"</span>,
-            c =&gt; slice::from_ref(c),
-        };
-        <span class="kw">let _ </span>= stdout.write_all(repr);
-        str = str.offset(<span class="number">1</span>);
-    }
-}
+) -&gt; io::Result&lt;()&gt; {
+    <span class="kw">let </span>slice = slice::from_raw_parts(str, length <span class="kw">as </span>usize);
+    <span class="kw">let </span><span class="kw-2">mut </span>chars = slice.iter().peekable();
 
-<span class="kw">fn </span>main() -&gt; ExitCode {
-    <span class="kw">let </span>args = env::args_os().skip(<span class="number">1</span>);
-    <span class="kw">if </span>args.len() == <span class="number">0 </span>{
-        <span class="kw">let _ </span>= <span class="macro">writeln!</span>(
-            io::stderr(),
-            <span class="string">"Usage: run-parser-test-suite &lt;in.yaml&gt;..."
-        </span>);
-        <span class="kw">return </span>ExitCode::FAILURE;
-    }
-    <span class="kw">for </span>arg <span class="kw">in </span>args {
-        <span class="kw">let </span><span class="kw-2">mut </span>stdin = File::open(arg).unwrap();
-        <span class="kw">let </span><span class="kw-2">mut </span>stdout = io::stdout();
-        <span class="kw">let </span>result = <span class="kw">unsafe </span>{ unsafe_main(<span class="kw-2">&amp;mut </span>stdin, <span class="kw-2">&amp;mut </span>stdout) };
-        <span class="kw">if let </span><span class="prelude-val">Err</span>(err) = result {
-            <span class="kw">let _ </span>= <span class="macro">writeln!</span>(io::stderr(), <span class="string">"{}"</span>, err);
-            <span class="kw">return </span>ExitCode::FAILURE;
+    <span class="kw">while let </span><span class="prelude-val">Some</span>(<span class="kw-2">&amp;</span>byte) = chars.next() {
+        <span class="kw">if </span>byte &gt;= <span class="number">128 </span>{
+            <span class="comment">// Start of a UTF-8 sequence
+            </span>stdout.write_all(slice::from_ref(<span class="kw-2">&amp;</span>byte))<span class="question-mark">?</span>;
+            <span class="kw">while let </span><span class="prelude-val">Some</span>(&amp;&amp;next_byte) = chars.peek() {
+                <span class="kw">if </span>!(<span class="number">128</span>..<span class="number">192</span>).contains(<span class="kw-2">&amp;</span>next_byte) {
+                    <span class="kw">break</span>;
+                }
+                stdout.write_all(slice::from_ref(<span class="kw-2">&amp;</span>next_byte))<span class="question-mark">?</span>;
+                <span class="kw">let _ </span>= chars.next();
+            }
+        } <span class="kw">else </span>{
+            <span class="kw">let </span>repr = <span class="kw">match </span>byte {
+                <span class="string">b'\\' </span>=&gt; <span class="string">"\\\\"</span>,
+                <span class="string">b'\0' </span>=&gt; <span class="string">"\\0"</span>,
+                <span class="string">b'\x08' </span>=&gt; <span class="string">"\\b"</span>,
+                <span class="string">b'\n' </span>=&gt; <span class="string">"\\n"</span>,
+                <span class="string">b'\r' </span>=&gt; <span class="string">"\\r"</span>,
+                <span class="string">b'\t' </span>=&gt; <span class="string">"\\t"</span>,
+                <span class="kw">_ if </span>byte.is_ascii_graphic() || byte == <span class="string">b' ' </span>=&gt; {
+                    stdout.write_all(slice::from_ref(<span class="kw-2">&amp;</span>byte))<span class="question-mark">?</span>;
+                    <span class="kw">continue</span>;
+                }
+                <span class="kw">_ </span>=&gt; {
+                    <span class="macro">write!</span>(stdout, <span class="string">"\\x{:02x}"</span>, byte)<span class="question-mark">?</span>;
+                    <span class="kw">continue</span>;
+                }
+            };
+            stdout.write_all(repr.as_bytes())<span class="question-mark">?</span>;
         }
     }
+    <span class="prelude-val">Ok</span>(())
+}
+
+<span class="doccomment">/// The entry point of the program.
+///
+/// This function processes command-line arguments, reads YAML files,
+/// and calls the parsing function for each file.
+///
+/// # Returns
+///
+/// Returns `ExitCode::SUCCESS` if all files are processed successfully,
+/// or `ExitCode::FAILURE` if any errors occur.
+</span><span class="kw">fn </span>main() -&gt; ExitCode {
+    <span class="kw">let </span>args: Vec&lt;<span class="kw">_</span>&gt; = env::args_os().skip(<span class="number">1</span>).collect();
+    <span class="kw">if </span>args.is_empty() {
+        <span class="macro">eprintln!</span>(<span class="string">"Error: No input files provided."</span>);
+        <span class="macro">eprintln!</span>(
+            <span class="string">"Usage: {} &lt;in.yaml&gt;..."</span>,
+            env::args().next().unwrap_or_default()
+        );
+        <span class="macro">eprintln!</span>(<span class="string">"Please provide one or more YAML files to parse."</span>);
+        <span class="kw">return </span>ExitCode::FAILURE;
+    }
+
+    <span class="kw">for </span>arg <span class="kw">in </span>args {
+        <span class="kw">let </span>path = Path::new(<span class="kw-2">&amp;</span>arg);
+        <span class="kw">if </span>!path.exists() {
+            <span class="macro">eprintln!</span>(<span class="string">"Error: File {:?} does not exist."</span>, path);
+            <span class="kw">return </span>ExitCode::FAILURE;
+        }
+        <span class="kw">if </span>!path.is_file() {
+            <span class="macro">eprintln!</span>(<span class="string">"Error: {:?} is not a file."</span>, path);
+            <span class="kw">return </span>ExitCode::FAILURE;
+        }
+
+        <span class="kw">match </span>File::open(path) {
+            <span class="prelude-val">Ok</span>(<span class="kw-2">mut </span>file) =&gt; {
+                <span class="kw">let </span><span class="kw-2">mut </span>stdout = io::stdout();
+                <span class="macro">eprintln!</span>(<span class="string">"Processing file: {:?}"</span>, path);
+                <span class="kw">match unsafe </span>{ unsafe_main(<span class="kw-2">&amp;mut </span>file, <span class="kw-2">&amp;mut </span>stdout) } {
+                    <span class="prelude-val">Ok</span>(()) =&gt; <span class="macro">eprintln!</span>(
+                        <span class="string">"Successfully processed file: {:?}"</span>,
+                        path
+                    ),
+                    <span class="prelude-val">Err</span>(err) =&gt; {
+                        <span class="macro">eprintln!</span>(
+                            <span class="string">"Error processing file {:?}: {}"</span>,
+                            path, err
+                        );
+                        <span class="macro">eprintln!</span>(<span class="string">"The parser encountered an error. Please check if the file contains valid YAML."</span>);
+                        <span class="kw">return </span>ExitCode::FAILURE;
+                    }
+                }
+            }
+            <span class="prelude-val">Err</span>(err) =&gt; {
+                <span class="macro">eprintln!</span>(<span class="string">"Error opening file {:?}: {}"</span>, path, err);
+                <span class="macro">eprintln!</span>(<span class="string">"Please check if you have the necessary permissions to read the file."</span>);
+                <span class="kw">return </span>ExitCode::FAILURE;
+            }
+        }
+    }
+
+    <span class="macro">eprintln!</span>(<span class="string">"All files processed successfully."</span>);
     ExitCode::SUCCESS
 }
 </code></pre></div></section></main></body></html>

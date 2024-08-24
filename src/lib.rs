@@ -7,9 +7,7 @@
 //! [![Codecov][codecov-badge]][08]
 //! [![Build Status][build-badge]][09]
 //!
-//! LibYML is a Rust library for working with YAML data, forked from [unsafe-libyaml][01]. It provides a safe and efficient interface for parsing, serializing, and manipulating YAML documents.
-//!
-//! This project has been renamed to [LibYML][00] for simplicity and to avoid confusion with the original [unsafe-libyaml][01] crate, which is now archived and no longer maintained.
+//! LibYML is a Rust library for working with YAML data, forked from [unsafe-libyaml][01]. It offers a safe and efficient interface for parsing, emitting, and manipulating YAML data.
 //!
 //! ## Features
 //!
@@ -69,8 +67,6 @@
 //! [docs-badge]: https://img.shields.io/badge/docs.rs-libyml-66c2a5?style=for-the-badge&labelColor=555555&logo=docs.rs
 //! [github-badge]: https://img.shields.io/badge/github-sebastienrousseau/libyml-8da0cb?style=for-the-badge&labelColor=555555&logo=github
 
-//!
-
 #![no_std]
 #![doc(
     html_favicon_url = "https://kura.pro/libyml/images/favicon.ico",
@@ -83,20 +79,11 @@
 extern crate alloc;
 use core::mem::size_of;
 
-/// This module contains declarations for C library functions.
+/// Declarations for C library functions used within the LibYML library.
 ///
-/// # Purpose
-///
-/// This module provides declarations for C library functions that are used in the LibYAML library.
-/// These declarations are necessary for interfacing with the C library functions from Rust.
-///
-/// # Parameters
-///
-/// None.
-///
-/// # Return Value
-///
-/// This module does not return any value. It only contains declarations for C library functions.
+/// This module contains the necessary types and constants required for
+/// interfacing with C libraries, particularly in the context of memory management
+/// and low-level operations within LibYML.
 pub mod libc {
     pub use core::ffi::c_void;
     pub use core::primitive::{
@@ -105,7 +92,11 @@ pub mod libc {
     };
 }
 
-/// Externs for libyaml
+/// Extern functions and macros for interacting with the underlying libyaml C library.
+///
+/// This module includes low-level functions for memory allocation, comparison, and
+/// movement that bridge Rust and C. It also contains some internal macros for
+/// asserting conditions in a way that integrates with the C code.
 #[macro_use]
 pub mod externs {
     use crate::libc;
@@ -118,12 +109,9 @@ pub mod externs {
 
     const HEADER: usize = {
         let need_len = size_of::<usize>();
-        // Round up to multiple of MALLOC_ALIGN.
         (need_len + MALLOC_ALIGN - 1) & !(MALLOC_ALIGN - 1)
     };
 
-    // `max_align_t` may be bigger than this, but libyaml does not use `long
-    // double` or u128.
     const MALLOC_ALIGN: usize = {
         let int_align = align_of::<libc::c_ulong>();
         let ptr_align = align_of::<usize>();
@@ -134,12 +122,12 @@ pub mod externs {
         }
     };
 
-    /// Allocate memory.
+    /// Allocates memory.
     ///
     /// # Safety
     ///
-    /// This function is unsafe because it directly manipulates raw memory.
-    /// The caller must ensure that the allocated memory is properly managed and freed when no longer needed.
+    /// This function is unsafe because it directly manipulates raw memory. The caller must ensure that
+    /// the allocated memory is properly managed and freed when no longer needed.
     pub unsafe fn malloc(size: libc::c_ulong) -> *mut libc::c_void {
         let size = HEADER.force_add(size.force_into());
         let layout = Layout::from_size_align(size, MALLOC_ALIGN)
@@ -153,6 +141,12 @@ pub mod externs {
         memory.add(HEADER).cast()
     }
 
+    /// Reallocates memory.
+    ///
+    /// # Safety
+    ///
+    /// This function is unsafe because it directly manipulates raw memory.
+    /// The caller must ensure that the original memory was allocated by `malloc`.
     pub(crate) unsafe fn realloc(
         ptr: *mut libc::c_void,
         new_size: libc::c_ulong,
@@ -170,15 +164,12 @@ pub mod externs {
         memory.add(HEADER).cast()
     }
 
-    /// Free memory.
+    /// Frees allocated memory.
     ///
     /// # Safety
     ///
     /// This function is unsafe because it deallocates memory pointed to by `ptr`.
-    /// The caller must ensure that:
-    /// - `ptr` is a valid pointer that was previously allocated by this allocator.
-    /// - `ptr` has not been freed before.
-    /// - After this call, `ptr` should not be used.
+    /// The caller must ensure that `ptr` was previously allocated by `malloc` or `realloc`.
     pub unsafe fn free(ptr: *mut libc::c_void) {
         let memory = ptr.cast::<u8>().sub(HEADER);
         let size = memory.cast::<usize>().read();
@@ -187,6 +178,12 @@ pub mod externs {
         rust::dealloc(memory, layout);
     }
 
+    /// Compares two memory blocks.
+    ///
+    /// # Safety
+    ///
+    /// This function is unsafe because it compares raw memory. The caller must ensure the pointers
+    /// and size are correct.
     pub(crate) unsafe fn memcmp(
         lhs: *const libc::c_void,
         rhs: *const libc::c_void,
@@ -199,6 +196,12 @@ pub mod externs {
         lhs.cmp(rhs) as libc::c_int
     }
 
+    /// Copies memory from `src` to `dest`.
+    ///
+    /// # Safety
+    ///
+    /// The caller must ensure that the memory areas do not overlap and that the destination is large
+    /// enough to hold the data.
     pub(crate) unsafe fn memcpy(
         dest: *mut libc::c_void,
         src: *const libc::c_void,
@@ -215,16 +218,11 @@ pub mod externs {
         dest
     }
 
-    /// Moves a block of memory.
-    ///
-    /// This function moves `count` bytes from the memory block pointed to by `src` to the memory block pointed to by `dest`.
+    /// Moves memory from `src` to `dest`.
     ///
     /// # Safety
     ///
-    /// This function is unsafe because it directly manipulates raw memory. The caller must ensure that:
-    /// - `dest` and `src` are valid pointers to memory blocks.
-    /// - The memory blocks pointed to by `dest` and `src` do not overlap.
-    /// - The memory blocks pointed to by `dest` and `src` are properly aligned and initialized.
+    /// The caller must ensure that the memory areas do not overlap or are correctly managed.
     pub unsafe fn memmove(
         dest: *mut libc::c_void,
         src: *const libc::c_void,
@@ -241,28 +239,11 @@ pub mod externs {
         dest
     }
 
-    /// Sets the first `count` bytes of the memory block pointed to by `dest` to the specified `ch` byte.
-    ///
-    /// # Purpose
-    ///
-    /// This function fills a block of memory with a specified byte value. It is commonly used to initialize or clear memory.
-    ///
-    /// # Parameters
-    ///
-    /// - `dest`: A pointer to the memory block to be filled.
-    /// - `ch`: The byte value to fill the memory block with.
-    /// - `count`: The number of bytes to fill in the memory block.
-    ///
-    /// # Return Value
-    ///
-    /// The function returns a pointer to the memory block (`dest`) after filling it.
+    /// Fills memory with a constant byte.
     ///
     /// # Safety
     ///
-    /// This function is unsafe because it directly manipulates raw memory. The caller must ensure that:
-    /// - `dest` is a valid pointer to a memory block.
-    /// - `count` is not greater than the size of the memory block pointed to by `dest`.
-    /// - The memory block pointed to by `dest` is properly aligned and initialized.
+    /// The caller must ensure the memory is valid and the length is correct.
     pub unsafe fn memset(
         dest: *mut libc::c_void,
         ch: libc::c_int,
@@ -272,6 +253,11 @@ pub mod externs {
         dest
     }
 
+    /// Compares two strings.
+    ///
+    /// # Safety
+    ///
+    /// The caller must ensure the strings are null-terminated and valid.
     pub(crate) unsafe fn strcmp(
         lhs: *const libc::c_char,
         rhs: *const libc::c_char,
@@ -290,6 +276,11 @@ pub mod externs {
         lhs.cmp(rhs) as libc::c_int
     }
 
+    /// Returns the length of a string.
+    ///
+    /// # Safety
+    ///
+    /// The caller must ensure the string is null-terminated and valid.
     pub(crate) unsafe fn strlen(
         str: *const libc::c_char,
     ) -> libc::c_ulong {
@@ -300,6 +291,11 @@ pub mod externs {
         end.offset_from(str) as libc::c_ulong
     }
 
+    /// Compares up to `count` characters of two strings.
+    ///
+    /// # Safety
+    ///
+    /// The caller must ensure the strings are null-terminated and valid.
     pub(crate) unsafe fn strncmp(
         lhs: *const libc::c_char,
         rhs: *const libc::c_char,
@@ -322,6 +318,9 @@ pub mod externs {
         }
     }
 
+    /// Macro for asserting conditions.
+    ///
+    /// This macro is used internally to assert conditions and handle failures.
     macro_rules! __assert {
         (false $(,)?) => {
             $crate::externs::__assert_fail(
@@ -341,6 +340,11 @@ pub mod externs {
         };
     }
 
+    /// Internal function for handling assertion failures.
+    ///
+    /// # Safety
+    ///
+    /// This function is called when an assertion fails, and it triggers a panic.
     pub(crate) unsafe fn __assert_fail(
         __assertion: &'static str,
         __file: &'static str,
@@ -360,20 +364,31 @@ pub mod externs {
     }
 }
 
+/// Module for formatting utilities.
+///
+/// This module provides utilities for formatting data,
+/// particularly for writing formatted strings to pointers.
 mod fmt {
     use crate::yaml::yaml_char_t;
     use core::fmt::{self, Write};
     use core::ptr;
 
+    /// Struct for writing formatted data to a pointer.
     pub(crate) struct WriteToPtr {
         ptr: *mut yaml_char_t,
     }
 
     impl WriteToPtr {
+        /// Creates a new `WriteToPtr`.
+        ///
+        /// # Safety
+        ///
+        /// This function is unsafe because it directly manipulates raw pointers.
         pub(crate) unsafe fn new(ptr: *mut yaml_char_t) -> Self {
             WriteToPtr { ptr }
         }
 
+        /// Writes formatted data to the pointer.
         pub(crate) fn write_fmt(&mut self, args: fmt::Arguments<'_>) {
             let _ = Write::write_fmt(self, args);
         }
@@ -390,6 +405,10 @@ mod fmt {
     }
 }
 
+/// Trait extension for pointers.
+///
+/// This trait provides methods for working with pointers,
+/// particularly for calculating the offset between two pointers.
 trait PointerExt: Sized {
     fn c_offset_from(self, origin: Self) -> isize;
 }
@@ -406,47 +425,78 @@ impl<T> PointerExt for *mut T {
     }
 }
 
+/// Macros module for LibYML.
+///
+/// This module contains various macros used throughout the LibYML library.
 #[macro_use]
-/// Macros module for LibYML
 pub mod macros;
 
-/// Macros module for LibYML
+/// Utility functions for LibYML.
+///
+/// This module contains utility functions and macros that are used throughout the LibYML library.
 #[macro_use]
 pub mod utils;
 
-/// API module for LibYML
+/// API module for LibYML.
+///
+/// This module provides the public API functions for working with YAML data.
 pub mod api;
 
-/// String module for LibYML
+/// String utilities for LibYML.
+///
+/// This module provides utilities for working with YAML strings.
 pub mod string;
 
-/// Dumper module for LibYML
+/// Dumper module for LibYML.
+///
+/// This module contains functions related to dumping YAML data.
 pub mod dumper;
 
-/// Emitter module for LibYML
+/// Emitter module for LibYML.
+///
+/// This module provides functions for emitting YAML data.
 mod emitter;
-/// Loader module for LibYML
+
+/// Loader module for LibYML.
+///
+/// This module contains functions for loading YAML data.
 pub mod loader;
 
-/// Decode module for LibYML
+/// Decode module for LibYML.
+///
+/// This module contains functions for decoding YAML data.
 pub mod decode;
 
-/// Document module for LibYML
+/// Document module for LibYML.
+///
+/// This module provides functions for working with YAML documents.
 pub mod document;
 
-/// Internal module for LibYML
+/// Internal utilities for LibYML.
+///
+/// This module contains internal utility functions and structures for the library.
 pub mod internal;
 
-/// Memory module for LibYML
+/// Memory management for LibYML.
+///
+/// This module provides functions for managing memory within the library.
 pub mod memory;
+
 mod ops;
 mod parser;
 mod reader;
 mod scanner;
-/// Success and Failure types for LibYML
+
+/// Success and Failure types for LibYML.
+///
+/// This module provides types for representing the success and failure of various operations within the library.
 pub mod success;
+
 mod writer;
-/// YAML API module for LibYML
+
+/// YAML API module for LibYML.
+///
+/// This module provides functions and types for working directly with YAML data structures.
 pub mod yaml;
 
 pub use crate::api::{

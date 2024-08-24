@@ -1116,10 +1116,9 @@ macro_rules! ENQUEUE {
     ($queue:expr, *$value:expr) => {
         ENQUEUE!(do $queue, ptr::copy_nonoverlapping($value, $queue.tail, 1))
     };
-    //FIXME: macro `ENQUEUE` is never used
-    // ($queue:expr, $value:expr) => {
-    //     ENQUEUE!(do $queue, ptr::write($queue.tail, $value))
-    // };
+    ($queue:expr, $value:expr) => {
+        ENQUEUE!(do $queue, ptr::write($queue.tail, $value))
+    };
 }
 
 /// Removes and returns the first element from the queue.

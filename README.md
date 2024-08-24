@@ -14,9 +14,7 @@ alt="LibYML logo" width="66" align="right" />
 [![Codecov][codecov-badge]][08]
 [![Build Status][build-badge]][09]
 
-LibYML is a Rust library for working with YAML data, forked from [unsafe-libyaml][01]. It provides a safe and efficient interface for parsing, serializing, and manipulating YAML documents.
-
-This project has been renamed to [LibYML][00] for simplicity and to avoid confusion with the original [unsafe-libyaml][01] crate, which is now archived and no longer maintained.
+LibYML is a Rust library for working with YAML data, forked from [unsafe-libyaml][01]. It offers a safe and efficient interface for parsing, emitting, and manipulating YAML data.
 
 ## Features
 
@@ -111,6 +109,7 @@ LibYML is a fork of the work done by [David Tolnay][04] and the maintainers of [
 [07]: https://docs.rs/libyml
 [08]: https://codecov.io/gh/sebastienrousseau/libyml
 [09]: https://github.com/sebastienrousseau/libyml/actions?query=branch%3Amaster
+
 [build-badge]: https://img.shields.io/github/actions/workflow/status/sebastienrousseau/libyml/release.yml?branch=master&style=for-the-badge&logo=github
 [codecov-badge]: https://img.shields.io/codecov/c/github/sebastienrousseau/libyml?style=for-the-badge&logo=codecov&token=yc9s578xIk
 [crates-badge]: https://img.shields.io/crates/v/libyml.svg?style=for-the-badge&color=fc8d62&logo=rust

@@ -2,7 +2,7 @@
 # Metadata
 authors = ["LibYML Contributors"]
 categories = ["encoding", "parser-implementations", "no-std"]
-description = "A safe and efficient Rust library for parsing and emitting YAML data"
+description = "A safe and efficient Rust library for parsing, emitting, and manipulating YAML data."
 documentation = "https://docs.rs/libyml"
 edition = "2021"
 exclude = ["/.git/*", "/.github/*", "/.gitignore", "/.vscode/*"]
@@ -86,7 +86,6 @@ unused_crate_dependencies = "allow"
 unsafe_code = "allow"
 
 ## Forbid
-# missing_docs = "warn"
 missing_debug_implementations = "forbid"
 non_ascii_idents = "forbid"
 unreachable_pub = "forbid"

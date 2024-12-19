@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"enum":["c_void"]};
+window.SIDEBAR_ITEMS = {"enum":["c_void"],"type":["c_char"]};

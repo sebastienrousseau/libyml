@@ -92,8 +92,9 @@ use core::mem::size_of;
 /// and low-level operations within LibYML.
 pub mod libc {
     pub use core::ffi::c_void;
+    pub use core::ffi::c_char;
     pub use core::primitive::{
-        i32 as c_int, i64 as c_long, i8 as c_char, u32 as c_uint,
+        i32 as c_int, i64 as c_long, u32 as c_uint,
         u64 as c_ulong, u8 as c_uchar,
     };
 }

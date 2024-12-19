@@ -1,9 +1,7 @@
 use std::fmt::{self, Display, Write as _};
 use std::slice;
 use std::str;
-
-#[allow(non_camel_case_types)]
-type c_char = i8;
+use core::ffi::c_char;
 
 pub(crate) struct CStr {
     pub(crate) ptr: *const u8,

@@ -1,0 +1,19 @@
+name: 🏷️ Semantic Versioning Check
+
+on: [pull_request, push]
+
+jobs:
+  semver:
+    name: Semver Check
+    runs-on: ubuntu-latest
+
+    steps:
+      # Checkout the repository
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # Run Semver Check
+      - name: Check Semantic Versioning
+        uses: obi1kenobi/cargo-semver-checks-action@v2
+        with:
+          release-type: minor

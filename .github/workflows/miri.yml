@@ -1,0 +1,35 @@
+name: 🧪 Miri Test
+
+on: [pull_request, push]
+
+jobs:
+  miri:
+    name: Miri
+    runs-on: ubuntu-latest
+
+    steps:
+      # Checkout the repository
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # Setup Rust with Miri component
+      - name: Setup Rust with Miri
+        run: |
+          rustup override set nightly
+          rustup component add miri
+
+      # Configure cache
+      - name: Configure cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: miri-${{ runner.os }}-cargo-nightly-${{ hashFiles('**/Cargo.lock') }}
+
+      # Run Miri tests
+      - name: Run Miri tests
+        run: MIRIFLAGS="-Zmiri-disable-isolation -Zmiri-ignore-leaks" cargo miri test --verbose

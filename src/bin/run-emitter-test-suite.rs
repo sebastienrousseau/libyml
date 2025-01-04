@@ -1,3 +1,5 @@
+// run-emitter-test-suite.rs - Run the emitter test suite
+
 #![allow(missing_docs)]
 #![warn(clippy::pedantic)]
 #![allow(

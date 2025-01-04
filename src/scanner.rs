@@ -1,3 +1,4 @@
+// scanner.rs
 use crate::externs::{memcpy, memmove, memset, strcmp, strlen};
 use crate::internal::{yaml_queue_extend, yaml_stack_extend};
 use crate::memory::yaml_free;

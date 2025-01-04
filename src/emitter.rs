@@ -1,3 +1,5 @@
+// emitter.rs
+
 use crate::externs::{strcmp, strlen, strncmp};
 use crate::internal::{yaml_queue_extend, yaml_stack_extend};
 use crate::memory::{yaml_free, yaml_strdup};

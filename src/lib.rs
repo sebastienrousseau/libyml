@@ -1,3 +1,5 @@
+// lib.rs
+
 //! # LibYML (a fork of unsafe-libyaml)
 //!
 //! [![Made With Love][made-with-rust]][10]

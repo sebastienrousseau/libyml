@@ -1,3 +1,5 @@
+// success.rs
+
 use core::ops::Deref;
 
 /// Constant representing a successful operation.

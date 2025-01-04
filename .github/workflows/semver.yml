@@ -1,4 +1,4 @@
-name: 🏷️ Semantic Versioning Check
+name: 🏷️ semver
 
 on: [pull_request, push]
 

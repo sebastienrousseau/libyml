@@ -1,3 +1,6 @@
+// memory.rs
+// Manages memory allocation and deallocation in Rust, providing safe wrappers around the system's memory management functions.
+
 use crate::{
     externs::{free, malloc, realloc, strlen},
     libc,

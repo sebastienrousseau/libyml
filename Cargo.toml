@@ -13,7 +13,7 @@ name = "libyml"
 readme = "README.md"
 repository = "https://github.com/sebastienrousseau/libyml"
 rust-version = "1.56.0"
-version = "0.0.5"
+version = "0.0.6"
 
 # Specify which files to include in the package
 include = [
@@ -30,7 +30,7 @@ include = [
 
 [dependencies]
 # General dependencies for the package
-anyhow = "1.0.86" # Rust library for reporting multiple error types through a single type.
+anyhow = "1.0.95" # Rust library for reporting multiple error types through a single type.
 
 [build-dependencies]
 # Dependencies specifically for build scripts
@@ -38,7 +38,7 @@ version_check = "0.9.5" # Check the Rust version used to compile the package.
 
 [dev-dependencies]
 # Dependencies used during development and testing
-pretty_assertions = "1.4.0" # Pretty assertions for tests.
+pretty_assertions = "1.4.1" # Pretty assertions for tests.
 libyml-test-suite = { path = "tests/data" } # Local dependency for test suite.
 
 [features]

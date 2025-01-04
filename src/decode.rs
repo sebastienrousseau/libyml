@@ -64,24 +64,46 @@ pub unsafe fn yaml_parser_initialize(
 /// - The `YamlParserT` struct and its associated data structures must be properly aligned and have the expected memory layout.
 /// - After calling this function, the `parser` pointer should be considered invalid and should not be used again.
 ///
+/// Destroy a parser.
+///
+/// This function frees all memory associated with a parser object, including
+/// any dynamically allocated buffers, tokens, and other data structures.
+///
+/// # Safety
+///
+/// - `parser` must be a valid, non-null pointer to a properly initialized `YamlParserT` struct.
+/// - After calling this function, `parser` should be considered invalid and should not be used again.
+///
 pub unsafe fn yaml_parser_delete(parser: *mut YamlParserT) {
     __assert!(!parser.is_null());
+
+    // 1) Free the buffers allocated by BUFFER_INIT! in yaml_parser_initialize
     BUFFER_DEL!((*parser).raw_buffer);
     BUFFER_DEL!((*parser).buffer);
+
+    // 2) Dequeue all tokens, freeing each one
     while !QUEUE_EMPTY!((*parser).tokens) {
         yaml_token_delete(addr_of_mut!(DEQUEUE!((*parser).tokens)));
     }
+    // Then free the queue itself
     QUEUE_DEL!((*parser).tokens);
+
+    // 3) Free each stack allocated by STACK_INIT! in yaml_parser_initialize
     STACK_DEL!((*parser).indents);
     STACK_DEL!((*parser).simple_keys);
     STACK_DEL!((*parser).states);
     STACK_DEL!((*parser).marks);
+
+    // 4) Special handling for tag directives because each directive’s handle
+    //    and prefix strings were allocated separately. We pop them and free them individually.
     while !STACK_EMPTY!((*parser).tag_directives) {
         let tag_directive = POP!((*parser).tag_directives);
         yaml_free(tag_directive.handle as *mut libc::c_void);
         yaml_free(tag_directive.prefix as *mut libc::c_void);
     }
     STACK_DEL!((*parser).tag_directives);
+
+    // 5) Zero out the parser struct to clean up any remaining state
     let _ = memset(
         parser as *mut libc::c_void,
         0,

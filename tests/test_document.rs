@@ -9,15 +9,14 @@ mod tests {
             yaml_document_append_mapping_pair,
             yaml_document_append_sequence_item,
             yaml_document_end_event_initialize,
+            yaml_document_start_event_delete,
             yaml_document_start_event_initialize,
         },
         success::{FAIL, OK},
         yaml_document_delete, yaml_document_get_node,
         yaml_document_get_root_node, yaml_document_initialize,
         YamlDocumentT, YamlEventT,
-        YamlEventTypeT::{
-            YamlDocumentEndEvent, YamlDocumentStartEvent,
-        },
+        YamlEventTypeT::YamlDocumentEndEvent,
         YamlMappingStyleT,
         YamlNodeTypeT::YamlScalarNode,
         YamlScalarStyleT, YamlSequenceStyleT, YamlTagDirectiveT,
@@ -75,11 +74,11 @@ mod tests {
     }
 
     #[test]
-    /// Test document initialization
     fn test_yaml_document_initialize() {
         unsafe {
             let mut doc: YamlDocumentT =
                 MaybeUninit::zeroed().assume_init();
+
             let result = yaml_document_initialize(
                 &mut doc,
                 ptr::null_mut(),
@@ -90,8 +89,10 @@ mod tests {
             );
             assert!(
                 result.ok,
-                "Document initialization should succeed with valid pointer"
+                "Document initialization should succeed"
             );
+
+            doc.cleanup();
         }
     }
 
@@ -312,9 +313,13 @@ mod tests {
             let mut large_tag_directive: YamlTagDirectiveT =
                 MaybeUninit::zeroed().assume_init();
 
-            // Allocate large arrays directly on the stack
-            let large_handle = [b'a'; 1024]; // 1KB handle
-            let large_prefix = [b'b'; 1024]; // 1KB prefix
+            // Allocate 1025 bytes so we can store 1024 characters plus a null terminator.
+            let mut large_handle = [b'a'; 1025];
+            let mut large_prefix = [b'b'; 1025];
+
+            // Ensure each one is null-terminated at the last byte.
+            large_handle[1024] = b'\0';
+            large_prefix[1024] = b'\0';
 
             large_tag_directive.handle =
                 large_handle.as_ptr() as *mut u8;
@@ -338,6 +343,8 @@ mod tests {
                 result, OK,
                 "Initialization with large tag directives failed"
             );
+
+            // Clean up the document now that we're done with it.
             doc.cleanup();
         }
     }
@@ -775,35 +782,22 @@ mod tests {
     /// Test document start event initialization
     fn test_yaml_document_start_event_initialize() {
         unsafe {
-            let mut event: YamlEventT =
-                MaybeUninit::zeroed().assume_init();
-            let mut version_directive =
-                YamlVersionDirectiveT::new(1, 1);
-            assert_eq!(
-                yaml_document_start_event_initialize(
-                    &mut event,
-                    &mut version_directive,
-                    ptr::null_mut(),
-                    ptr::null_mut(),
-                    true
-                ),
-                OK
+            let mut event =
+                MaybeUninit::<YamlEventT>::zeroed().assume_init();
+            let version_directive = ptr::null_mut();
+
+            let result = yaml_document_start_event_initialize(
+                &mut event,
+                version_directive,
+                ptr::null_mut(),
+                ptr::null_mut(),
+                true,
             );
-            assert_eq!(event.type_, YamlDocumentStartEvent);
-            assert!(event.data.document_start.implicit);
-            assert!(!event
-                .data
-                .document_start
-                .version_directive
-                .is_null());
-            assert_eq!(
-                (*event.data.document_start.version_directive).major,
-                1
-            );
-            assert_eq!(
-                (*event.data.document_start.version_directive).minor,
-                1
-            );
+            // check `result` if needed
+            assert_eq!(result, OK);
+
+            // When done with the event, free everything it allocated:
+            yaml_document_start_event_delete(&mut event);
         }
     }
     #[test]

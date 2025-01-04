@@ -2340,7 +2340,7 @@ unsafe fn yaml_emitter_write_double_quoted_scalar(
                         as libc::c_int;
                     while k >= 0 {
                         let digit: libc::c_int =
-                            (value_0 >> k & 0x0F) as libc::c_int;
+                            ((value_0 >> k) & 0x0F) as libc::c_int;
                         if put(
                             emitter,
                             (digit

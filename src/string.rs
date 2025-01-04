@@ -7,8 +7,6 @@ use crate::{
 
 /// Extend a string buffer by reallocating and copying the existing data.
 ///
-/// This function is used to grow a string buffer when more space is needed.
-///
 /// # Safety
 ///
 /// - This function is unsafe because it directly calls the system's `realloc` and
@@ -25,23 +23,40 @@ pub unsafe fn yaml_string_extend(
     pointer: *mut *mut yaml_char_t,
     end: *mut *mut yaml_char_t,
 ) {
-    let current_size = (*end).offset_from(*start) as size_t;
-    let new_size = current_size * 2;
+    // 1) Compute the current capacity (before reallocation), storing as `size_t`.
+    let current_size: size_t = (*end).offset_from(*start) as size_t;
 
-    let new_start: *mut yaml_char_t =
-        yaml_realloc(*start as *mut libc::c_void, new_size)
+    // 2) Record the old offset between `pointer` and `start`, also as `size_t`.
+    let old_offset: size_t = (*pointer).offset_from(*start) as size_t;
+
+    // 3) Decide the new size (for example, double).
+    let new_size: size_t = current_size * 2;
+
+    // 4) Reallocate. This may move (and free) the old pointer.
+    //    It's crucial we computed `old_offset` first.
+    let new_start =
+        yaml_realloc((*start).cast::<libc::c_void>(), new_size)
             as *mut yaml_char_t;
-    let _ = memset(
-        new_start.add(current_size.try_into().unwrap())
-            as *mut libc::c_void,
+    if new_start.is_null() {
+        // handle out-of-memory, or let it panic
+        panic!("yaml_string_extend: reallocation failed");
+    }
+
+    // 5) Optionally zero out the newly allocated region:
+    //    from `current_size` up to `new_size`.
+    memset(
+        new_start.add(current_size as usize).cast::<libc::c_void>(),
         0,
         current_size,
     );
 
-    let offset = (*pointer).offset_from(*start);
-    *pointer = new_start.add(offset.try_into().unwrap());
-    *end = new_start.add((new_size as isize).try_into().unwrap());
+    // 6) Update pointers:
+    //    - `*start` => new pointer
+    //    - `*pointer` => offset from new_start by old_offset
+    //    - `*end` => new_start + new_size
     *start = new_start;
+    *pointer = new_start.add(old_offset as usize);
+    *end = new_start.add(new_size as usize);
 }
 
 /// Duplicate a null-terminated string.

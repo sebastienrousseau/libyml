@@ -793,3 +793,50 @@ pub unsafe fn yaml_document_start_event_initialize(
     yaml_free(value.prefix as *mut libc::c_void);
     FAIL
 }
+
+/// Deletes a YAML document start event.
+///
+/// This function frees any dynamically allocated memory associated with the given YAML document start event.
+///
+/// # Parameters
+///
+/// * `event`: A mutable pointer to a `YamlEventT` struct representing the YAML document start event to be deleted.
+///
+/// # Safety
+///
+/// This function must be called with a valid, non-null pointer to a `YamlEventT` struct that represents a YAML document start event.
+///
+/// # Panics
+///
+/// This function does not panic.
+pub unsafe fn yaml_document_start_event_delete(event: *mut YamlEventT) {
+    if event.is_null() {
+        return;
+    }
+    // Free the version directive if allocated
+    let version_ptr = (*event).data.document_start.version_directive;
+    if !version_ptr.is_null() {
+        yaml_free(version_ptr as *mut libc::c_void);
+        (*event).data.document_start.version_directive =
+            ptr::null_mut();
+    }
+    // Free the array of tag_directives if allocated
+    let mut directives_start =
+        (*event).data.document_start.tag_directives.start;
+    let directives_end =
+        (*event).data.document_start.tag_directives.end;
+
+    while directives_start < directives_end {
+        yaml_free((*directives_start).handle as *mut libc::c_void);
+        yaml_free((*directives_start).prefix as *mut libc::c_void);
+        directives_start = directives_start.add(1);
+    }
+    if !(*event).data.document_start.tag_directives.start.is_null() {
+        yaml_free(
+            (*event).data.document_start.tag_directives.start
+                as *mut libc::c_void,
+        );
+    }
+    (*event).data.document_start.tag_directives.start = ptr::null_mut();
+    (*event).data.document_start.tag_directives.end = ptr::null_mut();
+}

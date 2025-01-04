@@ -172,12 +172,13 @@ pub unsafe fn yaml_emitter_flush(
                 .wrapping_offset(high as isize) =
                 0xD8_u32.force_add(value >> 18) as libc::c_uchar;
             *(*emitter).raw_buffer.last.wrapping_offset(low as isize) =
-                (value >> 10 & 0xFF) as libc::c_uchar;
+                ((value >> 10) & 0xFF) as libc::c_uchar;
             *(*emitter)
                 .raw_buffer
                 .last
-                .wrapping_offset((high + 2) as isize) =
-                0xDC_u32.force_add(value >> 8 & 0xFF) as libc::c_uchar;
+                .wrapping_offset((high + 2) as isize) = 0xDC_u32
+                .force_add((value >> 8) & 0xFF)
+                as libc::c_uchar;
             *(*emitter)
                 .raw_buffer
                 .last

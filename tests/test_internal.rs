@@ -33,21 +33,22 @@ mod tests {
     #[test]
     fn test_yaml_queue_extend() {
         unsafe {
-            // Initialize a small queue
+            // Allocate a 16-byte queue
             let mut start = yaml_malloc(16);
-            let mut head = start;
-            let mut tail = start;
-            let mut end = start.add(32);
 
-            // Extend the queue
+            // We'll treat the queue as if it's fully used:
+            let mut head = start;
+            let mut tail = start.add(16); // <--- tail is at end
+            let mut end = start.add(16); // so the queue is "full"
+
+            // Now `yaml_queue_extend` should see tail == end and reallocate to 32 bytes
             yaml_queue_extend(
                 &mut start, &mut head, &mut tail, &mut end,
             );
 
-            // Check if the queue size doubled
+            // This time, we expect end.offset_from(start) == 32
             assert_eq!(end.offset_from(start), 32);
 
-            // Clean up
             yaml_free(start);
         }
     }

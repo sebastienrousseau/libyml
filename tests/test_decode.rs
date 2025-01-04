@@ -21,6 +21,9 @@ mod tests {
             let mut parser = MaybeUninit::<YamlParserT>::uninit();
             let result = yaml_parser_initialize(parser.as_mut_ptr());
             assert!(result.ok, "Parser initialization should succeed");
+
+            // Now properly delete (free) the parser.
+            yaml_parser_delete(parser.as_mut_ptr());
         }
     }
 

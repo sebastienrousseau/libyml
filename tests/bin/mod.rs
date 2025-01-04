@@ -1,6 +1,6 @@
 use std::error::Error;
 use std::fmt;
-use std::fs::File;
+// use std::fs::File;
 use std::io::{Read, Write};
 use std::path::Path;
 use std::process::{Command, Stdio};
@@ -44,9 +44,11 @@ pub(crate) fn run(
     input: &Path,
 ) -> Output {
     if cfg!(miri) {
-        let mut input = File::open(input).unwrap();
+        // Use in-memory data to simulate file operations for Miri
+        let input_data = std::fs::read(input).unwrap();
+        let mut stdin = &input_data[..];
         let mut stdout = Vec::new();
-        let result = unsafe { unsafe_main(&mut input, &mut stdout) };
+        let result = unsafe { unsafe_main(&mut stdin, &mut stdout) };
 
         Output {
             success: result.is_ok(),

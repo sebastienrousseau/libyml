@@ -21,12 +21,17 @@ macro_rules! BUFFER_INIT {
     ($buffer:expr, $size:expr) => {{
         let start = addr_of_mut!($buffer.start);
         *start = yaml_malloc($size as size_t) as *mut yaml_char_t;
+        if !start.is_null() {
+            let _ = memset(*start as *mut libc::c_void, 0, $size as u64); // Convert to u64
+        } else {
+            panic!("Failed to allocate memory for buffer");
+        }
         let pointer = addr_of_mut!($buffer.pointer);
-        *pointer = $buffer.start;
+        *pointer = *start;
         let last = addr_of_mut!($buffer.last);
         *last = *pointer;
         let end = addr_of_mut!($buffer.end);
-        *end = $buffer.start.wrapping_add($size);
+        *end = (*start).wrapping_add($size);
     }};
 }
 
@@ -98,6 +103,11 @@ macro_rules! STRING_ASSIGN {
 macro_rules! STRING_INIT {
     ($string:expr) => {{
         $string.start = yaml_malloc(16) as *mut yaml_char_t;
+        if !$string.start.is_null() {
+            let _ = memset($string.start as *mut libc::c_void, 0, 16);
+        } else {
+            panic!("Failed to allocate memory for string");
+        }
         $string.pointer = $string.start;
         $string.end = $string.start.wrapping_add(16);
         let _ = memset($string.start as *mut libc::c_void, 0, 16);
@@ -140,7 +150,8 @@ macro_rules! STRING_DEL {
 #[macro_export]
 macro_rules! STRING_EXTEND {
     ($string:expr) => {
-        if $string.pointer.wrapping_add(5) >= $string.end {
+        let new_end = $string.pointer.wrapping_add(5);
+        if new_end >= $string.end {
             yaml_string_extend(
                 addr_of_mut!($string.start),
                 addr_of_mut!($string.pointer),

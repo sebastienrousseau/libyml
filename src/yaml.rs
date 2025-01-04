@@ -1,4 +1,5 @@
 use crate::libc;
+use crate::memory::yaml_free;
 use core::ops::Deref;
 use core::ptr::{self, addr_of};
 
@@ -1444,49 +1445,100 @@ impl Default for YamlEmitterStateT {
 }
 
 impl YamlDocumentT {
-    /// Cleans up resources used by `YamlDocumentT`. This includes deallocating memory for
-    /// version directives, tag directives, and nodes if they were allocated dynamically.
+    /// Cleans up all dynamically allocated memory within `YamlDocumentT`.
+    ///
+    /// Frees:
+    /// - `version_directive` pointer
+    /// - All `tag_directives` (including each directive’s `handle`/`prefix`)
+    /// - The `nodes` array, and per-node allocations (e.g., `tag`, `data.scalar.value`,
+    ///   `data.sequence.items`, `data.mapping.pairs`)
     ///
     /// # Safety
     ///
-    /// This function is `unsafe` because it assumes that all pointers (e.g., version_directive,
-    /// tag directives, and nodes) are either valid or null. It will attempt to free allocated
-    /// memory, so the caller must ensure that:
-    ///
-    /// 1. The struct has been initialized properly.
-    /// 2. No other code retains pointers to the data being freed here.
-    /// 3. This method is not called concurrently with any operations that read from or write to
-    ///    the pointed-to data.
-    /// 4. The memory management strategy (allocation and deallocation) is correctly paired.
-    ///    For instance, if `libc::malloc` is used to allocate, `libc::free` should be used to deallocate.
-    ///
+    /// - Assumes pointers are either valid or null.
+    /// - Must not be called if other code is still using these pointers.
+    /// - Must match the memory management strategy used in allocations (`yaml_free` here).
     pub unsafe fn cleanup(&mut self) {
-        // Assuming `version_directive` and `tag_directives.start/end` are pointers that need to be freed.
+        //
+        // 1) Free the version_directive if allocated
+        //
         if !self.version_directive.is_null() {
-            // Free version_directive if your logic requires it, e.g.,
-            // libc::free(self.version_directive as *mut libc::c_void);
+            yaml_free(self.version_directive as *mut libc::c_void);
             self.version_directive = ptr::null_mut();
         }
 
-        // Example of cleaning up tag directives if they were allocated dynamically
-        let mut tag_directive = self.tag_directives.start;
-        while tag_directive < self.tag_directives.end {
-            // Free each tag directive if necessary
-            // libc::free((*tag_directive).handle as *mut libc::c_void);
-            // libc::free((*tag_directive).prefix as *mut libc::c_void);
-            tag_directive = tag_directive.offset(1);
+        //
+        // 2) Free each YamlTagDirective’s handle/prefix, then free the array itself
+        //
+        let mut tag_ptr = self.tag_directives.start;
+        while tag_ptr < self.tag_directives.end {
+            // Each directive may have allocated handle/prefix
+            yaml_free((*tag_ptr).handle as *mut libc::c_void);
+            yaml_free((*tag_ptr).prefix as *mut libc::c_void);
+            tag_ptr = tag_ptr.add(1);
+        }
+        // Then free the array (if it was allocated with yaml_malloc or similar)
+        if !self.tag_directives.start.is_null() {
+            yaml_free(self.tag_directives.start as *mut libc::c_void);
+        }
+        self.tag_directives.start = ptr::null_mut();
+        self.tag_directives.end = ptr::null_mut();
+
+        //
+        // 3) Free each node’s allocations, then the nodes array.
+        //
+        let mut node_ptr = self.nodes.start;
+        while node_ptr < self.nodes.top {
+            let node = &mut *node_ptr;
+
+            // Free node.tag if allocated
+            if !node.tag.is_null() {
+                yaml_free(node.tag as *mut libc::c_void);
+                node.tag = ptr::null_mut();
+            }
+
+            match node.type_ {
+                YamlScalarNode => {
+                    // Free the scalar's value if allocated
+                    let scalar_val = node.data.scalar.value;
+                    if !scalar_val.is_null() {
+                        yaml_free(scalar_val as *mut libc::c_void);
+                        node.data.scalar.value = ptr::null_mut();
+                    }
+                }
+                YamlSequenceNode => {
+                    // Free the sequence items array
+                    let items_start = node.data.sequence.items.start;
+                    if !items_start.is_null() {
+                        yaml_free(items_start as *mut libc::c_void);
+                        node.data.sequence.items.start =
+                            ptr::null_mut();
+                        node.data.sequence.items.end = ptr::null_mut();
+                        node.data.sequence.items.top = ptr::null_mut();
+                    }
+                }
+                YamlMappingNode => {
+                    // Free the mapping pairs array
+                    let pairs_start = node.data.mapping.pairs.start;
+                    if !pairs_start.is_null() {
+                        yaml_free(pairs_start as *mut libc::c_void);
+                        node.data.mapping.pairs.start = ptr::null_mut();
+                        node.data.mapping.pairs.end = ptr::null_mut();
+                        node.data.mapping.pairs.top = ptr::null_mut();
+                    }
+                }
+                _ => {
+                    // E.g., YamlNoNode or future node types
+                }
+            }
+
+            node_ptr = node_ptr.add(1);
         }
 
-        // Assuming `nodes` needs to be cleaned up
-        let mut node = self.nodes.start;
-        while node < self.nodes.top {
-            // Free each node if necessary
-            // libc::free((*node).tag as *mut libc::c_void);
-            node = node.offset(1);
+        // Free the entire nodes array if allocated
+        if !self.nodes.start.is_null() {
+            yaml_free(self.nodes.start as *mut libc::c_void);
         }
-
-        // Free the nodes array itself if it was dynamically allocated
-        // libc::free(self.nodes.start as *mut libc::c_void);
         self.nodes.start = ptr::null_mut();
         self.nodes.end = ptr::null_mut();
         self.nodes.top = ptr::null_mut();

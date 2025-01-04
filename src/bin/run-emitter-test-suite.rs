@@ -217,7 +217,7 @@ pub(crate) unsafe fn unsafe_main(
     };
 
     yaml_emitter_delete(emitter);
-    result.map_err(Into::into)
+    result
 }
 
 struct ReadBuf {

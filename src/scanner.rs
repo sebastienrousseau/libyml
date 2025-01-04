@@ -2678,7 +2678,7 @@ unsafe fn yaml_parser_scan_flow_scalar(
                                         .pointer
                                         .wrapping_offset(1);
                                     *fresh577 = 0x80_u32
-                                        .force_add(value >> 6 & 0x3F)
+                                        .force_add((value >> 6) & 0x3F)
                                         as yaml_char_t;
                                     let fresh578 = string.pointer;
                                     string.pointer = string
@@ -2700,14 +2700,14 @@ unsafe fn yaml_parser_scan_flow_scalar(
                                         .pointer
                                         .wrapping_offset(1);
                                     *fresh580 = 0x80_u32
-                                        .force_add(value >> 12 & 0x3F)
+                                        .force_add((value >> 12) & 0x3F)
                                         as yaml_char_t;
                                     let fresh581 = string.pointer;
                                     string.pointer = string
                                         .pointer
                                         .wrapping_offset(1);
                                     *fresh581 = 0x80_u32
-                                        .force_add(value >> 6 & 0x3F)
+                                        .force_add((value >> 6) & 0x3F)
                                         as yaml_char_t;
                                     let fresh582 = string.pointer;
                                     string.pointer = string

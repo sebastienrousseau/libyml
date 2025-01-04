@@ -1,6 +1,6 @@
 [package]
 name = "libyml-test-suite"
-version = "0.0.0"
+version = "0.0.1"
 authors = ["LibYML Contributors"]
 edition = "2021"
 publish = false
@@ -10,11 +10,11 @@ path = "lib.rs"
 proc-macro = true
 
 [dependencies]
-proc-macro2 = "1.0.81"
-quote = "1.0.36"
+proc-macro2 = "1.0.92"
+quote = "1.0.38"
 
 [build-dependencies]
-anyhow = "1.0.82"
-flate2 = "1.0.29"
-reqwest = { version = "0.12.4", features = ["blocking"] }
-tar = "0.4.40"
+anyhow = "1.0.95"
+flate2 = "1.0.35"
+reqwest = { version = "0.12.12", features = ["blocking"] }
+tar = "0.4.43"

@@ -49,20 +49,15 @@ pub unsafe fn yaml_stack_extend(
     *start = new_start;
 }
 
-/// Extend a queue by reallocating and copying the existing data.
-///
-/// This function is used to grow a queue when more space is needed.
+/// Extend a queue by reallocating (doubling) if necessary or moving existing data.
 ///
 /// # Safety
 ///
-/// - This function is unsafe because it directly calls the system's `realloc` and
-///   `memmove` functions, which can lead to undefined behaviour if misused.
-/// - The caller must ensure that `start`, `head`, `tail`, and `end` are valid pointers
-///   into the same allocated memory block.
-/// - The caller must ensure that the memory block being extended is large enough to
-///   accommodate the new size.
-/// - The caller is responsible for properly freeing the extended memory block using
-///   the corresponding `yaml_free` function when it is no longer needed.
+/// - The caller must ensure `start`, `head`, `tail`, and `end` all point into
+///   the same allocated memory block.
+/// - If `tail == end`, this function will attempt to move data (if there is front space),
+///   or reallocate with double the current capacity.
+/// - The caller is responsible for eventually freeing the block with `yaml_free`.
 ///
 pub unsafe fn yaml_queue_extend(
     start: *mut *mut libc::c_void,
@@ -70,49 +65,69 @@ pub unsafe fn yaml_queue_extend(
     tail: *mut *mut libc::c_void,
     end: *mut *mut libc::c_void,
 ) {
-    if *start == *head && *tail == *end {
-        let new_start: *mut libc::c_void = yaml_realloc(
-            *start,
-            (((*end as *mut libc::c_char)
-                .c_offset_from(*start as *mut libc::c_char)
-                as libc::c_long)
-                .force_mul(2_i64)) as size_t,
-        );
-        *head = (new_start as *mut libc::c_char).wrapping_offset(
-            (*head as *mut libc::c_char)
-                .c_offset_from(*start as *mut libc::c_char)
-                as libc::c_long as isize,
-        ) as *mut libc::c_void;
-        *tail = (new_start as *mut libc::c_char).wrapping_offset(
-            (*tail as *mut libc::c_char)
-                .c_offset_from(*start as *mut libc::c_char)
-                as libc::c_long as isize,
-        ) as *mut libc::c_void;
-        *end = (new_start as *mut libc::c_char).wrapping_offset(
-            (((*end as *mut libc::c_char)
-                .c_offset_from(*start as *mut libc::c_char)
-                as libc::c_long)
-                .force_mul(2_i64)) as isize,
-        ) as *mut libc::c_void;
-        *start = new_start;
-    }
+    use crate::libc;
+    use crate::memory::yaml_realloc;
+
+    // 1) If `tail` has reached `end`, we either move data to the front or reallocate.
     if *tail == *end {
-        if *head != *tail {
-            let _ = memmove(
+        // Calculate how many bytes are currently used in the queue
+        let used_bytes = (*tail as *mut libc::c_char)
+            .c_offset_from(*head as *mut libc::c_char);
+
+        // Calculate the total capacity
+        let capacity = (*end as *mut libc::c_char)
+            .c_offset_from(*start as *mut libc::c_char);
+
+        // 2) If there's space at the front (i.e., head != start), move data down to index 0
+        if *head != *start {
+            // Move the used portion to the front
+            let _ = memmove(*start, *head, used_bytes as libc::c_ulong);
+
+            // Update `tail` to be right after the moved bytes
+            *tail = (*start as *mut libc::c_char)
+                .add(used_bytes as usize)
+                as *mut libc::c_void;
+
+            // `head` now points to the start of the block
+            *head = *start;
+        } else {
+            // 3) Otherwise, there's no free space in the front, so we must reallocate (double capacity)
+            let new_capacity = capacity * 2;
+
+            let new_start = yaml_realloc(
                 *start,
-                *head,
-                (*tail as *mut libc::c_char)
-                    .c_offset_from(*head as *mut libc::c_char)
-                    as libc::c_ulong,
+                (new_capacity as usize).try_into().unwrap(),
             );
+            if new_start.is_null() {
+                // Handle error: out-of-memory or panic, etc.
+                // For now, just return or panic
+                panic!("yaml_queue_extend: reallocation failed");
+            }
+
+            // Recalculate the old offsets
+            let old_start_char = *start as *mut libc::c_char;
+            let head_offset = (*head as *mut libc::c_char)
+                .c_offset_from(old_start_char);
+            let tail_offset = (*tail as *mut libc::c_char)
+                .c_offset_from(old_start_char);
+
+            // Store the new base pointer
+            *start = new_start;
+            let new_start_char = new_start as *mut libc::c_char;
+
+            // Update head/tail pointers to new positions
+            *head = new_start_char.add(head_offset as usize)
+                as *mut libc::c_void;
+            *tail = new_start_char.add(tail_offset as usize)
+                as *mut libc::c_void;
+
+            // `end` is now start + new_capacity
+            *end = new_start_char.add(new_capacity as usize)
+                as *mut libc::c_void;
         }
-        *tail = (*start as *mut libc::c_char).wrapping_offset(
-            (*tail as *mut libc::c_char)
-                .c_offset_from(*head as *mut libc::c_char)
-                as libc::c_long as isize,
-        ) as *mut libc::c_void;
-        *head = *start;
     }
+
+    // If `*tail` hasn't reached `*end`, no action is required.
 }
 
 /// Checks if the provided UTF-8 encoded string is valid according to the UTF-8 specification.

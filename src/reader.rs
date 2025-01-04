@@ -470,7 +470,7 @@ pub(crate) unsafe fn yaml_parser_update_buffer(
                 let fresh24 = addr_of_mut!((*parser).buffer.last);
                 let fresh25 = *fresh24;
                 *fresh24 = (*fresh24).wrapping_offset(1);
-                *fresh25 = 0x80_u32.force_add(value >> 6 & 0x3F)
+                *fresh25 = 0x80_u32.force_add((value >> 6) & 0x3F)
                     as yaml_char_t;
                 let fresh26 = addr_of_mut!((*parser).buffer.last);
                 let fresh27 = *fresh26;
@@ -486,12 +486,12 @@ pub(crate) unsafe fn yaml_parser_update_buffer(
                 let fresh30 = addr_of_mut!((*parser).buffer.last);
                 let fresh31 = *fresh30;
                 *fresh30 = (*fresh30).wrapping_offset(1);
-                *fresh31 = 0x80_u32.force_add(value >> 12 & 0x3F)
+                *fresh31 = 0x80_u32.force_add((value >> 12) & 0x3F)
                     as yaml_char_t;
                 let fresh32 = addr_of_mut!((*parser).buffer.last);
                 let fresh33 = *fresh32;
                 *fresh32 = (*fresh32).wrapping_offset(1);
-                *fresh33 = 0x80_u32.force_add(value >> 6 & 0x3F)
+                *fresh33 = 0x80_u32.force_add((value >> 6) & 0x3F)
                     as yaml_char_t;
                 let fresh34 = addr_of_mut!((*parser).buffer.last);
                 let fresh35 = *fresh34;

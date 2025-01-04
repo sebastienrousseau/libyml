@@ -1,3 +1,4 @@
+#![allow(missing_docs)]
 use libyml::{
     internal::{yaml_check_utf8, yaml_queue_extend, yaml_stack_extend},
     memory::{yaml_free, yaml_malloc},

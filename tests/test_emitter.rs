@@ -1,3 +1,4 @@
+#![allow(missing_docs)]
 #![allow(clippy::type_complexity, clippy::uninlined_format_args)]
 
 mod bin;

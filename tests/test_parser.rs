@@ -1,3 +1,4 @@
+#![allow(missing_docs)]
 //! This module contains tests for the YAML parser functionality.
 //! It includes both general parsing tests and specific test cases for various YAML features.
 

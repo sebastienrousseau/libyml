@@ -1,3 +1,4 @@
+#![allow(missing_docs)]
 //! This module contains tests for the YAML parser error handling.
 //! It ensures that the parser correctly identifies and reports errors in invalid YAML documents.
 

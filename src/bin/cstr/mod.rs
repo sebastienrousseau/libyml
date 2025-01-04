@@ -1,7 +1,7 @@
+use core::ffi::c_char;
 use std::fmt::{self, Display, Write as _};
 use std::slice;
 use std::str;
-use core::ffi::c_char;
 
 pub(crate) struct CStr {
     pub(crate) ptr: *const u8,

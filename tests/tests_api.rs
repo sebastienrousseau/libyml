@@ -9,8 +9,9 @@ mod tests {
             yaml_emitter_get_encoding, yaml_emitter_get_indent,
             yaml_emitter_get_unicode, yaml_emitter_get_width,
             yaml_emitter_initialize, yaml_emitter_set_canonical,
-            yaml_emitter_set_indent, yaml_emitter_set_output_string,
-            yaml_event_delete, yaml_mapping_end_event_initialize,
+            yaml_emitter_set_indent, yaml_emitter_set_output,
+            yaml_emitter_set_output_string, yaml_event_delete,
+            yaml_mapping_end_event_initialize,
             yaml_mapping_start_event_initialize,
             yaml_parser_set_input_string, yaml_scalar_event_initialize,
             yaml_sequence_end_event_initialize,
@@ -193,6 +194,29 @@ mod tests {
     }
 
     #[test]
+    fn test_yaml_parser_set_encoding() {
+        unsafe {
+            // Minimal parser struct for demonstration
+            #[repr(C)]
+            struct TestYamlParser {
+                parser: YamlParserT,
+            }
+
+            // 1. Create a parser
+            let mut parser_struct = TestYamlParser {
+                parser: std::mem::zeroed(),
+            };
+            // By default, it might be YamlAnyEncoding = 0.
+
+            // 2. Set encoding (for example, YamlUtf8Encoding = 1)
+            libyml::api::yaml_parser_set_encoding(
+                &mut parser_struct.parser,
+                YamlUtf8Encoding,
+            );
+        }
+    }
+
+    #[test]
     fn test_yaml_emitter_set_encoding() {
         unsafe {
             // Minimal "fake" emitter
@@ -220,6 +244,28 @@ mod tests {
                 YamlUtf8Encoding
             );
 
+            yaml_emitter_delete(&mut emitter_struct.emitter);
+        }
+    }
+
+    #[test]
+    fn test_yaml_emitter_delete_explicit() {
+        unsafe {
+            // Minimal emitter struct
+            #[repr(C)]
+            struct TestYamlEmitter {
+                emitter: YamlEmitterT,
+            }
+            let mut emitter_struct = TestYamlEmitter {
+                emitter: std::mem::zeroed(),
+            };
+
+            // 1. Initialize
+            let init_result =
+                yaml_emitter_initialize(&mut emitter_struct.emitter);
+            assert_eq!(init_result, OK);
+
+            // 2. Delete
             yaml_emitter_delete(&mut emitter_struct.emitter);
         }
     }
@@ -284,6 +330,36 @@ mod tests {
             assert_eq!(
                 yaml_emitter_get_indent(&mut emitter_struct.emitter),
                 2
+            );
+
+            yaml_emitter_delete(&mut emitter_struct.emitter);
+        }
+    }
+
+    #[test]
+    fn test_yaml_string_write_handler_integration() {
+        unsafe {
+            #[repr(C)]
+            struct TestYamlEmitter {
+                emitter: YamlEmitterT,
+            }
+            let mut emitter_struct = TestYamlEmitter {
+                emitter: std::mem::zeroed(),
+            };
+
+            // 1. Initialize
+            let init_result =
+                yaml_emitter_initialize(&mut emitter_struct.emitter);
+            assert_eq!(init_result, OK);
+
+            // 2. Provide an output buffer
+            let mut output_buffer: [u8; 16] = [0; 16];
+            let mut written: size_t = 0;
+            yaml_emitter_set_output_string(
+                &mut emitter_struct.emitter,
+                output_buffer.as_mut_ptr(),
+                output_buffer.len() as size_t,
+                &mut written,
             );
 
             yaml_emitter_delete(&mut emitter_struct.emitter);
@@ -390,6 +466,60 @@ mod tests {
             yaml_emitter_delete(&mut emitter_struct.emitter);
         }
     }
+
+    #[test]
+    fn test_yaml_emitter_set_output() {
+        unsafe {
+            #[repr(C)]
+            struct TestYamlEmitter {
+                emitter: YamlEmitterT,
+            }
+
+            let mut emitter_struct = TestYamlEmitter {
+                emitter: std::mem::zeroed(),
+            };
+            let init_result =
+                yaml_emitter_initialize(&mut emitter_struct.emitter);
+            assert_eq!(init_result, OK);
+
+            // Define a dummy write handler **without** extern "C"
+            unsafe fn my_dummy_write_handler(
+                _data: *mut c_void,
+                _buffer: *mut u8,
+                _size: size_t,
+            ) -> i32 {
+                1
+            }
+
+            // If your library only expects a bare function pointer:
+            yaml_emitter_set_output(
+                &mut emitter_struct.emitter,
+                my_dummy_write_handler, // <-- plain Rust fn pointer
+                null_mut(),
+            );
+
+            // Cleanup
+            yaml_emitter_delete(&mut emitter_struct.emitter);
+        }
+    }
+
+    #[test]
+    fn test_yaml_token_delete_minimal() {
+        unsafe {
+            let mut token: YamlTokenT = std::mem::zeroed();
+
+            // Suppose YamlAliasToken is 9 or so, check your actual enum
+            token.type_ = YamlAliasToken;
+
+            // Allocate a dummy anchor
+            let anchor_str = b"dummy_anchor\0";
+            token.data.alias.value = yaml_strdup(anchor_str.as_ptr());
+
+            // Now delete
+            yaml_token_delete(&mut token);
+        }
+    }
+
     // ------------------ Emitter Output Setting Tests ------------------
 
     #[test]
@@ -431,6 +561,33 @@ mod tests {
             yaml_token_delete(&mut token);
             // Freed the anchor, zeroed
             assert_eq!(token.type_, YamlNoToken);
+        }
+    }
+
+    #[test]
+    fn test_yaml_scalar_event_initialize_with_anchor_tag() {
+        unsafe {
+            let mut event: YamlEventT = std::mem::zeroed();
+            let anchor = b"anchor\0";
+            let tag = b"tag:yaml.org,2002:str\0";
+            let data = ScalarEventData {
+                anchor: anchor.as_ptr(),
+                tag: tag.as_ptr(),
+                value: b"test_value\0".as_ptr(),
+                length: -1, // auto-calc
+                plain_implicit: false,
+                quoted_implicit: false,
+                style: YamlScalarStyleT::YamlPlainScalarStyle,
+                _marker: std::marker::PhantomData,
+            };
+
+            let result = yaml_scalar_event_initialize(&mut event, data);
+            assert_eq!(result, OK);
+            // e.g. check event.type_ == YamlScalarEvent
+            // check that event.data.scalar.anchor is not null, etc.
+
+            // cleanup
+            yaml_event_delete(&mut event);
         }
     }
 

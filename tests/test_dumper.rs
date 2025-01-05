@@ -1536,7 +1536,7 @@ mod tests {
             (*val2_node).data.scalar.style = YamlPlainScalarStyle;
 
             // 6. sub_map (#6) has 1 pair => (#7 => #8)
-            let sub_map_pair_size = 1 * size_of::<YamlNodePairT>();
+            let sub_map_pair_size = size_of::<YamlNodePairT>();
             let sub_map_pairs = malloc(sub_map_pair_size as size_t)
                 as *mut YamlNodePairT;
             write_bytes(sub_map_pairs as *mut u8, 0, sub_map_pair_size);
@@ -1870,7 +1870,7 @@ mod tests {
             (*key_bar).data.scalar.style = YamlPlainScalarStyle;
 
             // 5. The anchored map (#3) has 1 pair => (#4 => #5)
-            let anchored_pairs_size = 1 * size_of::<YamlNodePairT>();
+            let anchored_pairs_size = size_of::<YamlNodePairT>();
             let anchored_pairs_ptr =
                 malloc(anchored_pairs_size as size_t)
                     as *mut YamlNodePairT;

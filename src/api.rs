@@ -140,6 +140,22 @@ pub unsafe fn yaml_parser_set_encoding(
     (*parser).encoding = encoding;
 }
 
+/// Get the encoding of the emitter.
+///
+/// This function returns the encoding currently set for the emitter.
+///
+/// # Safety
+///
+/// - `emitter` must be a valid, non-null pointer to a properly initialized `YamlEmitterT` struct.
+/// - The `YamlEmitterT` struct must be properly aligned and have the expected memory layout.
+///
+pub unsafe fn yaml_emitter_get_encoding(
+    emitter: *mut YamlEmitterT,
+) -> YamlEncodingT {
+    __assert!(!emitter.is_null());
+    (*emitter).encoding
+}
+
 /// Initialize an emitter.
 ///
 /// This function creates a new emitter object. An application is responsible
@@ -342,10 +358,39 @@ pub unsafe fn yaml_emitter_set_canonical(
     (*emitter).canonical = canonical;
 }
 
+/// Returns the current canonical setting of the emitter.
+///
+/// # Parameters
+///
+/// * `emitter`: A pointer to a `YamlEmitterT` struct. This must be a valid, non-null pointer.
+///
+/// # Return
+///
+/// * A boolean value indicating the current canonical setting of the emitter.
+///   - `true`: The emitter is currently in canonical mode.
+///   - `false`: The emitter is not currently in canonical mode.
+///
+/// # Safety
+///
+/// - `emitter` must be a valid, non-null pointer to a properly initialized `YamlEmitterT` struct.
+/// - The `YamlEmitterT` struct and its associated data structures must be properly aligned and have the expected memory layout.
+///
+pub unsafe fn yaml_emitter_get_canonical(
+    emitter: *mut YamlEmitterT,
+) -> bool {
+    __assert!(!emitter.is_null());
+    (*emitter).canonical
+}
+
 /// Set the indentation increment.
 ///
 /// This function sets the indentation increment to be used by the emitter when
 /// emitting indented content.
+///
+/// # Safety
+///
+/// - `emitter` must be a valid, non-null pointer to a properly initialized `YamlEmitterT` struct.
+/// - The `YamlEmitterT` struct and its associated data structures must be properly aligned and have the expected memory layout.
 ///
 /// # Safety
 ///
@@ -359,6 +404,30 @@ pub unsafe fn yaml_emitter_set_indent(
     __assert!(!emitter.is_null());
     (*emitter).best_indent =
         if 1 < indent && indent < 10 { indent } else { 2 };
+}
+
+/// Returns the current indentation setting of the emitter.
+///
+/// # Parameters
+///
+/// * `emitter`: A pointer to a `YamlEmitterT` struct. This must be a valid, non-null pointer.
+///
+/// # Return
+///
+/// * An integer value representing the current indentation setting of the emitter.
+///   - A positive integer value indicates the number of spaces used for indentation.
+///   - A value of 0 indicates that no indentation is used.
+///
+/// # Safety
+///
+/// - `emitter` must be a valid, non-null pointer to a properly initialized `YamlEmitterT` struct.
+/// - The `YamlEmitterT` struct and its associated data structures must be properly aligned and have the expected memory layout.
+///
+pub unsafe fn yaml_emitter_get_indent(
+    emitter: *mut YamlEmitterT,
+) -> libc::c_int {
+    __assert!(!emitter.is_null());
+    (*emitter).best_indent
 }
 
 /// Set the preferred line width. -1 means unlimited.
@@ -379,6 +448,30 @@ pub unsafe fn yaml_emitter_set_width(
     (*emitter).best_width = if width >= 0 { width } else { -1 };
 }
 
+/// Returns the current preferred line width setting of the emitter.
+///
+/// # Parameters
+///
+/// * `emitter`: A pointer to a `YamlEmitterT` struct. This must be a valid, non-null pointer.
+///
+/// # Return
+///
+/// * An integer value representing the current preferred line width setting of the emitter.
+///   - A positive integer value indicates the number of spaces used for indentation.
+///   - A value of -1 indicates that no line width is set, meaning the line width is unlimited.
+///
+/// # Safety
+///
+/// - `emitter` must be a valid, non-null pointer to a properly initialized `YamlEmitterT` struct.
+/// - The `YamlEmitterT` struct and its associated data structures must be properly aligned and have the expected memory layout.
+///
+pub unsafe fn yaml_emitter_get_width(
+    emitter: *mut YamlEmitterT,
+) -> libc::c_int {
+    __assert!(!emitter.is_null());
+    (*emitter).best_width
+}
+
 /// Set if unescaped non-ASCII characters are allowed.
 ///
 /// This function sets whether the emitter should allow unescaped non-ASCII
@@ -397,6 +490,30 @@ pub unsafe fn yaml_emitter_set_unicode(
     (*emitter).unicode = unicode;
 }
 
+/// Returns the current setting for allowing unescaped non-ASCII characters in the emitter's output.
+///
+/// # Parameters
+///
+/// * `emitter`: A pointer to a `YamlEmitterT` struct. This must be a valid, non-null pointer.
+///
+/// # Return
+///
+/// * A boolean value indicating whether unescaped non-ASCII characters are allowed.
+///   - `true` if unescaped non-ASCII characters are allowed.
+///   - `false` if unescaped non-ASCII characters are not allowed.
+///
+/// # Safety
+///
+/// - `emitter` must be a valid, non-null pointer to a properly initialized `YamlEmitterT` struct.
+/// - The `YamlEmitterT` struct and its associated data structures must be properly aligned and have the expected memory layout.
+///
+pub unsafe fn yaml_emitter_get_unicode(
+    emitter: *mut YamlEmitterT,
+) -> bool {
+    __assert!(!emitter.is_null());
+    (*emitter).unicode
+}
+
 /// Set the preferred line break.
 ///
 /// This function sets the preferred line break character to be used by the emitter.
@@ -412,6 +529,30 @@ pub unsafe fn yaml_emitter_set_break(
 ) {
     __assert!(!emitter.is_null());
     (*emitter).line_break = line_break;
+}
+
+/// Retrieves the current preferred line break setting of the emitter.
+///
+/// # Parameters
+///
+/// * `emitter`: A pointer to a `YamlEmitterT` struct. This pointer must be valid and non-null.
+///
+/// # Return
+///
+/// * Returns the current preferred line break setting of the emitter.
+///   - `YamlBreakT::YamlLineBreak` if the line break is set to a line feed character.
+///   - `YamlBreakT::YamlCarriageReturnLineFeed` if the line break is set to a carriage return followed by a line feed character.
+///
+/// # Safety
+///
+/// - `emitter` must be a valid, non-null pointer to a properly initialized `YamlEmitterT` struct.
+/// - The `YamlEmitterT` struct and its associated data structures must be properly aligned and have the expected memory layout.
+///
+pub unsafe fn yaml_emitter_get_break(
+    emitter: *mut YamlEmitterT,
+) -> YamlBreakT {
+    __assert!(!emitter.is_null());
+    (*emitter).line_break
 }
 
 /// Free any memory allocated for a token object.

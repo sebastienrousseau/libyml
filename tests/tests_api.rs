@@ -248,10 +248,9 @@ mod tests {
             );
 
             // 3. Confirm via get_canonical()
-            assert_eq!(
-                yaml_emitter_get_canonical(&mut emitter_struct.emitter),
-                true
-            );
+            assert!(yaml_emitter_get_canonical(
+                &mut emitter_struct.emitter
+            ));
 
             // 4. Cleanup
             yaml_emitter_delete(&mut emitter_struct.emitter);
@@ -346,20 +345,18 @@ mod tests {
             );
 
             // default is false
-            assert_eq!(
-                yaml_emitter_get_unicode(&mut emitter_struct.emitter),
-                false
-            );
+            assert!(!yaml_emitter_get_unicode(
+                &mut emitter_struct.emitter
+            ));
 
             // set it true
             libyml::api::yaml_emitter_set_unicode(
                 &mut emitter_struct.emitter,
                 true,
             );
-            assert_eq!(
-                yaml_emitter_get_unicode(&mut emitter_struct.emitter),
-                true
-            );
+            assert!(yaml_emitter_get_unicode(
+                &mut emitter_struct.emitter
+            ));
 
             yaml_emitter_delete(&mut emitter_struct.emitter);
         }

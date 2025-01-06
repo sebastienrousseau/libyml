@@ -8,7 +8,9 @@
 //! 1. [`yaml_parser_initialize`] — Creates and initializes a `YamlParserT` parser object.
 //! 2. [`yaml_parser_delete`] — Destroys a parser object, freeing all associated memory.
 //!
-//! The macros such as `BUFFER_INIT!`, `STACK_INIT!`, `QUEUE_INIT!`, etc., are assumed to be correctly defined elsewhere in the codebase. They handle the details of initializing, freeing, or managing the relevant buffers, stacks, and queues internally.
+//! The macros such as `BUFFER_INIT!`, `STACK_INIT!`, `QUEUE_INIT!`, etc., are assumed to be
+//! correctly defined elsewhere in the codebase. They handle the details of initializing, freeing,
+//! or managing the relevant buffers, stacks, and queues internally.
 //!
 //! # Usage
 //!
@@ -35,14 +37,20 @@
 //!
 //! # Safety
 //!
-//! - [`yaml_parser_initialize`] and [`yaml_parser_delete`] are **unsafe** because they operate on raw pointers and can cause undefined behavior if used incorrectly (e.g. double-free).
-//! - Internally, we rely on macros (`__assert!`, `BUFFER_INIT!`, etc.) to ensure these data structures (buffers, stacks, queues) are properly allocated and freed. You must ensure these macros are well-defined and correct.
-//! - The [`yaml_parser_delete`] function zeroes out the parser with `core::intrinsics::write_bytes` after freeing allocated memory. This helps avoid leaving sensitive data behind.
+//! - [`yaml_parser_initialize`] and [`yaml_parser_delete`] are **unsafe** because they operate on
+//!   raw pointers and can cause undefined behavior if used incorrectly (e.g. double-free).
+//! - Internally, we rely on macros (`__assert!`, `BUFFER_INIT!`, etc.) to ensure these data
+//!   structures (buffers, stacks, queues) are properly allocated and freed. You must ensure these
+//!   macros are well-defined and correct.
+//! - The [`yaml_parser_delete`] function zeroes out the parser with `core::intrinsics::write_bytes`
+//!   after freeing allocated memory. This helps avoid leaving sensitive data behind.
 //!
 //! # Additional Notes
 //!
-//! - The parser’s tokens may allocate memory for string data. If you dequeue tokens manually (outside the parser), ensure you free them with `yaml_token_delete`.
-//! - This code is assumed single-threaded. For concurrency, you’d need to synchronize or create separate parser instances.
+//! - The parser’s tokens may allocate memory for string data. If you dequeue tokens manually
+//!   (outside the parser), ensure you free them with `yaml_token_delete`.
+//! - This code is assumed single-threaded. For concurrency, you’d need to synchronize or create
+//!   separate parser instances.
 
 use crate::{
     libc,
@@ -68,9 +76,6 @@ const INPUT_RAW_BUFFER_SIZE: usize = 16384;
 /// the raw buffer to account for potential character expansions or multi-byte
 /// sequences.
 const INPUT_BUFFER_SIZE: usize = INPUT_RAW_BUFFER_SIZE * 3;
-
-// const OUTPUT_BUFFER_SIZE: usize = 16384;
-// const OUTPUT_RAW_BUFFER_SIZE: usize = OUTPUT_BUFFER_SIZE * 2 + 2;
 
 /// Initialize a parser.
 ///
@@ -117,14 +122,19 @@ const INPUT_BUFFER_SIZE: usize = INPUT_RAW_BUFFER_SIZE * 3;
 pub unsafe fn yaml_parser_initialize(
     parser: *mut YamlParserT,
 ) -> Success {
-    // 1) Clear the parser struct in case it was uninitialized
+    __assert!(
+        !parser.is_null(),
+        "yaml_parser_initialize: `parser` must not be null"
+    );
+
+    // Zero out the memory for safety, in case the struct was allocated uninitialized
     let _ = memset(
         parser as *mut c_void,
         0,
         size_of::<YamlParserT>() as libc::c_ulong,
     );
 
-    // 2) Set up buffers, stacks, queues via macros
+    // Initialize all internal data structures with your macros
     BUFFER_INIT!((*parser).raw_buffer, INPUT_RAW_BUFFER_SIZE);
     BUFFER_INIT!((*parser).buffer, INPUT_BUFFER_SIZE);
     QUEUE_INIT!((*parser).tokens, YamlTokenT);
@@ -134,11 +144,10 @@ pub unsafe fn yaml_parser_initialize(
     STACK_INIT!((*parser).marks, YamlMarkT);
     STACK_INIT!((*parser).tag_directives, YamlTagDirectiveT);
 
-    // 3) Return success indicator
     OK
 }
 
-/// Deallocates and resets a YAML parser.
+/// Destroys a YAML parser.
 ///
 /// Frees all memory associated with the parser, including:
 /// - The internal raw and decoded buffers
@@ -178,25 +187,29 @@ pub unsafe fn yaml_parser_initialize(
 ///     // parser is now invalid
 /// }
 /// ```
-#[no_mangle]
-pub unsafe extern "C" fn yaml_parser_delete(parser: *mut YamlParserT) {
-    // 1) Free the two main buffers (raw input and decoded buffer)
+pub unsafe fn yaml_parser_delete(parser: *mut YamlParserT) {
+    __assert!(
+        !parser.is_null(),
+        "yaml_parser_delete: `parser` must not be null"
+    );
+
+    // 1) Free the two main buffers
     BUFFER_DEL!((*parser).raw_buffer);
     BUFFER_DEL!((*parser).buffer);
 
-    // 2) Dequeue all tokens still stored in the parser, freeing each
+    // 2) Dequeue all tokens, freeing each
     while !QUEUE_EMPTY!((*parser).tokens) {
         yaml_token_delete(addr_of_mut!(DEQUEUE!((*parser).tokens)));
     }
     QUEUE_DEL!((*parser).tokens);
 
-    // 3) Free each stack
+    // 3) Free stacks
     STACK_DEL!((*parser).indents);
     STACK_DEL!((*parser).simple_keys);
     STACK_DEL!((*parser).states);
     STACK_DEL!((*parser).marks);
 
-    // 4) Free tag directives
+    // 4) Pop + free all tag directives
     while !STACK_EMPTY!((*parser).tag_directives) {
         let tag_directive = POP!((*parser).tag_directives);
         yaml_free(tag_directive.handle as *mut c_void);
@@ -204,10 +217,10 @@ pub unsafe extern "C" fn yaml_parser_delete(parser: *mut YamlParserT) {
     }
     STACK_DEL!((*parser).tag_directives);
 
-    // 5) Zero out the parser struct so it cannot be reused
-    core::intrinsics::write_bytes(
-        parser as *mut u8,
+    // 5) Zero out the parser struct
+    let _ = memset(
+        parser as *mut c_void,
         0,
-        core::mem::size_of::<YamlParserT>(),
+        size_of::<YamlParserT>() as libc::c_ulong,
     );
 }

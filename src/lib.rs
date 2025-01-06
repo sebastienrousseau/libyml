@@ -327,26 +327,63 @@ pub mod externs {
         }
     }
 
-    /// Macro for asserting conditions.
+    /// A macro for asserting a condition within `libyml`.
     ///
-    /// This macro is used internally to assert conditions and handle failures.
+    /// This macro calls [`$crate::externs::__assert_fail`] if the condition is false,
+    /// along with a string describing the failed assertion, plus the file and line number.
+    ///
+    /// # Usage
+    ///
+    /// - **Case 1**: Condition only (mimics `assert!(condition)`):
+    ///
+    /// ```ignore
+    /// __assert!(my_value == 42);
+    /// ```
+    ///
+    /// - **Case 2**: Literal message (mimics `assert!(condition, "message")`):
+    ///
+    /// ```ignore
+    /// __assert!(x < 5, "x should never exceed 5");
+    /// ```
+    ///
+    /// - **Special case**: If the macro is literally called as `__assert!(false)`, it directly calls
+    ///   `__assert_fail("false", ...)`.
+    ///
+    /// # Notes
+    ///
+    /// 1. [`$crate::externs::__assert_fail`] is assumed to be a function that takes a
+    ///    `msg: &str`, `file: &str`, and `line: u32`.
+    /// 2. Since we do not use `core::format!` or `std::format!`, this macro does **not** support
+    ///    placeholders like `"{}"`. If you need placeholders, you’d have to bring in `alloc` or
+    ///    rely on a different mechanism.
+    #[macro_export]
     macro_rules! __assert {
-        (false $(,)?) => {
-            $crate::externs::__assert_fail(
-                stringify!(false),
-                file!(),
-                line!(),
-            )
-        };
-        ($assertion:expr $(,)?) => {
-            if !$assertion {
+        // Special case: literal `false`
+        (false $(,)?) => {{
+            $crate::externs::__assert_fail("false", file!(), line!());
+        }};
+
+        // Case 1: Condition only
+        ($cond:expr $(,)?) => {{
+            if !$cond {
                 $crate::externs::__assert_fail(
-                    stringify!($assertion),
+                    stringify!($cond),
                     file!(),
                     line!(),
                 );
             }
-        };
+        }};
+
+        // Case 2: Condition plus a literal custom message
+        ($cond:expr, $message:literal $(,)?) => {{
+            if !$cond {
+                $crate::externs::__assert_fail(
+                    $message,
+                    file!(),
+                    line!(),
+                );
+            }
+        }};
     }
 
     /// Internal function for handling assertion failures.

@@ -419,6 +419,7 @@ mod fmt {
 /// This trait provides methods for working with pointers,
 /// particularly for calculating the offset between two pointers.
 trait PointerExt: Sized {
+    /// Calculates the offset between two pointers.
     fn c_offset_from(self, origin: Self) -> isize;
 }
 
@@ -491,10 +492,25 @@ pub mod internal;
 /// This module provides functions for managing memory within the library.
 pub mod memory;
 
-mod ops;
-mod parser;
-mod reader;
-mod scanner;
+/// Operations module for LibYML.
+///
+/// This module provides various operations and functions for working with YAML data.
+pub mod ops;
+
+/// Parser module for LibYML.
+///
+/// This module provides functions for parsing YAML data.
+pub mod parser;
+
+/// Reader module for LibYML.
+///
+/// This module provides functions for reading YAML data.
+pub mod reader;
+
+/// Scanner module for LibYML.
+///
+/// This module provides functions for scanning YAML data.
+pub mod scanner;
 
 /// Success and Failure types for LibYML.
 ///

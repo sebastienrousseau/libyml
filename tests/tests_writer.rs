@@ -2,7 +2,7 @@
 #[cfg(test)]
 mod tests {
     mod writer {
-        use libyml::success::FAIL;
+        use libyml::success::{FAIL, OK};
         use libyml::yaml::size_t;
         use libyml::yaml_emitter_delete;
         use libyml::yaml_emitter_initialize;
@@ -10,7 +10,6 @@ mod tests {
         use libyml::{
             api::yaml_emitter_set_encoding,
             libc::{c_int, c_uchar, c_void},
-            success,
             writer::yaml_emitter_flush,
             YamlEmitterT, YamlUtf16beEncoding, YamlUtf16leEncoding,
             YamlUtf8Encoding, YamlWriterError,
@@ -48,7 +47,7 @@ mod tests {
             emitter.write_handler = Some(mock_write_handler);
 
             let result = unsafe { yaml_emitter_flush(&mut emitter) };
-            assert_eq!(result, success::OK);
+            assert_eq!(result, OK);
             assert_eq!(emitter.buffer.pointer, emitter.buffer.start);
             assert_eq!(emitter.buffer.last, emitter.buffer.start);
         }
@@ -135,7 +134,7 @@ mod tests {
             emitter.write_handler = Some(mock_write_handler);
 
             let result = unsafe { yaml_emitter_flush(&mut emitter) };
-            assert_eq!(result, success::OK);
+            assert_eq!(result, OK);
             // No data => pointers remain
             assert_eq!(emitter.buffer.pointer, emitter.buffer.start);
             assert_eq!(emitter.buffer.last, emitter.buffer.start);
@@ -144,11 +143,6 @@ mod tests {
         ///  Tests multibyte UTF-8 character handling in flush
         #[test]
         fn test_yaml_emitter_flush_multibyte_utf8() {
-            use libyml::api::yaml_emitter_set_encoding;
-            use libyml::libc::{c_int, c_uchar, c_void};
-            use libyml::writer::yaml_emitter_flush;
-            use libyml::{success, YamlEmitterT, YamlUtf8Encoding};
-
             let data = [0xC3u8, 0xA9]; // UTF-8 for "é"
 
             // Mock write handler
@@ -184,7 +178,7 @@ mod tests {
                 .set_write_handler_data(data.as_ptr() as *mut c_void);
 
             let result = unsafe { yaml_emitter_flush(&mut emitter) };
-            assert_eq!(result, success::OK);
+            assert_eq!(result, OK);
             assert_eq!(emitter.buffer.pointer, emitter.buffer.start);
             assert_eq!(emitter.buffer.last, emitter.buffer.start);
         }
@@ -231,7 +225,7 @@ mod tests {
                 emitter.buffer.pointer = emitter.buffer.start;
 
                 let result = yaml_emitter_flush(&mut emitter);
-                assert_eq!(result, success::OK);
+                assert_eq!(result, OK);
 
                 yaml_emitter_delete(&mut emitter);
             }
@@ -275,7 +269,7 @@ mod tests {
                 emitter.buffer.pointer = emitter.buffer.start;
 
                 let result = yaml_emitter_flush(&mut emitter);
-                assert_eq!(result, success::OK);
+                assert_eq!(result, OK);
 
                 yaml_emitter_delete(&mut emitter);
             }
@@ -327,7 +321,7 @@ mod tests {
                 emitter.buffer.pointer = emitter.buffer.start;
 
                 let result = yaml_emitter_flush(&mut emitter);
-                assert_eq!(result, success::OK);
+                assert_eq!(result, OK);
 
                 yaml_emitter_delete(&mut emitter);
             }
@@ -411,6 +405,138 @@ mod tests {
                     emitter.error, YamlWriterError,
                     "Expected emitter.error to be YamlWriterError"
                 );
+
+                yaml_emitter_delete(&mut emitter);
+            }
+        }
+
+        /// Tests 2-byte UTF-8 to UTF-16 conversion
+        #[test]
+        fn test_yaml_emitter_flush_utf8_2byte_conversion() {
+            unsafe fn mock_write_handler(
+                _data: *mut c_void,
+                buffer: *mut c_uchar,
+                size: size_t,
+            ) -> c_int {
+                // For 2-byte UTF-8 character ('é'), expect 2 bytes in UTF-16
+                assert_eq!(size, 2);
+                let bytes =
+                    std::slice::from_raw_parts(buffer, size as usize);
+                // Verify UTF-16 encoding of 'é' (U+00E9)
+                assert_eq!(bytes[0], 0x00);
+                assert_eq!(bytes[1], 0xE9);
+                1
+            }
+
+            let mut emitter = YamlEmitterT::new();
+            unsafe {
+                let _ = yaml_emitter_initialize(&mut emitter);
+                yaml_emitter_set_encoding(
+                    &mut emitter,
+                    YamlUtf16leEncoding,
+                );
+                yaml_emitter_set_output(
+                    &mut emitter,
+                    mock_write_handler,
+                    std::ptr::null_mut(),
+                );
+
+                // 'é' in UTF-8 (0xC3 0xA9)
+                *emitter.buffer.start = 0xC3;
+                *emitter.buffer.start.add(1) = 0xA9;
+                emitter.buffer.pointer = emitter.buffer.start;
+                emitter.buffer.last = emitter.buffer.start.add(2);
+
+                let result = yaml_emitter_flush(&mut emitter);
+                assert_eq!(result, OK);
+
+                yaml_emitter_delete(&mut emitter);
+            }
+        }
+
+        /// Tests 3-byte UTF-8 to UTF-16 conversion
+        #[test]
+        fn test_yaml_emitter_flush_utf8_3byte_conversion() {
+            unsafe fn mock_write_handler(
+                _data: *mut c_void,
+                buffer: *mut c_uchar,
+                size: size_t,
+            ) -> c_int {
+                // For 3-byte UTF-8 character ('€'), expect 2 bytes in UTF-16
+                assert_eq!(size, 2);
+                let bytes =
+                    std::slice::from_raw_parts(buffer, size as usize);
+                // Verify UTF-16 encoding of '€' (U+20AC)
+                assert_eq!(bytes[0], 0x20);
+                assert_eq!(bytes[1], 0xAC);
+                1
+            }
+
+            let mut emitter = YamlEmitterT::new();
+            unsafe {
+                let _ = yaml_emitter_initialize(&mut emitter);
+                yaml_emitter_set_encoding(
+                    &mut emitter,
+                    YamlUtf16leEncoding,
+                );
+                yaml_emitter_set_output(
+                    &mut emitter,
+                    mock_write_handler,
+                    std::ptr::null_mut(),
+                );
+
+                // '€' in UTF-8 (0xE2 0x82 0xAC)
+                *emitter.buffer.start = 0xE2;
+                *emitter.buffer.start.add(1) = 0x82;
+                *emitter.buffer.start.add(2) = 0xAC;
+                emitter.buffer.pointer = emitter.buffer.start;
+                emitter.buffer.last = emitter.buffer.start.add(3);
+
+                let result = yaml_emitter_flush(&mut emitter);
+                assert_eq!(result, OK);
+
+                yaml_emitter_delete(&mut emitter);
+            }
+        }
+
+        /// Tests proper buffer pointer reset after successful write
+        #[test]
+        fn test_yaml_emitter_flush_buffer_reset() {
+            unsafe fn mock_write_handler(
+                _data: *mut c_void,
+                _buffer: *mut c_uchar,
+                _size: size_t,
+            ) -> c_int {
+                1 // Success
+            }
+
+            let mut emitter = YamlEmitterT::new();
+            unsafe {
+                let _ = yaml_emitter_initialize(&mut emitter);
+                yaml_emitter_set_encoding(
+                    &mut emitter,
+                    YamlUtf16leEncoding,
+                );
+                yaml_emitter_set_output(
+                    &mut emitter,
+                    mock_write_handler,
+                    std::ptr::null_mut(),
+                );
+
+                // Save initial buffer position
+                let start = emitter.buffer.start;
+
+                // Write some data
+                *emitter.buffer.start = b'A';
+                emitter.buffer.pointer = emitter.buffer.start.add(1);
+                emitter.buffer.last = emitter.buffer.pointer;
+
+                let result = yaml_emitter_flush(&mut emitter);
+
+                // Verify public buffer pointers are reset to start
+                assert_eq!(result, OK);
+                assert_eq!(emitter.buffer.pointer, start);
+                assert_eq!(emitter.buffer.last, start);
 
                 yaml_emitter_delete(&mut emitter);
             }

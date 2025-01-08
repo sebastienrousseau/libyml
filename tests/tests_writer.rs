@@ -541,5 +541,132 @@ mod tests {
                 yaml_emitter_delete(&mut emitter);
             }
         }
+
+        /// Tests detailed UTF-8 to UTF-16 conversion with bit manipulation
+        #[test]
+        fn test_yaml_emitter_flush_utf8_conversion_bits() {
+            // Track which branches we hit
+            use std::sync::atomic::{AtomicU8, Ordering};
+            static CONVERSION_TYPE: AtomicU8 = AtomicU8::new(0);
+
+            unsafe fn verify_write_handler(
+                _data: *mut c_void,
+                buffer: *mut c_uchar,
+                size: size_t,
+            ) -> c_int {
+                let bytes =
+                    std::slice::from_raw_parts(buffer, size as usize);
+                let conv_type = CONVERSION_TYPE.load(Ordering::SeqCst);
+
+                match conv_type {
+                    1 => {
+                        // 2-byte UTF-8 case (0xC0)
+                        // Verify '¢' (U+00A2) conversion
+                        assert_eq!(bytes[0], 0x00);
+                        assert_eq!(bytes[1], 0xA2);
+                    }
+                    2 => {
+                        // 3-byte UTF-8 case (0xE0)
+                        // Verify '€' (U+20AC) conversion
+                        assert_eq!(bytes[0], 0x20);
+                        assert_eq!(bytes[1], 0xAC);
+                    }
+                    3 => {
+                        // 4-byte UTF-8 case (0xF0)
+                        // Verify '🦀' (U+1F980) conversion to surrogate pair
+                        assert_eq!(size, 4); // Should produce surrogate pair
+                                             // High surrogate
+                        assert_eq!(bytes[0], 0xD8); // 0xD800 >> 8
+                        assert_eq!(bytes[1], 0x3E); // 0xD800 & 0xFF
+                                                    // Low surrogate
+                        assert_eq!(bytes[2], 0xDD); // 0xDD80 >> 8
+                        assert_eq!(bytes[3], 0x80); // 0xDD80 & 0xFF
+                    }
+                    _ => panic!("Unexpected conversion type"),
+                }
+                1
+            }
+
+            let mut emitter = YamlEmitterT::new();
+            unsafe {
+                // Test 2-byte sequence (0xC0)
+                {
+                    let _ = yaml_emitter_initialize(&mut emitter);
+                    yaml_emitter_set_encoding(
+                        &mut emitter,
+                        YamlUtf16leEncoding,
+                    );
+                    yaml_emitter_set_output(
+                        &mut emitter,
+                        verify_write_handler,
+                        std::ptr::null_mut(),
+                    );
+
+                    CONVERSION_TYPE.store(1, Ordering::SeqCst);
+                    // '¢' in UTF-8: 0xC2 0xA2
+                    *emitter.buffer.start = 0xC2;
+                    *emitter.buffer.start.add(1) = 0xA2;
+                    emitter.buffer.pointer = emitter.buffer.start;
+                    emitter.buffer.last = emitter.buffer.start.add(2);
+
+                    let result = yaml_emitter_flush(&mut emitter);
+                    assert_eq!(result, OK);
+                    yaml_emitter_delete(&mut emitter);
+                }
+
+                // Test 3-byte sequence (0xE0)
+                {
+                    let _ = yaml_emitter_initialize(&mut emitter);
+                    yaml_emitter_set_encoding(
+                        &mut emitter,
+                        YamlUtf16leEncoding,
+                    );
+                    yaml_emitter_set_output(
+                        &mut emitter,
+                        verify_write_handler,
+                        std::ptr::null_mut(),
+                    );
+
+                    CONVERSION_TYPE.store(2, Ordering::SeqCst);
+                    // '€' in UTF-8: 0xE2 0x82 0xAC
+                    *emitter.buffer.start = 0xE2;
+                    *emitter.buffer.start.add(1) = 0x82;
+                    *emitter.buffer.start.add(2) = 0xAC;
+                    emitter.buffer.pointer = emitter.buffer.start;
+                    emitter.buffer.last = emitter.buffer.start.add(3);
+
+                    let result = yaml_emitter_flush(&mut emitter);
+                    assert_eq!(result, OK);
+                    yaml_emitter_delete(&mut emitter);
+                }
+
+                // Test 4-byte sequence (0xF0)
+                {
+                    let _ = yaml_emitter_initialize(&mut emitter);
+                    yaml_emitter_set_encoding(
+                        &mut emitter,
+                        YamlUtf16leEncoding,
+                    );
+                    yaml_emitter_set_output(
+                        &mut emitter,
+                        verify_write_handler,
+                        std::ptr::null_mut(),
+                    );
+
+                    CONVERSION_TYPE.store(3, Ordering::SeqCst);
+                    // '🦀' in UTF-8: 0xF0 0x9F 0xA6 0x80
+                    *emitter.buffer.start = 0xF0;
+                    *emitter.buffer.start.add(1) = 0x9F;
+                    *emitter.buffer.start.add(2) = 0xA6;
+                    *emitter.buffer.start.add(3) = 0x80;
+                    emitter.buffer.pointer = emitter.buffer.start;
+                    emitter.buffer.last = emitter.buffer.start.add(4);
+
+                    let result = yaml_emitter_flush(&mut emitter);
+                    assert_eq!(result, OK);
+                    yaml_emitter_delete(&mut emitter);
+                }
+            }
+        }
     }
 }

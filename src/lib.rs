@@ -554,7 +554,10 @@ pub mod scanner;
 /// This module provides types for representing the success and failure of various operations within the library.
 pub mod success;
 
-mod writer;
+/// Writer module for LibYML.
+///
+/// This module provides functions for writing YAML data.
+pub mod writer;
 
 /// YAML API module for LibYML.
 ///

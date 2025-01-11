@@ -4,6 +4,7 @@
 #![no_std]
 
 use core::ffi::c_char;
+use core::mem::size_of;
 use libyml::yaml::yaml_char_t;
 use libyml::{
     loader::YamlError,
@@ -34,6 +35,35 @@ mod yaml_parser_load_tests {
             let document: *mut YamlDocumentT = core::ptr::null_mut();
 
             let result = yaml_parser_load(parser, document);
+            assert_eq!(result, Err(YamlError::NullPointer));
+        }
+    }
+
+    #[test]
+    fn test_parser_states() {
+        unsafe {
+            // Test with null pointers
+            let result = yaml_parser_load(
+                core::ptr::null_mut(),
+                core::ptr::null_mut(),
+            );
+            assert_eq!(result, Err(YamlError::NullPointer));
+
+            // Test with uninitialized parser and document
+            let parser: *mut YamlParserT = core::ptr::null_mut();
+            let document: *mut YamlDocumentT = core::ptr::null_mut();
+
+            let result = yaml_parser_load(parser, document);
+            assert_eq!(result, Err(YamlError::NullPointer));
+
+            // Test with initialized parser but null document
+            let result =
+                yaml_parser_load(parser, core::ptr::null_mut());
+            assert_eq!(result, Err(YamlError::NullPointer));
+
+            // Test with null parser but initialized document
+            let result =
+                yaml_parser_load(core::ptr::null_mut(), document);
             assert_eq!(result, Err(YamlError::NullPointer));
         }
     }
@@ -179,5 +209,26 @@ mod boundary_tests {
         // Just verify these don't panic
         assert!(min_align > 0);
         assert!(size > 0);
+    }
+}
+
+/// Tests for memory alignment and initialization
+mod memory_tests {
+    use core::mem::MaybeUninit;
+    use libyml::{YamlDocumentT, YamlParserT};
+
+    #[test]
+    fn test_memory_alignment() {
+        assert!(align_of::<YamlParserT>() > 0);
+        assert!(align_of::<YamlDocumentT>() > 0);
+    }
+
+    #[test]
+    fn test_memory_initialization() {
+        let document = MaybeUninit::<YamlDocumentT>::uninit();
+        let document_ptr = document.as_ptr();
+
+        // Ensure uninitialized memory is not null
+        assert!(!document_ptr.is_null());
     }
 }

@@ -1,15 +1,16 @@
 #![no_main]
 
 use libfuzzer_sys::fuzz_target;
+use libyml::{
+    yaml_event_delete, yaml_event_t, yaml_parser_delete,
+    yaml_parser_initialize, yaml_parser_parse, yaml_parser_set_input,
+    yaml_parser_t, YAML_STREAM_END_EVENT,
+};
 use std::cmp;
 use std::ffi::c_void;
 use std::mem::MaybeUninit;
 use std::ptr;
 use std::ptr::addr_of_mut;
-use unsafe_libyaml::{
-    yaml_event_delete, yaml_event_t, yaml_parser_delete, yaml_parser_initialize, yaml_parser_parse,
-    yaml_parser_set_input, yaml_parser_t, YAML_STREAM_END_EVENT,
-};
 
 fuzz_target!(|data: &[u8]| unsafe { fuzz_target(data) });
 
@@ -17,7 +18,11 @@ unsafe fn fuzz_target(mut data: &[u8]) {
     let mut parser = MaybeUninit::<yaml_parser_t>::uninit();
     let parser = parser.as_mut_ptr();
     assert!(yaml_parser_initialize(parser).ok);
-    yaml_parser_set_input(parser, read_from_slice, addr_of_mut!(data).cast());
+    yaml_parser_set_input(
+        parser,
+        read_from_slice,
+        addr_of_mut!(data).cast(),
+    );
 
     let mut event = MaybeUninit::<yaml_event_t>::uninit();
     let event = event.as_mut_ptr();

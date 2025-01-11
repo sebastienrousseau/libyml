@@ -1,5 +1,4 @@
-// macro.rs
-
+// macr
 // ------------------------------------
 // Buffer Management Macros
 // ------------------------------------
@@ -973,7 +972,7 @@ macro_rules! STACK_EMPTY {
 #[macro_export]
 macro_rules! STACK_LIMIT {
     ($context:expr, $stack:expr) => {
-        if $stack.top.c_offset_from($stack.start)
+        if $stack.top.offset_from($stack.start)
             < libc::c_int::MAX as isize - 1
         {
             OK
@@ -1000,6 +999,7 @@ macro_rules! STACK_LIMIT {
 #[macro_export]
 macro_rules! PUSH {
     (do $stack:expr, $push:expr) => {{
+        // Check if the stack is full
         if $stack.top == $stack.end {
             yaml_stack_extend(
                 addr_of_mut!($stack.start) as *mut *mut libc::c_void,
@@ -1007,14 +1007,33 @@ macro_rules! PUSH {
                 addr_of_mut!($stack.end) as *mut *mut libc::c_void,
             );
         }
-        $push;
-        $stack.top = $stack.top.wrapping_offset(1);
+
+        // Execute the push operation and capture its result
+        let push_result = $push;
+
+        // If push is successful, move the top pointer
+        if push_result {
+            $stack.top = $stack.top.wrapping_offset(1);
+        }
+
+        // Return the result of the push operation
+        push_result
     }};
+
+    // Pattern for pushing a dereferenced value (copy)
     ($stack:expr, *$value:expr) => {
-        PUSH!(do $stack, ptr::copy_nonoverlapping($value, $stack.top, 1))
+        PUSH!(do $stack, {
+            ptr::copy_nonoverlapping($value, $stack.top, 1);
+            true // Indicate success
+        })
     };
+
+    // Pattern for pushing a value (write)
     ($stack:expr, $value:expr) => {
-        PUSH!(do $stack, ptr::write($stack.top, $value))
+        PUSH!(do $stack, {
+            ptr::write($stack.top, $value);
+            true // Indicate success
+        })
     };
 }
 
@@ -1029,12 +1048,13 @@ macro_rules! PUSH {
 /// * The last element from the stack.
 #[macro_export]
 macro_rules! POP {
-    ($stack:expr) => {
-        *{
-            $stack.top = $stack.top.offset(-1);
-            $stack.top
+    ($stack:expr) => {{
+        $stack.top = $stack.top.offset(-1);
+        {
+            let value = *$stack.top;
+            value
         }
-    };
+    }};
 }
 
 // ------------------------------------

@@ -1,5 +1,5 @@
 [package]
-name = "unsafe-libyaml-fuzz"
+name = "libyml-fuzz"
 version = "0.0.0"
 authors = ["David Tolnay <dtolnay@gmail.com>"]
 edition = "2021"
@@ -9,8 +9,8 @@ publish = false
 cargo-fuzz = true
 
 [dependencies]
-libfuzzer-sys = "0.4.7"
-unsafe-libyaml = { path = ".." }
+libfuzzer-sys = "0.4.8"
+libyml = { path = ".." }
 
 [[bin]]
 name = "scan"

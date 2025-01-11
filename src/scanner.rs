@@ -27,7 +27,14 @@ use crate::{
     YamlVersionDirectiveToken,
 };
 use core::mem::{size_of, MaybeUninit};
-use core::ptr::{self, addr_of_mut};
+use core::ptr;
+use core::ptr::addr_of_mut;
+
+const MAX_SCALAR_SIZE: usize = 65536;
+const SCANNING_TOKEN_ERROR: &[u8] =
+    b"while scanning for the next token\0";
+const INVALID_CHARACTER_ERROR: &[u8] =
+    b"found character that cannot start any token\0";
 
 unsafe fn cache(parser: *mut YamlParserT, length: size_t) -> Success {
     if (*parser).unread >= length {
@@ -66,7 +73,24 @@ unsafe fn skip_line(parser: *mut YamlParserT) {
     };
 }
 
+/// Reads a single character from the parser’s buffer into `string`,
+/// checking that we do not exceed `MAX_SCALAR_SIZE`.
 unsafe fn read(parser: *mut YamlParserT, string: *mut YamlStringT) {
+    let current_length =
+        (*string).pointer.offset_from((*string).start) as usize;
+    // Check if we can add 1 more character safely.
+    if current_length + 1 > MAX_SCALAR_SIZE {
+        yaml_parser_set_scanner_error(
+            parser,
+            b"while scanning a scalar\0" as *const u8
+                as *const libc::c_char,
+            (*parser).mark,
+            b"scalar has grown beyond the maximum allowed size\0"
+                as *const u8 as *const libc::c_char,
+        );
+        return;
+    }
+
     STRING_EXTEND!(*string);
     let width = WIDTH!((*parser).buffer);
     copy!(*string, (*parser).buffer);
@@ -75,66 +99,117 @@ unsafe fn read(parser: *mut YamlParserT, string: *mut YamlStringT) {
     (*parser).unread = (*parser).unread.wrapping_sub(1);
 }
 
+/// Reads a line from the parser buffer and handles various line ending formats.
+///
+/// This function handles the following line endings:
+/// - CRLF (\r\n)
+/// - CR (\r) or LF (\n)
+/// - NEL (U+0085)
+/// - LS (U+2028) or PS (U+2029)
+///
+/// # Safety
+///
+/// The caller must ensure that:
+/// * `parser` points to a valid `YamlParserT` structure
+/// * `string` points to a valid `YamlStringT` structure
+/// * The parser buffer contains enough unread bytes for the checks performed
+/// * The string buffer has enough capacity for the new line
+///
+/// # Arguments
+///
+/// * `parser` - Mutable pointer to the YAML parser state
+/// * `string` - Mutable pointer to the string buffer where the line will be stored
+///
+/// # Implementation Notes
+///
+/// This function normalizes different line ending sequences to '\n' while preserving
+/// Unicode line endings when necessary (LS and PS characters).
 unsafe fn read_line(
     parser: *mut YamlParserT,
     string: *mut YamlStringT,
 ) {
+    // Pre-condition checks in debug builds
+    debug_assert!(!parser.is_null(), "Parser pointer must not be null");
+    debug_assert!(!string.is_null(), "String pointer must not be null");
+    debug_assert!(
+        !(*string).pointer.is_null(),
+        "String buffer pointer must not be null"
+    );
+    debug_assert!(
+        !(*parser).buffer.pointer.is_null(),
+        "Parser buffer pointer must not be null"
+    );
+
+    // Constants for special Unicode line endings
+    const NEL_FIRST: u8 = 0xC2;
+    const NEL_SECOND: u8 = 0x85;
+    const LS_PS_FIRST: u8 = 0xE2;
+    const LS_PS_SECOND: u8 = 0x80;
+    const LS_THIRD: u8 = 0xA8;
+    const PS_THIRD: u8 = 0xA9;
+
+    // Ensure string has enough capacity
     STRING_EXTEND!(*string);
+
+    // Helper macro to update parser state after reading a line
+    macro_rules! update_parser_state {
+        ($offset:expr) => {
+            (*parser).mark.index =
+                (*parser).mark.index.force_add($offset);
+            (*parser).mark.column = 0;
+            (*parser).mark.line = (*parser).mark.line.force_add(1);
+        };
+    }
+
+    // Helper function to write normalized newline
+    let write_normalized_newline = |s: *mut YamlStringT| {
+        *(*s).pointer = b'\n';
+        (*s).pointer = (*s).pointer.wrapping_offset(1);
+    };
+
     if CHECK_AT!((*parser).buffer, b'\r', 0)
         && CHECK_AT!((*parser).buffer, b'\n', 1)
     {
-        *(*string).pointer = b'\n';
-        (*string).pointer = (*string).pointer.wrapping_offset(1);
+        // CRLF sequence
+        write_normalized_newline(string);
         (*parser).buffer.pointer =
             (*parser).buffer.pointer.wrapping_offset(2);
-        (*parser).mark.index = (*parser).mark.index.force_add(2);
-        (*parser).mark.column = 0;
-        (*parser).mark.line = (*parser).mark.line.force_add(1);
+        update_parser_state!(2);
         (*parser).unread = (*parser).unread.wrapping_sub(2);
     } else if CHECK_AT!((*parser).buffer, b'\r', 0)
         || CHECK_AT!((*parser).buffer, b'\n', 0)
     {
-        *(*string).pointer = b'\n';
-        (*string).pointer = (*string).pointer.wrapping_offset(1);
+        // Single CR or LF
+        write_normalized_newline(string);
         (*parser).buffer.pointer =
             (*parser).buffer.pointer.wrapping_offset(1);
-        (*parser).mark.index = (*parser).mark.index.force_add(1);
-        (*parser).mark.column = 0;
-        (*parser).mark.line = (*parser).mark.line.force_add(1);
+        update_parser_state!(1);
         (*parser).unread = (*parser).unread.wrapping_sub(1);
-    } else if CHECK_AT!((*parser).buffer, b'\xC2', 0)
-        && CHECK_AT!((*parser).buffer, b'\x85', 1)
+    } else if CHECK_AT!((*parser).buffer, NEL_FIRST, 0)
+        && CHECK_AT!((*parser).buffer, NEL_SECOND, 1)
     {
-        *(*string).pointer = b'\n';
-        (*string).pointer = (*string).pointer.wrapping_offset(1);
+        // NEL (Next Line) sequence
+        write_normalized_newline(string);
         (*parser).buffer.pointer =
             (*parser).buffer.pointer.wrapping_offset(2);
-        (*parser).mark.index = (*parser).mark.index.force_add(2);
-        (*parser).mark.column = 0;
-        (*parser).mark.line = (*parser).mark.line.force_add(1);
+        update_parser_state!(2);
         (*parser).unread = (*parser).unread.wrapping_sub(1);
-    } else if CHECK_AT!((*parser).buffer, b'\xE2', 0)
-        && CHECK_AT!((*parser).buffer, b'\x80', 1)
-        && (CHECK_AT!((*parser).buffer, b'\xA8', 2)
-            || CHECK_AT!((*parser).buffer, b'\xA9', 2))
+    } else if CHECK_AT!((*parser).buffer, LS_PS_FIRST, 0)
+        && CHECK_AT!((*parser).buffer, LS_PS_SECOND, 1)
+        && (CHECK_AT!((*parser).buffer, LS_THIRD, 2)
+            || CHECK_AT!((*parser).buffer, PS_THIRD, 2))
     {
-        *(*string).pointer = *(*parser).buffer.pointer;
-        (*string).pointer = (*string).pointer.wrapping_offset(1);
-        (*parser).buffer.pointer =
-            (*parser).buffer.pointer.wrapping_offset(1);
-        *(*string).pointer = *(*parser).buffer.pointer;
-        (*string).pointer = (*string).pointer.wrapping_offset(1);
-        (*parser).buffer.pointer =
-            (*parser).buffer.pointer.wrapping_offset(1);
-        *(*string).pointer = *(*parser).buffer.pointer;
-        (*string).pointer = (*string).pointer.wrapping_offset(1);
-        (*parser).buffer.pointer =
-            (*parser).buffer.pointer.wrapping_offset(1);
-        (*parser).mark.index = (*parser).mark.index.force_add(3);
-        (*parser).mark.column = 0;
-        (*parser).mark.line = (*parser).mark.line.force_add(1);
+        // LS (Line Separator) or PS (Paragraph Separator)
+        // Preserve the original 3-byte sequence
+        for _ in 0..3 {
+            *(*string).pointer = *(*parser).buffer.pointer;
+            (*string).pointer = (*string).pointer.wrapping_offset(1);
+            (*parser).buffer.pointer =
+                (*parser).buffer.pointer.wrapping_offset(1);
+        }
+        update_parser_state!(3);
         (*parser).unread = (*parser).unread.wrapping_sub(1);
-    };
+    }
 }
 
 macro_rules! read {
@@ -149,166 +224,399 @@ macro_rules! read_line {
     };
 }
 
-/// Scan the input stream and produce the next token.
+/// Scans a YAML document and produces the next token in the token stream.
 ///
-/// Call the function subsequently to produce a sequence of tokens corresponding
-/// to the input stream. The initial token has the type YamlStreamStartToken
-/// while the ending token has the type YamlStreamEndToken.
+/// This function is the primary interface for tokenizing YAML content. It processes
+/// the input stream and produces tokens sequentially, handling all YAML syntax elements
+/// including scalars, sequences, mappings, and directives.
 ///
-/// An application is responsible for freeing any buffers associated with the
-/// produced token object using the yaml_token_delete function.
+/// # Safety Requirements
 ///
-/// An application must not alternate the calls of yaml_parser_scan() with the
-/// calls of yaml_parser_parse() or yaml_parser_load(). Doing this will break
-/// the parser.
+/// This function requires that:
+/// * `parser` points to a valid, initialized `YamlParserT` structure.
+/// * `token` points to a valid, mutable `YamlTokenT` structure.
+/// * The parser must not be in an error state.
+/// * The caller must not alternate between calling this function and `yaml_parser_parse()`
+///   or `yaml_parser_load()` as it may corrupt the parser state.
+///
+/// # Arguments
+///
+/// * `parser` - Mutable pointer to the YAML parser state. Must be properly initialized
+///             and not in an error state.
+/// * `token` - Mutable pointer to store the next token. The previous token's resources
+///           will be overwritten.
+///
+/// # Returns
+///
+/// * `Success::OK` - Successfully produced a token.
+/// * `Success::FAIL` - Failed to produce a token (check parser error state).
+///
+/// # Token Lifecycle
+///
+/// The function follows this sequence:
+/// 1. Validates input parameters.
+/// 2. Clears the target token memory.
+/// 3. Checks for stream end or error conditions.
+/// 4. Fetches more tokens if needed.
+/// 5. Dequeues and returns the next available token.
+///
+/// # Memory Management
+///
+/// The caller is responsible for:
+/// * Freeing any buffers associated with the previous token using `yaml_token_delete`.
+/// * Ensuring the parser remains valid throughout the scanning process.
+///
+/// # Error Handling
+///
+/// The function may fail if:
+/// * The parser is in an invalid state.
+/// * Memory allocation fails.
+/// * The input stream is malformed.
+/// * Token processing encounters an error.
 ///
 /// # Safety
 ///
-/// - The `parser` and `token` pointers must be valid and non-null.
-/// - The `parser` must be properly initialized and not already in an error state.
-/// - The `token` must be properly allocated and have enough capacity to store the
-///   produced token.
-/// - The function should not be called alternately with `yaml_parser_parse()` or
-///   `yaml_parser_load()`, as it may break the parser state.
-/// - The caller is responsible for freeing any buffers associated with the produced
-///   token using the `yaml_token_delete` function.
+/// The caller must ensure that:
+/// * `parser` and `token` are non-null and properly initialized.
+/// * No other operations that modify the parser state are performed simultaneously.
+/// * The parser remains valid throughout the token scanning process.
 ///
+/// Misuse of this function can lead to undefined behavior, including memory corruption.
 pub unsafe fn yaml_parser_scan(
     parser: *mut YamlParserT,
     token: *mut YamlTokenT,
 ) -> Success {
-    __assert!(!parser.is_null());
-    __assert!(!token.is_null());
-    let _ = memset(
+    // Validate input parameters
+    debug_assert!(!parser.is_null(), "Parser pointer must not be null");
+    debug_assert!(!token.is_null(), "Token pointer must not be null");
+    debug_assert!(
+        (*parser).error == YamlNoError,
+        "Parser must not be in error state"
+    );
+
+    // Runtime safety checks
+    if parser.is_null() || token.is_null() {
+        return FAIL;
+    }
+
+    // Clear the token memory to ensure clean state
+    ptr::write_bytes(
         token as *mut libc::c_void,
         0,
-        size_of::<YamlTokenT>() as libc::c_ulong,
+        size_of::<YamlTokenT>(),
     );
-    if (*parser).stream_end_produced || (*parser).error != YamlNoError {
+
+    // Check for terminal conditions
+    if (*parser).stream_end_produced {
         return OK;
     }
+
+    if (*parser).error != YamlNoError {
+        return OK;
+    }
+
+    // Ensure tokens are available
     if !(*parser).token_available
         && yaml_parser_fetch_more_tokens(parser).fail
     {
         return FAIL;
     }
+
+    // Extract next token
     *token = DEQUEUE!((*parser).tokens);
     (*parser).token_available = false;
-    let fresh2 = addr_of_mut!((*parser).tokens_parsed);
-    *fresh2 = (*fresh2).force_add(1);
+
+    // Update parser state
+    let tokens_parsed = addr_of_mut!((*parser).tokens_parsed);
+    *tokens_parsed = (*tokens_parsed).force_add(1);
+
+    // Check for stream end
     if (*token).type_ == YamlStreamEndToken {
         (*parser).stream_end_produced = true;
     }
+
     OK
 }
 
+/// Sets a scanner error in the YAML parser with detailed context information.
+///
+/// This function records error details when the scanner encounters an issue during
+/// YAML parsing. It captures the error context, location, and specific problem
+/// description for error reporting and debugging purposes.
+///
+/// # Safety Requirements
+///
+/// Caller must ensure:
+/// * `parser` points to a valid, initialized `YamlParserT` structure
+/// * `context` is either null or points to a valid null-terminated C string
+/// * `problem` is either null or points to a valid null-terminated C string
+/// * The provided context_mark contains valid position information
+/// * All string pointers remain valid for the lifetime of the parser
+///
+/// # Arguments
+///
+/// * `parser` - Mutable pointer to the parser state structure
+/// * `context` - Optional pointer to a null-terminated string describing the error context
+/// * `context_mark` - Position information for where the context applies
+/// * `problem` - Pointer to a null-terminated string describing the specific error
+///
+/// # Error State
+///
+/// The function sets the following error information in the parser:
+/// * Sets error type to YamlScannerError
+/// * Records the context string (if provided)
+/// * Stores the context position marker
+/// * Records the specific problem description
+/// * Captures the current parser position as the problem location
+///
+#[inline]
 unsafe fn yaml_parser_set_scanner_error(
     parser: *mut YamlParserT,
     context: *const libc::c_char,
     context_mark: YamlMarkT,
     problem: *const libc::c_char,
 ) {
+    // Debug assertions for parameter validation
+    debug_assert!(!parser.is_null(), "Parser pointer must not be null");
+    debug_assert!(
+        context.is_null() || !context.is_null(),
+        "Context must be either null or a valid pointer"
+    );
+    debug_assert!(
+        !problem.is_null(),
+        "Problem description must not be null"
+    );
+
+    // Set error type
     (*parser).error = YamlScannerError;
-    let fresh3 = addr_of_mut!((*parser).context);
-    *fresh3 = context;
+
+    // Record context information
+    ptr::write(addr_of_mut!((*parser).context), context);
+
+    // Store position markers
     (*parser).context_mark = context_mark;
-    let fresh4 = addr_of_mut!((*parser).problem);
-    *fresh4 = problem;
     (*parser).problem_mark = (*parser).mark;
+
+    // Record problem description
+    ptr::write(addr_of_mut!((*parser).problem), problem);
+
+    // Ensure error state is properly set for error handling
+    debug_assert!(
+        (*parser).error == YamlScannerError,
+        "Error state not properly set"
+    );
 }
 
+/// Fetches more tokens from the YAML parser's input stream as needed.
+///
+/// This function manages the token buffer, ensuring that tokens are available
+/// for processing while handling simple keys and maintaining parser state.
+/// It operates in a loop until either sufficient tokens are available or
+/// an error occurs.
+///
+/// # Safety Requirements
+///
+/// Caller must ensure:
+/// * `parser` points to a valid, initialized `YamlParserT` structure
+/// * The parser's token queue is properly initialized
+/// * The parser's simple keys stack is properly initialized
+/// * All memory referenced by the parser structure is valid
+///
+/// # Algorithm
+///
+/// 1. Checks if more tokens are needed by:
+///    - Verifying if the token queue is empty
+///    - Checking for pending simple keys that need resolution
+/// 2. Fetches new tokens if needed
+/// 3. Updates parser state accordingly
+///
+/// # Error Handling
+///
+/// Returns `FAIL` if:
+/// * Token fetching fails
+/// * Simple key processing fails
+/// * Memory allocation fails
+///
+/// # Returns
+///
+/// * `Success::OK` - Successfully ensured tokens are available
+/// * `Success::FAIL` - An error occurred during token fetching
+///
+#[inline]
 pub(crate) unsafe fn yaml_parser_fetch_more_tokens(
     parser: *mut YamlParserT,
 ) -> Success {
-    let mut need_more_tokens;
+    // Debug assertions for parameter validation
+    debug_assert!(!parser.is_null(), "Parser pointer must not be null");
+    debug_assert!(
+        !(*parser).tokens.head.is_null(),
+        "Token queue head must not be null"
+    );
+    debug_assert!(
+        !(*parser).tokens.tail.is_null(),
+        "Token queue tail must not be null"
+    );
+    debug_assert!(
+        !(*parser).simple_keys.start.is_null(),
+        "Simple keys start must not be null"
+    );
+    debug_assert!(
+        !(*parser).simple_keys.top.is_null(),
+        "Simple keys top must not be null"
+    );
+
     loop {
-        need_more_tokens = false;
+        // Determine if more tokens are needed
+        let mut need_more_tokens = false;
+
+        // Check if token queue is empty
         if (*parser).tokens.head == (*parser).tokens.tail {
             need_more_tokens = true;
         } else {
-            let mut simple_key: *mut YamlSimpleKeyT;
+            // Process simple keys to determine if we need more tokens
             if yaml_parser_stale_simple_keys(parser).fail {
                 return FAIL;
             }
-            simple_key = (*parser)
+
+            // Get the first non-processed simple key
+            let simple_key_start = (*parser)
                 .simple_keys
                 .start
                 .add((*parser).not_simple_keys as usize);
+
+            // Check all simple keys
+            let mut simple_key = simple_key_start;
             while simple_key != (*parser).simple_keys.top {
-                if (*simple_key).possible
+                // Check if this key needs immediate token
+                let key_needs_token = (*simple_key).possible
                     && (*simple_key).token_number
-                        == (*parser).tokens_parsed
-                {
+                        == (*parser).tokens_parsed;
+
+                if key_needs_token {
                     need_more_tokens = true;
                     break;
-                } else {
-                    simple_key = simple_key.wrapping_offset(1);
                 }
+
+                // Move to next simple key
+                simple_key = simple_key.wrapping_offset(1);
             }
         }
+
+        // Break if we have enough tokens
         if !need_more_tokens {
             break;
         }
+
+        // Fetch next token if needed
         if yaml_parser_fetch_next_token(parser).fail {
             return FAIL;
         }
     }
+
+    // Mark tokens as available
     (*parser).token_available = true;
+
+    // Post-condition check
+    debug_assert!(
+        (*parser).token_available,
+        "Tokens should be available after successful fetch"
+    );
+
     OK
 }
 
+/// Fetches the next token from the YAML parser's input stream.
+///
+/// This function implements the core YAML token scanning logic, recognizing and
+/// processing all YAML syntax elements according to the specification.
+///
+/// # Safety Requirements
+///
+/// Caller must ensure:
+/// * `parser` points to a valid, initialized `YamlParserT` structure
+/// * The parser's buffer contains valid data
+/// * All parser state (marks, levels, etc.) is valid
+///
+/// # Token Types Handled
+///
+/// - Stream tokens (start/end)
+/// - Document indicators (---, ...)
+/// - Directives (%)
+/// - Flow collections ([, ], {, })
+/// - Block elements (-, ?, :)
+/// - Scalars (plain, quoted, block)
+/// - Anchors and aliases (*, &)
+/// - Tags (!)
+///
+/// # Returns
+///
+/// * `Success::OK` - Successfully fetched next token
+/// * `Success::FAIL` - Failed to fetch token (error details in parser)
+///
+#[allow(clippy::cognitive_complexity)]
 unsafe fn yaml_parser_fetch_next_token(
     parser: *mut YamlParserT,
 ) -> Success {
+    debug_assert!(!parser.is_null(), "Parser pointer must not be null");
+
+    // Initial buffer check
     if cache(parser, 1_u64).fail {
         return FAIL;
     }
+
+    // Handle stream start
     if !(*parser).stream_start_produced {
         yaml_parser_fetch_stream_start(parser);
         return OK;
     }
-    if yaml_parser_scan_to_next_token(parser).fail {
+
+    // Prepare for token scanning
+    if yaml_parser_scan_to_next_token(parser).fail
+        || yaml_parser_stale_simple_keys(parser).fail
+    {
         return FAIL;
     }
-    if yaml_parser_stale_simple_keys(parser).fail {
-        return FAIL;
-    }
+
+    // Handle indentation
     yaml_parser_unroll_indent(
         parser,
         (*parser).mark.column as ptrdiff_t,
     );
+
+    // Ensure sufficient buffer for lookahead
     if cache(parser, 4_u64).fail {
         return FAIL;
     }
+
+    // Stream end
     if IS_Z!((*parser).buffer) {
         return yaml_parser_fetch_stream_end(parser);
     }
-    if (*parser).mark.column == 0_u64 && CHECK!((*parser).buffer, b'%')
-    {
-        return yaml_parser_fetch_directive(parser);
+
+    // Document indicators and directives at column 0
+    if (*parser).mark.column == 0 {
+        if CHECK!((*parser).buffer, b'%') {
+            return yaml_parser_fetch_directive(parser);
+        }
+
+        // Document start (---)
+        if is_document_start(parser) {
+            return yaml_parser_fetch_document_indicator(
+                parser,
+                YamlDocumentStartToken,
+            );
+        }
+
+        // Document end (...)
+        if is_document_end(parser) {
+            return yaml_parser_fetch_document_indicator(
+                parser,
+                YamlDocumentEndToken,
+            );
+        }
     }
-    if (*parser).mark.column == 0_u64
-        && CHECK_AT!((*parser).buffer, b'-', 0)
-        && CHECK_AT!((*parser).buffer, b'-', 1)
-        && CHECK_AT!((*parser).buffer, b'-', 2)
-        && IS_BLANKZ_AT!((*parser).buffer, 3)
-    {
-        return yaml_parser_fetch_document_indicator(
-            parser,
-            YamlDocumentStartToken,
-        );
-    }
-    if (*parser).mark.column == 0_u64
-        && CHECK_AT!((*parser).buffer, b'.', 0)
-        && CHECK_AT!((*parser).buffer, b'.', 1)
-        && CHECK_AT!((*parser).buffer, b'.', 2)
-        && IS_BLANKZ_AT!((*parser).buffer, 3)
-    {
-        return yaml_parser_fetch_document_indicator(
-            parser,
-            YamlDocumentEndToken,
-        );
-    }
+
+    // Flow collection tokens
     if CHECK!((*parser).buffer, b'[') {
         return yaml_parser_fetch_flow_collection_start(
             parser,
@@ -333,6 +641,8 @@ unsafe fn yaml_parser_fetch_next_token(
             YamlFlowMappingEndToken,
         );
     }
+
+    // Flow entries and block elements
     if CHECK!((*parser).buffer, b',') {
         return yaml_parser_fetch_flow_entry(parser);
     }
@@ -341,18 +651,16 @@ unsafe fn yaml_parser_fetch_next_token(
     {
         return yaml_parser_fetch_block_entry(parser);
     }
-    if CHECK!((*parser).buffer, b'?')
-        && ((*parser).flow_level != 0
-            || IS_BLANKZ_AT!((*parser).buffer, 1))
-    {
+
+    // Keys and values
+    if is_key(parser) {
         return yaml_parser_fetch_key(parser);
     }
-    if CHECK!((*parser).buffer, b':')
-        && ((*parser).flow_level != 0
-            || IS_BLANKZ_AT!((*parser).buffer, 1))
-    {
+    if is_value(parser) {
         return yaml_parser_fetch_value(parser);
     }
+
+    // Anchors, aliases, and tags
     if CHECK!((*parser).buffer, b'*') {
         return yaml_parser_fetch_anchor(parser, YamlAliasToken);
     }
@@ -362,19 +670,71 @@ unsafe fn yaml_parser_fetch_next_token(
     if CHECK!((*parser).buffer, b'!') {
         return yaml_parser_fetch_tag(parser);
     }
+
+    // Block scalars
     if CHECK!((*parser).buffer, b'|') && (*parser).flow_level == 0 {
         return yaml_parser_fetch_block_scalar(parser, true);
     }
     if CHECK!((*parser).buffer, b'>') && (*parser).flow_level == 0 {
         return yaml_parser_fetch_block_scalar(parser, false);
     }
+
+    // Flow scalars
     if CHECK!((*parser).buffer, b'\'') {
         return yaml_parser_fetch_flow_scalar(parser, true);
     }
     if CHECK!((*parser).buffer, b'"') {
         return yaml_parser_fetch_flow_scalar(parser, false);
     }
-    if !(IS_BLANKZ!((*parser).buffer)
+
+    // Plain scalar (if no other token matches)
+    if is_plain_scalar(parser) {
+        return yaml_parser_fetch_plain_scalar(parser);
+    }
+
+    // If no token matched, set error
+    yaml_parser_set_scanner_error(
+        parser,
+        SCANNING_TOKEN_ERROR.as_ptr() as *const i8,
+        (*parser).mark,
+        INVALID_CHARACTER_ERROR.as_ptr() as *const i8,
+    );
+    FAIL
+}
+
+#[inline]
+unsafe fn is_document_start(parser: *const YamlParserT) -> bool {
+    CHECK_AT!((*parser).buffer, b'-', 0)
+        && CHECK_AT!((*parser).buffer, b'-', 1)
+        && CHECK_AT!((*parser).buffer, b'-', 2)
+        && IS_BLANKZ_AT!((*parser).buffer, 3)
+}
+
+#[inline]
+unsafe fn is_document_end(parser: *const YamlParserT) -> bool {
+    CHECK_AT!((*parser).buffer, b'.', 0)
+        && CHECK_AT!((*parser).buffer, b'.', 1)
+        && CHECK_AT!((*parser).buffer, b'.', 2)
+        && IS_BLANKZ_AT!((*parser).buffer, 3)
+}
+
+#[inline]
+unsafe fn is_key(parser: *const YamlParserT) -> bool {
+    CHECK!((*parser).buffer, b'?')
+        && ((*parser).flow_level != 0
+            || IS_BLANKZ_AT!((*parser).buffer, 1))
+}
+
+#[inline]
+unsafe fn is_value(parser: *const YamlParserT) -> bool {
+    CHECK!((*parser).buffer, b':')
+        && ((*parser).flow_level != 0
+            || IS_BLANKZ_AT!((*parser).buffer, 1))
+}
+
+#[inline]
+unsafe fn is_plain_scalar(parser: *const YamlParserT) -> bool {
+    !(IS_BLANKZ!((*parser).buffer)
         || CHECK!((*parser).buffer, b'-')
         || CHECK!((*parser).buffer, b'?')
         || CHECK!((*parser).buffer, b':')
@@ -400,18 +760,6 @@ unsafe fn yaml_parser_fetch_next_token(
             && (CHECK!((*parser).buffer, b'?')
                 || CHECK!((*parser).buffer, b':'))
             && !IS_BLANKZ_AT!((*parser).buffer, 1)
-    {
-        return yaml_parser_fetch_plain_scalar(parser);
-    }
-    yaml_parser_set_scanner_error(
-        parser,
-        b"while scanning for the next token\0" as *const u8
-            as *const libc::c_char,
-        (*parser).mark,
-        b"found character that cannot start any token\0" as *const u8
-            as *const libc::c_char,
-    );
-    FAIL
 }
 
 unsafe fn yaml_parser_stale_simple_keys(
@@ -431,11 +779,9 @@ unsafe fn yaml_parser_stale_simple_keys(
             if (*simple_key).required {
                 yaml_parser_set_scanner_error(
                     parser,
-                    b"while scanning a simple key\0" as *const u8
-                        as *const libc::c_char,
-                    (*simple_key).mark,
-                    b"could not find expected ':'\0" as *const u8
-                        as *const libc::c_char,
+                    SCANNING_TOKEN_ERROR.as_ptr() as *const i8,
+                    (*parser).mark,
+                    INVALID_CHARACTER_ERROR.as_ptr() as *const i8,
                 );
                 return FAIL;
             }
@@ -2834,45 +3180,104 @@ unsafe fn yaml_parser_scan_flow_scalar(
     FAIL
 }
 
+// 1. First, let's add a safe string buffer size check function
+#[inline]
+unsafe fn check_string_buffer_size(
+    current_size: usize,
+    additional_size: usize,
+) -> Result<usize, &'static str> {
+    current_size
+        .checked_add(additional_size)
+        .filter(|&total| total <= MAX_SCALAR_SIZE)
+        .ok_or("String buffer would exceed maximum allowed size")
+}
+
+// 2. Enhance the JOIN macro with bounds checking
+macro_rules! JOIN_SAFE {
+    ($target:expr, $source:expr) => {{
+        let target_len =
+            ($target).pointer.offset_from(($target).start) as usize;
+        let source_len =
+            ($source).pointer.offset_from(($source).start) as usize;
+
+        // Check if joining would exceed buffer size
+        if let Ok(_) = check_string_buffer_size(target_len, source_len)
+        {
+            if source_len > 0 {
+                let _ = memcpy(
+                    ($target).pointer as *mut libc::c_void,
+                    ($source).start as *const libc::c_void,
+                    source_len.try_into().unwrap(),
+                );
+                ($target).pointer = ($target).pointer.add(source_len);
+            }
+            Ok(())
+        } else {
+            Err(YamlScannerError)
+        }
+    }};
+}
+
+// Helper macro for cleanup and error return
+macro_rules! break_with_cleanup {
+    ($string:expr, $leading_break:expr, $trailing_breaks:expr, $whitespaces:expr) => {{
+        STRING_DEL!($string);
+        STRING_DEL!($leading_break);
+        STRING_DEL!($trailing_breaks);
+        STRING_DEL!($whitespaces);
+        return FAIL;
+    }};
+}
+
 unsafe fn yaml_parser_scan_plain_scalar(
     parser: *mut YamlParserT,
     token: *mut YamlTokenT,
 ) -> Success {
-    let current_block: u64;
-    let mut end_mark: YamlMarkT;
     let mut string = NULL_STRING;
     let mut leading_break = NULL_STRING;
     let mut trailing_breaks = NULL_STRING;
     let mut whitespaces = NULL_STRING;
     let mut leading_blanks = false;
     let indent: libc::c_int = (*parser).indent + 1;
+
     STRING_INIT!(string);
     STRING_INIT!(leading_break);
     STRING_INIT!(trailing_breaks);
     STRING_INIT!(whitespaces);
-    end_mark = (*parser).mark;
-    let start_mark: YamlMarkT = end_mark;
-    's_57: loop {
+
+    let mut end_mark = (*parser).mark;
+    let start_mark = end_mark;
+
+    loop {
+        // Check buffer size for scanning
         if cache(parser, 4_u64).fail {
-            current_block = 16642808987012640029;
-            break;
+            break_with_cleanup!(
+                string,
+                leading_break,
+                trailing_breaks,
+                whitespaces
+            );
         }
-        if (*parser).mark.column == 0_u64
-            && (CHECK_AT!((*parser).buffer, b'-', 0)
+
+        // Check for document indicators
+        if (*parser).mark.column == 0
+            && ((CHECK_AT!((*parser).buffer, b'-', 0)
                 && CHECK_AT!((*parser).buffer, b'-', 1)
-                && CHECK_AT!((*parser).buffer, b'-', 2)
-                || CHECK_AT!((*parser).buffer, b'.', 0)
+                && CHECK_AT!((*parser).buffer, b'-', 2))
+                || (CHECK_AT!((*parser).buffer, b'.', 0)
                     && CHECK_AT!((*parser).buffer, b'.', 1)
-                    && CHECK_AT!((*parser).buffer, b'.', 2))
+                    && CHECK_AT!((*parser).buffer, b'.', 2)))
             && IS_BLANKZ_AT!((*parser).buffer, 3)
         {
-            current_block = 6281126495347172768;
             break;
         }
+
+        // Check for comments
         if CHECK!((*parser).buffer, b'#') {
-            current_block = 6281126495347172768;
             break;
         }
+
+        // Scan the scalar value
         while !IS_BLANKZ!((*parser).buffer) {
             if (*parser).flow_level != 0
                 && CHECK!((*parser).buffer, b':')
@@ -2885,71 +3290,165 @@ unsafe fn yaml_parser_scan_plain_scalar(
             {
                 yaml_parser_set_scanner_error(
                     parser,
-                    b"while scanning a plain scalar\0" as *const u8
-                        as *const libc::c_char,
+                    b"while scanning a plain scalar\0".as_ptr()
+                        as *const i8,
                     start_mark,
-                    b"found unexpected ':'\0" as *const u8
-                        as *const libc::c_char,
+                    b"found unexpected ':'\0".as_ptr() as *const i8,
                 );
-                current_block = 16642808987012640029;
-                break 's_57;
-            } else {
-                if CHECK!((*parser).buffer, b':')
-                    && IS_BLANKZ_AT!((*parser).buffer, 1)
-                    || (*parser).flow_level != 0
-                        && (CHECK!((*parser).buffer, b',')
-                            || CHECK!((*parser).buffer, b'[')
-                            || CHECK!((*parser).buffer, b']')
-                            || CHECK!((*parser).buffer, b'{')
-                            || CHECK!((*parser).buffer, b'}'))
-                {
-                    break;
-                }
-                if leading_blanks
-                    || whitespaces.start != whitespaces.pointer
-                {
-                    if leading_blanks {
-                        if *leading_break.start == b'\n' {
-                            if *trailing_breaks.start == b'\0' {
+                break_with_cleanup!(
+                    string,
+                    leading_break,
+                    trailing_breaks,
+                    whitespaces
+                );
+            }
+
+            if CHECK!((*parser).buffer, b':')
+                && IS_BLANKZ_AT!((*parser).buffer, 1)
+                || (*parser).flow_level != 0
+                    && (CHECK!((*parser).buffer, b',')
+                        || CHECK!((*parser).buffer, b'[')
+                        || CHECK!((*parser).buffer, b']')
+                        || CHECK!((*parser).buffer, b'{')
+                        || CHECK!((*parser).buffer, b'}'))
+            {
+                break;
+            }
+
+            if leading_blanks
+                || whitespaces.start != whitespaces.pointer
+            {
+                if leading_blanks {
+                    if *leading_break.start == b'\n' {
+                        if *trailing_breaks.start == b'\0' {
+                            // Check and extend buffer
+                            let current_len = string
+                                .pointer
+                                .offset_from(string.start)
+                                as usize;
+                            let additional_size = 1; // Space for the next character
+                            let required_size =
+                                current_len + additional_size;
+
+                            if check_string_buffer_size(
+                                required_size,
+                                1,
+                            )
+                            .is_ok()
+                            {
                                 STRING_EXTEND!(string);
-                                let fresh717 = string.pointer;
-                                string.pointer =
-                                    string.pointer.wrapping_offset(1);
-                                *fresh717 = b' ';
+                                *string.pointer = b' ';
+                                string.pointer = string.pointer.add(1);
                             } else {
-                                JOIN!(string, trailing_breaks);
-                                CLEAR!(trailing_breaks);
+                                yaml_parser_set_scanner_error(
+                                    parser,
+                                    b"while scanning a plain scalar\0".as_ptr()
+                                        as *const i8,
+                                    start_mark,
+                                    b"scalar has grown beyond the maximum allowed size\0".as_ptr()
+                                        as *const i8,
+                                );
+                                break_with_cleanup!(
+                                    string,
+                                    leading_break,
+                                    trailing_breaks,
+                                    whitespaces
+                                );
                             }
-                            CLEAR!(leading_break);
                         } else {
-                            JOIN!(string, leading_break);
-                            JOIN!(string, trailing_breaks);
-                            CLEAR!(leading_break);
+                            if JOIN_SAFE!(string, trailing_breaks)
+                                .is_err()
+                            {
+                                yaml_parser_set_scanner_error(
+                                    parser,
+                                    b"while scanning a plain scalar\0".as_ptr()
+                                        as *const i8,
+                                    start_mark,
+                                    b"scalar has grown beyond the maximum allowed size\0".as_ptr()
+                                        as *const i8,
+                                );
+                                break_with_cleanup!(
+                                    string,
+                                    leading_break,
+                                    trailing_breaks,
+                                    whitespaces
+                                );
+                            }
                             CLEAR!(trailing_breaks);
                         }
-                        leading_blanks = false;
+                        CLEAR!(leading_break);
                     } else {
-                        JOIN!(string, whitespaces);
-                        CLEAR!(whitespaces);
+                        if JOIN_SAFE!(string, leading_break).is_err()
+                            || JOIN_SAFE!(string, trailing_breaks)
+                                .is_err()
+                        {
+                            yaml_parser_set_scanner_error(
+                                parser,
+                                b"while scanning a plain scalar\0".as_ptr()
+                                    as *const i8,
+                                start_mark,
+                                b"scalar has grown beyond the maximum allowed size\0".as_ptr()
+                                    as *const i8,
+                            );
+                            break_with_cleanup!(
+                                string,
+                                leading_break,
+                                trailing_breaks,
+                                whitespaces
+                            );
+                        }
+                        CLEAR!(leading_break);
+                        CLEAR!(trailing_breaks);
                     }
-                }
-                read!(parser, string);
-                end_mark = (*parser).mark;
-                if cache(parser, 2_u64).fail {
-                    current_block = 16642808987012640029;
-                    break 's_57;
+                    leading_blanks = false;
+                } else {
+                    if JOIN_SAFE!(string, whitespaces).is_err() {
+                        yaml_parser_set_scanner_error(
+                            parser,
+                            b"while scanning a plain scalar\0".as_ptr()
+                                as *const i8,
+                            start_mark,
+                            b"scalar has grown beyond the maximum allowed size\0".as_ptr()
+                                as *const i8,
+                        );
+                        break_with_cleanup!(
+                            string,
+                            leading_break,
+                            trailing_breaks,
+                            whitespaces
+                        );
+                    }
+                    CLEAR!(whitespaces);
                 }
             }
+
+            read!(parser, string);
+            end_mark = (*parser).mark;
+
+            if cache(parser, 2_u64).fail {
+                break_with_cleanup!(
+                    string,
+                    leading_break,
+                    trailing_breaks,
+                    whitespaces
+                );
+            }
         }
+
         if !(IS_BLANK!((*parser).buffer) || IS_BREAK!((*parser).buffer))
         {
-            current_block = 6281126495347172768;
             break;
         }
+
         if cache(parser, 1_u64).fail {
-            current_block = 16642808987012640029;
-            break;
+            break_with_cleanup!(
+                string,
+                leading_break,
+                trailing_breaks,
+                whitespaces
+            );
         }
+
         while IS_BLANK!((*parser).buffer) || IS_BREAK!((*parser).buffer)
         {
             if IS_BLANK!((*parser).buffer) {
@@ -2959,23 +3458,33 @@ unsafe fn yaml_parser_scan_plain_scalar(
                 {
                     yaml_parser_set_scanner_error(
                         parser,
-                        b"while scanning a plain scalar\0" as *const u8 as *const libc::c_char,
+                        b"while scanning a plain scalar\0".as_ptr() as *const i8,
                         start_mark,
-                        b"found a tab character that violates indentation\0" as *const u8
-                            as *const libc::c_char,
+                        b"found a tab character that violates indentation\0".as_ptr() as *const i8,
                     );
-                    current_block = 16642808987012640029;
-                    break 's_57;
-                } else if !leading_blanks {
+                    break_with_cleanup!(
+                        string,
+                        leading_break,
+                        trailing_breaks,
+                        whitespaces
+                    );
+                }
+
+                if !leading_blanks {
                     read!(parser, whitespaces);
                 } else {
                     skip(parser);
                 }
             } else {
                 if cache(parser, 2_u64).fail {
-                    current_block = 16642808987012640029;
-                    break 's_57;
+                    break_with_cleanup!(
+                        string,
+                        leading_break,
+                        trailing_breaks,
+                        whitespaces
+                    );
                 }
+
                 if !leading_blanks {
                     CLEAR!(whitespaces);
                     read_line!(parser, leading_break);
@@ -2984,43 +3493,46 @@ unsafe fn yaml_parser_scan_plain_scalar(
                     read_line!(parser, trailing_breaks);
                 }
             }
+
             if cache(parser, 1_u64).fail {
-                current_block = 16642808987012640029;
-                break 's_57;
+                break_with_cleanup!(
+                    string,
+                    leading_break,
+                    trailing_breaks,
+                    whitespaces
+                );
             }
         }
+
         if (*parser).flow_level == 0
             && ((*parser).mark.column as libc::c_int) < indent
         {
-            current_block = 6281126495347172768;
             break;
         }
     }
-    if current_block != 16642808987012640029 {
-        let _ = memset(
-            token as *mut libc::c_void,
-            0,
-            size_of::<YamlTokenT>() as libc::c_ulong,
-        );
-        (*token).type_ = YamlScalarToken;
-        (*token).start_mark = start_mark;
-        (*token).end_mark = end_mark;
-        let fresh842 = addr_of_mut!((*token).data.scalar.value);
-        *fresh842 = string.start;
-        (*token).data.scalar.length =
-            string.pointer.c_offset_from(string.start) as size_t;
-        (*token).data.scalar.style = YamlPlainScalarStyle;
-        if leading_blanks {
-            (*parser).simple_key_allowed = true;
-        }
-        STRING_DEL!(leading_break);
-        STRING_DEL!(trailing_breaks);
-        STRING_DEL!(whitespaces);
-        return OK;
+
+    // Create and return the token
+    ptr::write_bytes(
+        token as *mut libc::c_void,
+        0,
+        size_of::<YamlTokenT>(),
+    );
+
+    (*token).type_ = YamlScalarToken;
+    (*token).start_mark = start_mark;
+    (*token).end_mark = end_mark;
+    (*token).data.scalar.value = string.start;
+    (*token).data.scalar.length =
+        string.pointer.offset_from(string.start) as size_t;
+    (*token).data.scalar.style = YamlPlainScalarStyle;
+
+    if leading_blanks {
+        (*parser).simple_key_allowed = true;
     }
-    STRING_DEL!(string);
+
     STRING_DEL!(leading_break);
     STRING_DEL!(trailing_breaks);
     STRING_DEL!(whitespaces);
-    FAIL
+
+    OK
 }

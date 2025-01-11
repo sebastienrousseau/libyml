@@ -6,7 +6,7 @@ use std::ffi::c_void;
 use std::mem::MaybeUninit;
 use std::ptr;
 use std::ptr::addr_of_mut;
-use unsafe_libyaml::{
+use libyml::{
     yaml_parser_delete, yaml_parser_initialize, yaml_parser_scan, yaml_parser_set_input,
     yaml_parser_t, yaml_token_delete, yaml_token_t, YAML_STREAM_END_TOKEN,
 };

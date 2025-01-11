@@ -65,6 +65,39 @@ impl fmt::Display for YamlError {
 
 impl error::Error for YamlError {}
 
+/// Sets a composer error in the parser with default error information.
+///
+/// This function is deprecated. Use `yaml_parser_set_error` instead.
+///
+/// # Arguments
+/// * `parser` - A mutable pointer to the `YamlParserT` struct.
+///
+/// # Returns
+/// * `Result<Success, YamlError>` indicating the outcome of the operation.
+///
+/// # Safety
+/// * `parser` must be a valid, non-null pointer to a properly initialized `YamlParserT` struct.
+#[deprecated(
+    since = "0.0.6",
+    note = "please use `yaml_parser_set_error` instead"
+)]
+pub unsafe fn yaml_parser_set_composer_error(
+    parser: *mut YamlParserT,
+) -> Result<Success, YamlError> {
+    // Call the new function with default values
+    yaml_parser_set_error(
+        parser,
+        None,
+        b"Composer error occurred\0" as *const u8
+            as *const libc::c_char,
+        YamlMarkT {
+            index: 0,
+            line: 0,
+            column: 0,
+        },
+    )
+}
+
 /// Sets an error in the parser with optional context.
 ///
 /// # Arguments

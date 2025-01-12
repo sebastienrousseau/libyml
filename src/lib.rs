@@ -285,6 +285,15 @@ pub mod externs {
         lhs.cmp(rhs) as libc::c_int
     }
 
+    /// Tests the `strcmp` function.
+    /// This function is only available in test mode.
+    pub fn test_strcmp(
+        lhs: *const libc::c_char,
+        rhs: *const libc::c_char,
+    ) -> i32 {
+        unsafe { strcmp(lhs, rhs) }
+    }
+
     /// Returns the length of a string.
     ///
     /// # Safety

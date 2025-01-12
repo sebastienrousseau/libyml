@@ -286,12 +286,18 @@ pub mod externs {
     }
 
     /// Tests the `strcmp` function.
-    /// This function is only available in test mode.
-    pub fn test_strcmp(
+    ///
+    /// # Safety
+    ///
+    /// This function is unsafe because it:
+    /// - Takes raw pointers as arguments
+    /// - Dereferences these pointers to compare strings
+    /// - Requires that both pointers are valid and point to null-terminated strings
+    pub unsafe fn test_strcmp(
         lhs: *const libc::c_char,
         rhs: *const libc::c_char,
     ) -> i32 {
-        unsafe { strcmp(lhs, rhs) }
+        strcmp(lhs, rhs)
     }
 
     /// Returns the length of a string.

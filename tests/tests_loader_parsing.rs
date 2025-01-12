@@ -51,8 +51,10 @@ mod string_handling_tests {
         let s2 = b"test\0" as *const u8 as *mut c_char;
         let s3 = b"different\0" as *const u8 as *mut c_char;
 
-        assert_eq!(strcmp(s1, s2), 0); // Equal strings
-        assert_ne!(strcmp(s1, s3), 0); // Unequal strings
+        unsafe {
+            assert_eq!(strcmp(s1, s2), 0); // Equal strings
+            assert_ne!(strcmp(s1, s3), 0); // Unequal strings
+        }
     }
 
     #[test]
@@ -61,8 +63,10 @@ mod string_handling_tests {
         let empty = b"\0" as *const u8 as *mut c_char;
         let non_empty = b"not_empty\0" as *const u8 as *mut c_char;
 
-        assert_eq!(strcmp(empty, empty), 0); // Both empty
-        assert_ne!(strcmp(empty, non_empty), 0); // One empty, one not
+        unsafe {
+            assert_eq!(strcmp(empty, empty), 0); // Both empty
+            assert_ne!(strcmp(empty, non_empty), 0); // One empty, one not
+        }
     }
 }
 
@@ -169,8 +173,10 @@ mod memory_tests {
         let s2 = b"test\0".as_ptr() as *mut c_char;
         let s3 = b"different\0".as_ptr() as *mut c_char;
 
-        assert_eq!(strcmp(s1, s2), 0); // Equal strings
-        assert_ne!(strcmp(s1, s3), 0); // Different strings
+        unsafe {
+            assert_eq!(strcmp(s1, s2), 0); // Equal strings
+            assert_ne!(strcmp(s1, s3), 0); // Different strings
+        }
     }
 
     #[test]
@@ -179,7 +185,9 @@ mod memory_tests {
         let empty1 = b"\0".as_ptr() as *mut c_char;
         let empty2 = b"\0".as_ptr() as *mut c_char;
 
-        assert_eq!(strcmp(empty1, empty2), 0); // Both empty
+        unsafe {
+            assert_eq!(strcmp(empty1, empty2), 0); // Both empty
+        }
     }
 
     #[test]

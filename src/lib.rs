@@ -517,7 +517,7 @@ pub mod dumper;
 /// Emitter module for LibYML.
 ///
 /// This module provides functions for emitting YAML data.
-mod emitter;
+pub mod emitter;
 
 /// Loader module for LibYML.
 ///

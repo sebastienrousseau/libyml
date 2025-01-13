@@ -32,6 +32,15 @@ use crate::{
 };
 use core::ptr::{self, addr_of_mut};
 
+const MAX_SIMPLE_KEY_LENGTH: u64 = 128;
+
+/// Flushes the emitter's buffer if needed.
+///
+/// # Safety
+///
+/// - `emitter` must be a valid, non-null pointer to a properly initialized `YamlEmitterT`
+/// - The buffer fields in `emitter` (start, pointer, end) must be valid and properly aligned
+/// - The write handler in `emitter` must be properly initialized and valid
 unsafe fn flush(emitter: *mut YamlEmitterT) -> Success {
     if (*emitter).buffer.pointer.wrapping_offset(5_isize)
         < (*emitter).buffer.end
@@ -42,6 +51,14 @@ unsafe fn flush(emitter: *mut YamlEmitterT) -> Success {
     }
 }
 
+/// Puts a single byte into the emitter's buffer.
+///
+/// # Safety
+///
+/// - `emitter` must be a valid, non-null pointer to a properly initialized `YamlEmitterT`
+/// - The buffer pointer must have enough space for at least one byte
+/// - The buffer fields in `emitter` must be valid and properly aligned
+/// - The column field must be valid and not overflow when incremented
 unsafe fn put(emitter: *mut YamlEmitterT, value: u8) -> Success {
     if flush(emitter).fail {
         return FAIL;
@@ -55,6 +72,14 @@ unsafe fn put(emitter: *mut YamlEmitterT, value: u8) -> Success {
     OK
 }
 
+/// Puts a line break into the emitter's buffer according to the line break style.
+///
+/// # Safety
+///
+/// - `emitter` must be a valid, non-null pointer to a properly initialized `YamlEmitterT`
+/// - The buffer must have enough space for a line break (up to 2 bytes for CRLF)
+/// - The line_break field must contain a valid line break style
+/// - The line and column fields must be valid and not overflow when modified
 unsafe fn put_break(emitter: *mut YamlEmitterT) -> Success {
     if flush(emitter).fail {
         return FAIL;
@@ -85,6 +110,15 @@ unsafe fn put_break(emitter: *mut YamlEmitterT) -> Success {
     OK
 }
 
+/// Writes a string to the emitter's buffer.
+///
+/// # Safety
+///
+/// - `emitter` must be a valid, non-null pointer to a properly initialized `YamlEmitterT`
+/// - `string` must be a valid, non-null pointer to a properly initialized `YamlStringT`
+/// - The buffer must have enough space for the string content
+/// - All string pointers (start, pointer, end) must be valid and properly aligned
+/// - The column field must be valid and not overflow when incremented
 unsafe fn write(
     emitter: *mut YamlEmitterT,
     string: *mut YamlStringT,
@@ -98,6 +132,15 @@ unsafe fn write(
     OK
 }
 
+/// Writes a string break to the emitter's buffer.
+///
+/// # Safety
+///
+/// - `emitter` must be a valid, non-null pointer to a properly initialized `YamlEmitterT`
+/// - `string` must be a valid, non-null pointer to a properly initialized `YamlStringT`
+/// - The buffer must have enough space for the string content
+/// - All string pointers must be valid and properly aligned
+/// - The line and column fields must be valid and not overflow when modified
 unsafe fn write_break(
     emitter: *mut YamlEmitterT,
     string: *mut YamlStringT,
@@ -129,6 +172,13 @@ macro_rules! write_break {
     };
 }
 
+/// Sets an error condition on the emitter.
+///
+/// # Safety
+///
+/// - `emitter` must be a valid, non-null pointer to a properly initialized `YamlEmitterT`
+/// - `problem` must be a valid, null-terminated C string
+/// - The problem string must remain valid for the lifetime of the error
 unsafe fn yaml_emitter_set_emitter_error(
     emitter: *mut YamlEmitterT,
     problem: *const libc::c_char,
@@ -173,6 +223,13 @@ pub unsafe fn yaml_emitter_emit(
     OK
 }
 
+/// Checks if the emitter needs more events to proceed.
+///
+/// # Safety
+///
+/// - `emitter` must be a valid, non-null pointer to a properly initialized `YamlEmitterT`
+/// - The events queue in emitter must be properly initialized
+/// - All event pointers in the queue must be valid and properly aligned
 unsafe fn yaml_emitter_need_more_events(
     emitter: *mut YamlEmitterT,
 ) -> Success {
@@ -216,6 +273,13 @@ unsafe fn yaml_emitter_need_more_events(
     OK
 }
 
+/// Appends a tag directive to the emitter's tag directives list.
+///
+/// # Safety
+///
+/// - `emitter` must be a valid, non-null pointer to a properly initialized `YamlEmitterT`
+/// - The tag directive's handle and prefix must be valid null-terminated strings
+/// - The tag directives stack in emitter must be properly initialized and have capacity
 unsafe fn yaml_emitter_append_tag_directive(
     emitter: *mut YamlEmitterT,
     value: YamlTagDirectiveT,
@@ -250,6 +314,13 @@ unsafe fn yaml_emitter_append_tag_directive(
     OK
 }
 
+/// Increases the indentation level of the emitter.
+///
+/// # Safety
+///
+/// - `emitter` must be a valid, non-null pointer to a properly initialized `YamlEmitterT`
+/// - The indents stack must be properly initialized and have capacity
+/// - The indent field must be valid and not overflow when modified
 unsafe fn yaml_emitter_increase_indent(
     emitter: *mut YamlEmitterT,
     flow: bool,
@@ -264,6 +335,14 @@ unsafe fn yaml_emitter_increase_indent(
     }
 }
 
+/// Processes the emitter's state machine.
+///
+/// # Safety
+///
+/// - `emitter` must be a valid, non-null pointer to a properly initialized `YamlEmitterT`
+/// - `event` must be a valid, non-null pointer to a properly initialized `YamlEventT`
+/// - The emitter must be in a valid state for processing the given event
+/// - All event data pointers must be valid and properly aligned
 unsafe fn yaml_emitter_state_machine(
     emitter: *mut YamlEmitterT,
     event: *mut YamlEventT,
@@ -328,6 +407,15 @@ unsafe fn yaml_emitter_state_machine(
     }
 }
 
+/// Emits a stream start event.
+///
+/// # Safety
+///
+/// - `emitter` must be a valid, non-null pointer to a properly initialized `YamlEmitterT`
+/// - `event` must be a valid, non-null pointer to a properly initialized `YamlEventT`
+/// - The event must be a YamlStreamStartEvent
+/// - The encoding fields must contain valid encoding values
+/// - The emitter state must be ready to start a new stream
 unsafe fn yaml_emitter_emit_stream_start(
     emitter: *mut YamlEmitterT,
     event: *mut YamlEventT,
@@ -374,6 +462,15 @@ unsafe fn yaml_emitter_emit_stream_start(
     )
 }
 
+/// Emits a document start event.
+///
+/// # Safety
+///
+/// - `emitter` must be a valid, non-null pointer to a properly initialized `YamlEmitterT`
+/// - `event` must be a valid, non-null pointer to a properly initialized `YamlEventT`
+/// - The event must be a YamlDocumentStartEvent or YamlStreamEndEvent
+/// - All version and tag directive pointers in the event must be valid if present
+/// - The tag directives stack must be properly initialized
 unsafe fn yaml_emitter_emit_document_start(
     emitter: *mut YamlEmitterT,
     event: *mut YamlEventT,
@@ -621,6 +718,15 @@ unsafe fn yaml_emitter_emit_document_start(
     )
 }
 
+/// Emits document content.
+///
+/// # Safety
+///
+/// - `emitter` must be a valid, non-null pointer to a properly initialized `YamlEmitterT`
+/// - `event` must be a valid, non-null pointer to a properly initialized `YamlEventT`
+/// - The states stack must have capacity for the new state
+/// - The emitter must be in a valid state for document content
+/// - All event data must be properly initialized
 unsafe fn yaml_emitter_emit_document_content(
     emitter: *mut YamlEmitterT,
     event: *mut YamlEventT,
@@ -629,6 +735,15 @@ unsafe fn yaml_emitter_emit_document_content(
     yaml_emitter_emit_node(emitter, event, true, false, false, false)
 }
 
+/// Emits a document end event.
+///
+/// # Safety
+///
+/// - `emitter` must be a valid, non-null pointer to a properly initialized `YamlEmitterT`
+/// - `event` must be a valid, non-null pointer to a properly initialized `YamlEventT`
+/// - The event must be a YamlDocumentEndEvent
+/// - The tag directives stack must be properly initialized for cleanup
+/// - The emitter state must be valid for ending a document
 unsafe fn yaml_emitter_emit_document_end(
     emitter: *mut YamlEmitterT,
     event: *mut YamlEventT,
@@ -673,6 +788,15 @@ unsafe fn yaml_emitter_emit_document_end(
     )
 }
 
+/// Emits a flow sequence item.
+///
+/// # Safety
+///
+/// - `emitter` must be a valid, non-null pointer to a properly initialized `YamlEmitterT`
+/// - `event` must be a valid, non-null pointer to a properly initialized `YamlEventT`
+/// - The flow_level counter must not overflow when modified
+/// - The indents stack must be properly initialized
+/// - The states stack must be properly initialized
 unsafe fn yaml_emitter_emit_flow_sequence_item(
     emitter: *mut YamlEmitterT,
     event: *mut YamlEventT,
@@ -750,6 +874,15 @@ unsafe fn yaml_emitter_emit_flow_sequence_item(
     yaml_emitter_emit_node(emitter, event, false, true, false, false)
 }
 
+/// Emits a flow mapping key.
+///
+/// # Safety
+///
+/// - `emitter` must be a valid, non-null pointer to a properly initialized `YamlEmitterT`
+/// - `event` must be a valid, non-null pointer to a properly initialized `YamlEventT`
+/// - The flow_level counter must not overflow when modified
+/// - The indents stack must be properly initialized and have capacity
+/// - The states stack must be properly initialized and have capacity
 unsafe fn yaml_emitter_emit_flow_mapping_key(
     emitter: *mut YamlEmitterT,
     event: *mut YamlEventT,
@@ -848,6 +981,15 @@ unsafe fn yaml_emitter_emit_flow_mapping_key(
     }
 }
 
+/// Emits a flow mapping value.
+///
+/// # Safety
+///
+/// - `emitter` must be a valid, non-null pointer to a properly initialized `YamlEmitterT`
+/// - `event` must be a valid, non-null pointer to a properly initialized `YamlEventT`
+/// - The states stack must be properly initialized and have capacity
+/// - The emitter state must be valid for a flow mapping value
+/// - The column and indentation state must be valid
 unsafe fn yaml_emitter_emit_flow_mapping_value(
     emitter: *mut YamlEmitterT,
     event: *mut YamlEventT,
@@ -888,6 +1030,15 @@ unsafe fn yaml_emitter_emit_flow_mapping_value(
     yaml_emitter_emit_node(emitter, event, false, false, true, false)
 }
 
+/// Emits a block sequence item.
+///
+/// # Safety
+///
+/// - `emitter` must be a valid, non-null pointer to a properly initialized `YamlEmitterT`
+/// - `event` must be a valid, non-null pointer to a properly initialized `YamlEventT`
+/// - The indents stack must be properly initialized and have capacity
+/// - The states stack must be properly initialized and have capacity
+/// - The mapping_context and indention flags must be valid
 unsafe fn yaml_emitter_emit_block_sequence_item(
     emitter: *mut YamlEmitterT,
     event: *mut YamlEventT,
@@ -923,6 +1074,15 @@ unsafe fn yaml_emitter_emit_block_sequence_item(
     yaml_emitter_emit_node(emitter, event, false, true, false, false)
 }
 
+/// Emits a block mapping key.
+///
+/// # Safety
+///
+/// - `emitter` must be a valid, non-null pointer to a properly initialized `YamlEmitterT`
+/// - `event` must be a valid, non-null pointer to a properly initialized `YamlEventT`
+/// - The indents stack must be properly initialized and have capacity
+/// - The states stack must be properly initialized and have capacity
+/// - All event data must be properly initialized
 unsafe fn yaml_emitter_emit_block_mapping_key(
     emitter: *mut YamlEmitterT,
     event: *mut YamlEventT,
@@ -961,6 +1121,15 @@ unsafe fn yaml_emitter_emit_block_mapping_key(
     }
 }
 
+/// Emits a block mapping value.
+///
+/// # Safety
+///
+/// - `emitter` must be a valid, non-null pointer to a properly initialized `YamlEmitterT`
+/// - `event` must be a valid, non-null pointer to a properly initialized `YamlEventT`
+/// - The states stack must be properly initialized and have capacity
+/// - The emitter state must be valid for a block mapping value
+/// - The indentation state must be properly tracked
 unsafe fn yaml_emitter_emit_block_mapping_value(
     emitter: *mut YamlEmitterT,
     event: *mut YamlEventT,
@@ -998,6 +1167,15 @@ unsafe fn yaml_emitter_emit_block_mapping_value(
     yaml_emitter_emit_node(emitter, event, false, false, true, false)
 }
 
+/// Emits a node with proper context.
+///
+/// # Safety
+///
+/// - `emitter` must be a valid, non-null pointer to a properly initialized `YamlEmitterT`
+/// - `event` must be a valid, non-null pointer to a properly initialized `YamlEventT`
+/// - All context flags must be valid boolean values
+/// - The event type must be one of: alias, scalar, sequence start, or mapping start
+/// - All event data must be properly initialized for the given event type
 unsafe fn yaml_emitter_emit_node(
     emitter: *mut YamlEmitterT,
     event: *mut YamlEventT,
@@ -1023,6 +1201,15 @@ unsafe fn yaml_emitter_emit_node(
     }
 }
 
+/// Emits an alias node.
+///
+/// # Safety
+///
+/// - `emitter` must be a valid, non-null pointer to a properly initialized `YamlEmitterT`
+/// - `event` must be a valid, non-null pointer to a properly initialized `YamlEventT`
+/// - The anchor data must be properly initialized
+/// - The simple_key_context flag must be valid
+/// - The states stack must be properly initialized
 unsafe fn yaml_emitter_emit_alias(
     emitter: *mut YamlEmitterT,
     _event: *mut YamlEventT,
@@ -1037,6 +1224,15 @@ unsafe fn yaml_emitter_emit_alias(
     OK
 }
 
+/// Emits a scalar node.
+///
+/// # Safety
+///
+/// - `emitter` must be a valid, non-null pointer to a properly initialized `YamlEmitterT`
+/// - `event` must be a valid, non-null pointer to a properly initialized `YamlEventT`
+/// - The event must be a YamlScalarEvent with valid scalar data
+/// - The indents stack must be properly initialized
+/// - The states stack must be properly initialized
 unsafe fn yaml_emitter_emit_scalar(
     emitter: *mut YamlEmitterT,
     event: *mut YamlEventT,
@@ -1059,6 +1255,15 @@ unsafe fn yaml_emitter_emit_scalar(
     OK
 }
 
+/// Emits a sequence start node.
+///
+/// # Safety
+///
+/// - `emitter` must be a valid, non-null pointer to a properly initialized `YamlEmitterT`
+/// - `event` must be a valid, non-null pointer to a properly initialized `YamlEventT`
+/// - The event must be a YamlSequenceStartEvent
+/// - The flow_level and canonical flags must be valid
+/// - The sequence start style must be valid
 unsafe fn yaml_emitter_emit_sequence_start(
     emitter: *mut YamlEmitterT,
     event: *mut YamlEventT,
@@ -1081,6 +1286,15 @@ unsafe fn yaml_emitter_emit_sequence_start(
     OK
 }
 
+/// Emits a mapping start node.
+///
+/// # Safety
+///
+/// - `emitter` must be a valid, non-null pointer to a properly initialized `YamlEmitterT`
+/// - `event` must be a valid, non-null pointer to a properly initialized `YamlEventT`
+/// - The event must be a YamlMappingStartEvent
+/// - The flow_level and canonical flags must be valid
+/// - The mapping start style must be valid
 unsafe fn yaml_emitter_emit_mapping_start(
     emitter: *mut YamlEmitterT,
     event: *mut YamlEventT,
@@ -1103,12 +1317,25 @@ unsafe fn yaml_emitter_emit_mapping_start(
     OK
 }
 
+/// Checks if a document is empty.
+///
+/// # Safety
+///
+/// - `emitter` must be a valid, non-null pointer to a properly initialized `YamlEmitterT`
+/// - The events queue must be properly initialized
 unsafe fn yaml_emitter_check_empty_document(
     _emitter: *mut YamlEmitterT,
 ) -> bool {
     false
 }
 
+/// Checks if a sequence is empty.
+///
+/// # Safety
+///
+/// - `emitter` must be a valid, non-null pointer to a properly initialized `YamlEmitterT`
+/// - The events queue must be properly initialized with valid head and tail pointers
+/// - At least two events must be available in the queue if the sequence is empty
 unsafe fn yaml_emitter_check_empty_sequence(
     emitter: *mut YamlEmitterT,
 ) -> bool {
@@ -1123,6 +1350,13 @@ unsafe fn yaml_emitter_check_empty_sequence(
             == YamlSequenceEndEvent
 }
 
+/// Checks if a mapping is empty.
+///
+/// # Safety
+///
+/// - `emitter` must be a valid, non-null pointer to a properly initialized `YamlEmitterT`
+/// - The events queue must be properly initialized with valid head and tail pointers
+/// - At least two events must be available in the queue if the mapping is empty
 unsafe fn yaml_emitter_check_empty_mapping(
     emitter: *mut YamlEmitterT,
 ) -> bool {
@@ -1137,19 +1371,53 @@ unsafe fn yaml_emitter_check_empty_mapping(
             == YamlMappingEndEvent
 }
 
+/// Checks if a key can be written as a simple key.
+///
+/// # Safety
+///
+/// - `emitter` must be a valid, non-null pointer to a properly initialized `YamlEmitterT`
+/// - The events queue must be properly initialized with a valid head pointer
+/// - All event data in the head event must be properly initialized
+/// - The scalar_data fields must be valid for scalar events
 unsafe fn yaml_emitter_check_simple_key(
     emitter: *mut YamlEmitterT,
 ) -> bool {
-    let event: *mut YamlEventT = (*emitter).events.head;
-    let mut length: size_t = 0_u64;
+    // Validate that the emitter and its events queue are properly initialized.
+    if emitter.is_null() || (*emitter).events.head.is_null() {
+        return false; // Invalid emitter or empty event queue.
+    }
+
+    let event = (*emitter).events.head;
+
+    // Ensure the event pointer itself is valid.
+    if event.is_null() {
+        return false; // Event pointer is null.
+    }
+
+    // Check that the event type is one of the supported types.
+    if !matches!(
+        (*event).type_,
+        YamlAliasEvent
+            | YamlScalarEvent
+            | YamlSequenceStartEvent
+            | YamlMappingStartEvent
+    ) {
+        return false; // Unsupported or uninitialized event type.
+    }
+
+    let mut length: size_t = 0;
+
+    // Determine the length based on the event type.
     match (*event).type_ {
         YamlAliasEvent => {
+            // Add the length of the alias anchor.
             length =
                 length.force_add((*emitter).anchor_data.anchor_length);
         }
         YamlScalarEvent => {
+            // For scalar events, check multiline restrictions and calculate total length.
             if (*emitter).scalar_data.multiline {
-                return false;
+                return false; // Multiline scalars are not simple keys.
             }
             length = length
                 .force_add((*emitter).anchor_data.anchor_length)
@@ -1158,8 +1426,9 @@ unsafe fn yaml_emitter_check_simple_key(
                 .force_add((*emitter).scalar_data.length);
         }
         YamlSequenceStartEvent => {
+            // For sequence start, ensure it's empty and calculate its length.
             if !yaml_emitter_check_empty_sequence(emitter) {
-                return false;
+                return false; // Non-empty sequences are not simple keys.
             }
             length = length
                 .force_add((*emitter).anchor_data.anchor_length)
@@ -1167,22 +1436,31 @@ unsafe fn yaml_emitter_check_simple_key(
                 .force_add((*emitter).tag_data.suffix_length);
         }
         YamlMappingStartEvent => {
+            // For mapping start, ensure it's empty and calculate its length.
             if !yaml_emitter_check_empty_mapping(emitter) {
-                return false;
+                return false; // Non-empty mappings are not simple keys.
             }
             length = length
                 .force_add((*emitter).anchor_data.anchor_length)
                 .force_add((*emitter).tag_data.handle_length)
                 .force_add((*emitter).tag_data.suffix_length);
         }
-        _ => return false,
+        _ => return false, // Unsupported event type (shouldn't reach here due to earlier match).
     }
-    if length > 128_u64 {
-        return false;
-    }
-    true
+
+    // Check if the calculated length is within the maximum allowed for simple keys.
+    length <= MAX_SIMPLE_KEY_LENGTH
 }
 
+/// Selects appropriate style for a scalar value.
+///
+/// # Safety
+///
+/// - `emitter` must be a valid, non-null pointer to a properly initialized `YamlEmitterT`
+/// - `event` must be a valid, non-null pointer to a properly initialized `YamlEventT`
+/// - The event must be a YamlScalarEvent
+/// - The scalar_data fields must be properly initialized
+/// - The tag_data fields must be properly initialized
 unsafe fn yaml_emitter_select_scalar_style(
     emitter: *mut YamlEmitterT,
     event: *mut YamlEventT,
@@ -1254,6 +1532,14 @@ unsafe fn yaml_emitter_select_scalar_style(
     OK
 }
 
+/// Processes an anchor or alias.
+///
+/// # Safety
+///
+/// - `emitter` must be a valid, non-null pointer to a properly initialized `YamlEmitterT`
+/// - The anchor_data fields must be properly initialized
+/// - If anchor_data.anchor is non-null, it must point to a valid null-terminated string
+/// - The buffer must have enough space for the anchor formatting
 unsafe fn yaml_emitter_process_anchor(
     emitter: *mut YamlEmitterT,
 ) -> Success {
@@ -1282,6 +1568,14 @@ unsafe fn yaml_emitter_process_anchor(
     )
 }
 
+/// Processes a tag.
+///
+/// # Safety
+///
+/// - `emitter` must be a valid, non-null pointer to a properly initialized `YamlEmitterT`
+/// - The tag_data fields must be properly initialized
+/// - If tag_data handle/suffix are non-null, they must point to valid null-terminated strings
+/// - The buffer must have enough space for the tag formatting
 unsafe fn yaml_emitter_process_tag(
     emitter: *mut YamlEmitterT,
 ) -> Success {
@@ -1348,6 +1642,14 @@ unsafe fn yaml_emitter_process_tag(
     OK
 }
 
+/// Processes a scalar value for emission.
+///
+/// # Safety
+///
+/// - `emitter` must be a valid, non-null pointer to a properly initialized `YamlEmitterT`
+/// - `value` must be a valid pointer to a scalar value buffer
+/// - `length` must accurately reflect the size of the value buffer
+/// - The scalar_data fields in emitter must be properly initialized
 unsafe fn yaml_emitter_process_scalar(
     emitter: *mut YamlEmitterT,
 ) -> Success {
@@ -1395,6 +1697,12 @@ unsafe fn yaml_emitter_process_scalar(
     FAIL
 }
 
+/// Analyzes a version directive.
+///
+/// # Safety
+///
+/// - `emitter` must be a valid, non-null pointer to a properly initialized `YamlEmitterT`
+/// - The version directive must contain valid major and minor version numbers
 unsafe fn yaml_emitter_analyze_version_directive(
     emitter: *mut YamlEmitterT,
     version_directive: YamlVersionDirectiveT,
@@ -1411,6 +1719,13 @@ unsafe fn yaml_emitter_analyze_version_directive(
     OK
 }
 
+/// Analyzes a tag directive for validity.
+///
+/// # Safety
+///
+/// - `emitter` must be a valid, non-null pointer to a properly initialized `YamlEmitterT`
+/// - The tag directive's handle and prefix must be valid null-terminated strings
+/// - The strings must remain valid for the duration of the analysis
 unsafe fn yaml_emitter_analyze_tag_directive(
     emitter: *mut YamlEmitterT,
     tag_directive: YamlTagDirectiveT,
@@ -1464,7 +1779,7 @@ unsafe fn yaml_emitter_analyze_tag_directive(
     OK
 }
 
-unsafe fn yaml_emitter_analyze_anchor(
+pub(crate) unsafe fn yaml_emitter_analyze_anchor(
     emitter: *mut YamlEmitterT,
     anchor: *mut yaml_char_t,
     alias: bool,
@@ -1506,7 +1821,7 @@ unsafe fn yaml_emitter_analyze_anchor(
     OK
 }
 
-unsafe fn yaml_emitter_analyze_tag(
+pub(crate) unsafe fn yaml_emitter_analyze_tag(
     emitter: *mut YamlEmitterT,
     tag: *mut yaml_char_t,
 ) -> Success {
@@ -1554,6 +1869,14 @@ unsafe fn yaml_emitter_analyze_tag(
     OK
 }
 
+/// Analyzes a scalar value's properties.
+///
+/// # Safety
+///
+/// - `emitter` must be a valid, non-null pointer to a properly initialized `YamlEmitterT`
+/// - `value` must be a valid pointer to a scalar value buffer
+/// - `length` must accurately reflect the size of the value buffer
+/// - The scalar_data fields in emitter must be properly initialized
 unsafe fn yaml_emitter_analyze_scalar(
     emitter: *mut YamlEmitterT,
     value: *mut yaml_char_t,
@@ -1737,6 +2060,15 @@ unsafe fn yaml_emitter_analyze_scalar(
     OK
 }
 
+/// Analyzes an event before emission.
+///
+/// # Safety
+///
+/// - `emitter` must be a valid, non-null pointer to a properly initialized `YamlEmitterT`
+/// - `event` must be a valid, non-null pointer to a properly initialized `YamlEventT`
+/// - All event data pointers (anchor, tag, scalar value) must be valid if present
+/// - The scalar data fields must be properly initialized for scalar events
+/// - The tag data fields must be properly initialized for events with tags
 unsafe fn yaml_emitter_analyze_event(
     emitter: *mut YamlEmitterT,
     event: *mut YamlEventT,
@@ -1840,6 +2172,14 @@ unsafe fn yaml_emitter_analyze_event(
     }
 }
 
+/// Writes a UTF-8 BOM (Byte Order Mark).
+///
+/// # Safety
+///
+/// - `emitter` must be a valid, non-null pointer to a properly initialized `YamlEmitterT`
+/// - The buffer must have enough space for the 3-byte BOM sequence
+/// - The buffer pointer must be properly aligned for byte writes
+/// - The encoding must be set to support BOM writing
 unsafe fn yaml_emitter_write_bom(
     emitter: *mut YamlEmitterT,
 ) -> Success {
@@ -1861,6 +2201,15 @@ unsafe fn yaml_emitter_write_bom(
     OK
 }
 
+/// Writes indentation according to the current indentation level.
+///
+/// # Safety
+///
+/// - `emitter` must be a valid, non-null pointer to a properly initialized `YamlEmitterT`
+/// - The indent field must contain a valid indentation level
+/// - The buffer must have enough space for the full indentation
+/// - The column tracking must be accurate
+/// - The whitespace and indentation flags must be valid
 unsafe fn yaml_emitter_write_indent(
     emitter: *mut YamlEmitterT,
 ) -> Success {
@@ -1891,6 +2240,15 @@ unsafe fn yaml_emitter_write_indent(
     OK
 }
 
+/// Writes a YAML indicator token.
+///
+/// # Safety
+///
+/// - `emitter` must be a valid, non-null pointer to a properly initialized `YamlEmitterT`
+/// - `indicator` must be a valid pointer to a null-terminated C string
+/// - The indicator string must contain a valid YAML indicator token
+/// - The buffer must have enough space for the indicator and any required whitespace
+/// - The whitespace and indentation state must be valid
 unsafe fn yaml_emitter_write_indicator(
     emitter: *mut YamlEmitterT,
     indicator: *const libc::c_char,
@@ -1917,6 +2275,15 @@ unsafe fn yaml_emitter_write_indicator(
     OK
 }
 
+/// Writes an anchor.
+///
+/// # Safety
+///
+/// - `emitter` must be a valid, non-null pointer to a properly initialized `YamlEmitterT`
+/// - `value` must be a valid pointer to a null-terminated string buffer
+/// - `length` must accurately reflect the size of the anchor name
+/// - The buffer must have enough space for the anchor formatting
+/// - The anchor name must contain only valid anchor characters
 unsafe fn yaml_emitter_write_anchor(
     emitter: *mut YamlEmitterT,
     value: *mut yaml_char_t,
@@ -1933,6 +2300,15 @@ unsafe fn yaml_emitter_write_anchor(
     OK
 }
 
+/// Writes a tag handle.
+///
+/// # Safety
+///
+/// - `emitter` must be a valid, non-null pointer to a properly initialized `YamlEmitterT`
+/// - `value` must be a valid pointer to a null-terminated string buffer
+/// - `length` must accurately reflect the size of the tag handle
+/// - The buffer must have enough space for the tag handle and any required whitespace
+/// - The tag handle must be a valid YAML tag handle
 unsafe fn yaml_emitter_write_tag_handle(
     emitter: *mut YamlEmitterT,
     value: *mut yaml_char_t,
@@ -1952,6 +2328,15 @@ unsafe fn yaml_emitter_write_tag_handle(
     OK
 }
 
+/// Writes tag content with proper escaping.
+///
+/// # Safety
+///
+/// - `emitter` must be a valid, non-null pointer to a properly initialized `YamlEmitterT`
+/// - `value` must be a valid pointer to a null-terminated string buffer
+/// - `length` must accurately reflect the size of the tag content
+/// - The buffer must have enough space for the content and all escape sequences
+/// - The tag content must be valid according to YAML tag rules
 unsafe fn yaml_emitter_write_tag_content(
     emitter: *mut YamlEmitterT,
     value: *mut yaml_char_t,
@@ -2036,6 +2421,15 @@ unsafe fn yaml_emitter_write_tag_content(
     OK
 }
 
+/// Writes a plain scalar value.
+///
+/// # Safety
+///
+/// - `emitter` must be a valid, non-null pointer to a properly initialized `YamlEmitterT`
+/// - `value` must be a valid pointer to a null-terminated string buffer
+/// - `length` must accurately reflect the size of the value buffer
+/// - The buffer must have enough space for the content and any required line breaks
+/// - The flow_level and indentation state must be valid
 unsafe fn yaml_emitter_write_plain_scalar(
     emitter: *mut YamlEmitterT,
     value: *mut yaml_char_t,
@@ -2095,6 +2489,15 @@ unsafe fn yaml_emitter_write_plain_scalar(
     OK
 }
 
+/// Writes a single quoted scalar value.
+///
+/// # Safety
+///
+/// - `emitter` must be a valid, non-null pointer to a properly initialized `YamlEmitterT`
+/// - `value` must be a valid pointer to a null-terminated string buffer
+/// - `length` must accurately reflect the size of the value buffer
+/// - The buffer must have enough space for the quoted content and escaping
+/// - All string content must be valid UTF-8 if unicode mode is enabled
 unsafe fn yaml_emitter_write_single_quoted_scalar(
     emitter: *mut YamlEmitterT,
     value: *mut yaml_char_t,
@@ -2179,6 +2582,15 @@ unsafe fn yaml_emitter_write_single_quoted_scalar(
     OK
 }
 
+/// Writes a double quoted scalar value with proper escaping.
+///
+/// # Safety
+///
+/// - `emitter` must be a valid, non-null pointer to a properly initialized `YamlEmitterT`
+/// - `value` must be a valid pointer to a null-terminated string buffer
+/// - `length` must accurately reflect the size of the value buffer
+/// - The buffer must have enough space for the quoted content and all escape sequences
+/// - The unicode flag in emitter must be properly set
 unsafe fn yaml_emitter_write_double_quoted_scalar(
     emitter: *mut YamlEmitterT,
     value: *mut yaml_char_t,
@@ -2405,6 +2817,14 @@ unsafe fn yaml_emitter_write_double_quoted_scalar(
     OK
 }
 
+/// Writes block scalar hints.
+///
+/// # Safety
+///
+/// - `emitter` must be a valid, non-null pointer to a properly initialized `YamlEmitterT`
+/// - The string parameter must be a valid `YamlStringT` with properly aligned pointers
+/// - The buffer must have enough space for the hints
+/// - The best_indent field must contain a valid indentation value
 unsafe fn yaml_emitter_write_block_scalar_hints(
     emitter: *mut YamlEmitterT,
     mut string: YamlStringT,
@@ -2468,6 +2888,15 @@ unsafe fn yaml_emitter_write_block_scalar_hints(
     OK
 }
 
+/// Writes a literal scalar value.
+///
+/// # Safety
+///
+/// - `emitter` must be a valid, non-null pointer to a properly initialized `YamlEmitterT`
+/// - `value` must be a valid pointer to a null-terminated string buffer
+/// - `length` must accurately reflect the size of the value buffer
+/// - The buffer must have enough space for the scalar content and formatting
+/// - All emitter state fields must be properly initialized
 unsafe fn yaml_emitter_write_literal_scalar(
     emitter: *mut YamlEmitterT,
     value: *mut yaml_char_t,
@@ -2515,6 +2944,15 @@ unsafe fn yaml_emitter_write_literal_scalar(
     OK
 }
 
+/// Writes a folded scalar value.
+///
+/// # Safety
+///
+/// - `emitter` must be a valid, non-null pointer to a properly initialized `YamlEmitterT`
+/// - `value` must be a valid pointer to a null-terminated string buffer
+/// - `length` must accurately reflect the size of the value buffer
+/// - The buffer must have enough space for the scalar content and all necessary line breaks
+/// - The emitter's line breaking and indentation state must be valid
 unsafe fn yaml_emitter_write_folded_scalar(
     emitter: *mut YamlEmitterT,
     value: *mut yaml_char_t,
@@ -2584,4 +3022,569 @@ unsafe fn yaml_emitter_write_folded_scalar(
         }
     }
     OK
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::memory::yaml_malloc;
+    use core::mem::zeroed;
+    use core::mem::MaybeUninit;
+
+    #[test]
+    fn test_flush() {
+        unsafe {
+            let mut emitter: YamlEmitterT =
+                MaybeUninit::zeroed().assume_init();
+            let capacity = 128_usize;
+            let raw_buf = yaml_malloc(capacity as size_t) as *mut u8;
+            if raw_buf.is_null() {
+                panic!(
+                    "failed to allocate test buffer for YamlEmitterT"
+                );
+            }
+
+            // Set up the buffer pointers
+            emitter.buffer.start = raw_buf;
+            emitter.buffer.pointer = raw_buf;
+            emitter.buffer.end = (raw_buf).add(capacity);
+
+            // Call the function under test
+            let result = flush(&mut emitter);
+            assert!(!result.fail, "Expected flush to succeed");
+
+            // Now free the allocated buffer, so we don't leak
+            yaml_free(raw_buf as *mut libc::c_void);
+        }
+    }
+
+    // 2. put
+    #[test]
+    fn test_put() {
+        unsafe {
+            // 1) Create a zeroed emitter
+            let mut emitter: YamlEmitterT =
+                MaybeUninit::zeroed().assume_init();
+
+            // 2) Allocate a buffer
+            let capacity = 128_usize;
+            let raw_buf = yaml_malloc(capacity as size_t);
+            if raw_buf.is_null() {
+                panic!(
+                    "Failed to allocate test buffer for YamlEmitterT"
+                );
+            }
+
+            // 3) Initialize the emitter buffer pointers
+            emitter.buffer.start = raw_buf as *mut yaml_char_t;
+            emitter.buffer.pointer = raw_buf as *mut yaml_char_t;
+            emitter.buffer.end =
+                (raw_buf as *mut yaml_char_t).add(capacity);
+
+            // 4) Optionally set other fields to satisfy any asserts
+            emitter.encoding = YamlUtf8Encoding;
+            emitter.line_break = YamlLnBreak;
+
+            // 5) Call the function under test
+            let byte_value = b'A';
+            let result = put(&mut emitter, byte_value);
+            assert!(!result.fail, "Expected put to succeed");
+
+            // 6) Free the buffer so Miri doesn't complain about a leak
+            yaml_free(raw_buf);
+        }
+    }
+
+    // 3. put_break
+    #[test]
+    fn test_put_break() {
+        unsafe {
+            let mut emitter: YamlEmitterT =
+                MaybeUninit::zeroed().assume_init();
+            let capacity = 128_usize;
+            let raw_buf = yaml_malloc(capacity as size_t);
+            assert!(!raw_buf.is_null(), "Failed to allocate buffer");
+
+            // Set up the buffer and write handler
+            emitter.buffer.start = raw_buf as *mut yaml_char_t;
+            emitter.buffer.pointer = raw_buf as *mut yaml_char_t;
+            emitter.buffer.end =
+                (raw_buf as *mut yaml_char_t).add(capacity);
+
+            // Test each line break type
+            for break_type in [YamlCrBreak, YamlLnBreak, YamlCrlnBreak]
+            {
+                emitter.line_break = break_type;
+                emitter.column = 5; // Set some initial column value
+                emitter.line = 1; // Set initial line
+
+                let result = put_break(&mut emitter);
+                assert!(!result.fail, "Expected put_break to succeed");
+
+                // Verify column was reset
+                assert_eq!(
+                    emitter.column, 0,
+                    "Column should be reset after break"
+                );
+
+                // Verify line was incremented
+                assert_eq!(
+                    emitter.line, 2,
+                    "Line should be incremented"
+                );
+
+                // Reset buffer pointer for next test
+                emitter.buffer.pointer = emitter.buffer.start;
+            }
+
+            yaml_free(raw_buf);
+        }
+    }
+
+    #[test]
+    fn test_put_buffer_verification() {
+        unsafe {
+            let mut emitter: YamlEmitterT =
+                MaybeUninit::zeroed().assume_init();
+            let capacity = 128_usize;
+            let raw_buf = yaml_malloc(capacity as size_t);
+            assert!(!raw_buf.is_null());
+
+            // Set up the buffer pointers
+            emitter.buffer.start = raw_buf as *mut yaml_char_t;
+            emitter.buffer.pointer = raw_buf as *mut yaml_char_t;
+            emitter.buffer.end =
+                (raw_buf as *mut yaml_char_t).add(capacity);
+
+            // Test normal write
+            let test_byte = b'A';
+            let result = put(&mut emitter, test_byte);
+            assert!(!result.fail, "Expected put to succeed");
+            assert_eq!(
+                *emitter.buffer.start, test_byte,
+                "Byte wasn't written correctly"
+            );
+            assert_eq!(
+                emitter.column, 1,
+                "Column should be incremented"
+            );
+
+            // Clean up
+            yaml_free(raw_buf);
+        }
+    }
+
+    // 4. write
+    #[test]
+    fn test_write_function() {
+        unsafe {
+            let mut emitter: YamlEmitterT =
+                MaybeUninit::zeroed().assume_init();
+
+            let capacity = 128_usize;
+            let raw_buf = yaml_malloc(capacity as size_t);
+            assert!(!raw_buf.is_null(), "Failed to allocate buffer");
+
+            emitter.buffer.start = raw_buf as *mut yaml_char_t;
+            emitter.buffer.pointer = raw_buf as *mut yaml_char_t;
+            emitter.buffer.end =
+                (raw_buf as *mut yaml_char_t).add(capacity);
+
+            emitter.encoding = YamlUtf8Encoding;
+            emitter.line_break = YamlLnBreak;
+
+            let mut yaml_string = YamlStringT {
+                start: b"test".as_ptr() as *mut yaml_char_t,
+                end: b"test".as_ptr().add(4) as *mut yaml_char_t,
+                pointer: b"test".as_ptr() as *mut yaml_char_t,
+            };
+
+            let result = write(&mut emitter, &mut yaml_string);
+            assert!(!result.fail, "Expected write to succeed");
+
+            yaml_free(raw_buf);
+        }
+    }
+
+    // 5. write_break
+    #[test]
+    fn test_write_break_function() {
+        unsafe {
+            let mut emitter: YamlEmitterT =
+                MaybeUninit::zeroed().assume_init();
+
+            let capacity = 128_usize;
+            let raw_buf = yaml_malloc(capacity as size_t);
+            assert!(!raw_buf.is_null(), "Failed to allocate buffer");
+
+            emitter.buffer.start = raw_buf as *mut yaml_char_t;
+            emitter.buffer.pointer = raw_buf as *mut yaml_char_t;
+            emitter.buffer.end =
+                (raw_buf as *mut yaml_char_t).add(capacity);
+
+            emitter.encoding = YamlUtf8Encoding;
+            emitter.line_break = YamlLnBreak;
+
+            let mut yaml_string = YamlStringT {
+                start: b"\n".as_ptr() as *mut yaml_char_t,
+                end: b"\n".as_ptr().add(1) as *mut yaml_char_t,
+                pointer: b"\n".as_ptr() as *mut yaml_char_t,
+            };
+
+            let result = write_break(&mut emitter, &mut yaml_string);
+            assert!(!result.fail, "Expected write_break to succeed");
+
+            yaml_free(raw_buf);
+        }
+    }
+
+    // 6. yaml_emitter_set_emitter_error
+    #[test]
+    fn test_yaml_emitter_set_emitter_error() {
+        unsafe {
+            let mut emitter: YamlEmitterT =
+                MaybeUninit::zeroed().assume_init();
+
+            let capacity = 128_usize;
+            let raw_buf = yaml_malloc(capacity as size_t);
+            assert!(!raw_buf.is_null());
+
+            emitter.buffer.start = raw_buf as *mut yaml_char_t;
+            emitter.buffer.pointer = raw_buf as *mut yaml_char_t;
+            emitter.buffer.end =
+                (raw_buf as *mut yaml_char_t).add(capacity);
+
+            emitter.encoding = YamlUtf8Encoding;
+            emitter.line_break = YamlLnBreak;
+
+            let error_str = b"some error\0";
+            let result = yaml_emitter_set_emitter_error(
+                &mut emitter,
+                error_str.as_ptr() as *const libc::c_char,
+            );
+            assert!(result.fail, "Setting an error should return FAIL");
+            assert_eq!(emitter.error, YamlEmitterError);
+            assert_eq!(
+                emitter.problem,
+                error_str.as_ptr() as *const libc::c_char
+            );
+
+            yaml_free(raw_buf);
+        }
+    }
+
+    // 7. yaml_emitter_emit
+    #[test]
+    fn test_yaml_emitter_emit() {
+        unsafe {
+            // 1) Zero the emitter
+            let mut emitter: YamlEmitterT =
+                MaybeUninit::zeroed().assume_init();
+
+            // 2) Allocate a small output buffer so pointer arithmetic won’t overflow
+            let capacity = 128_usize;
+            let raw_buf = yaml_malloc(capacity as size_t);
+            assert!(
+                !raw_buf.is_null(),
+                "Failed to allocate main buffer"
+            );
+            emitter.buffer.start = raw_buf as *mut yaml_char_t;
+            emitter.buffer.pointer = raw_buf as *mut yaml_char_t;
+            emitter.buffer.end =
+                (raw_buf as *mut yaml_char_t).add(capacity);
+
+            // 4) (Optional) Allocate space for the events queue
+            //    if ENQUEUE!/DEQUEUE! macros don't do dynamic reallocation automatically.
+            let events_capacity = 4_usize;
+            let events_array = yaml_malloc(
+                (events_capacity * size_of::<YamlEventT>())
+                    .try_into()
+                    .unwrap(),
+            ) as *mut YamlEventT;
+            assert!(
+                !events_array.is_null(),
+                "Failed to allocate events array"
+            );
+
+            emitter.events.start = events_array;
+            emitter.events.head = events_array;
+            emitter.events.tail = events_array;
+            emitter.events.end = events_array.add(events_capacity);
+
+            // 5) Optionally set an initial emitter state if your code expects it.
+            //    Some code requires YamlEmitStreamStartState as a valid starting point:
+            // emitter.state = YamlEmitStreamStartState;
+
+            // 6) Fill in fields like encoding, line_break, etc.
+            emitter.encoding = YamlUtf8Encoding;
+            emitter.line_break = YamlLnBreak;
+
+            // 7) Create a valid event (rather than all zeros).
+            //    For example, a basic StreamStartEvent:
+            let mut event: YamlEventT = zeroed();
+            event.type_ = YamlStreamStartEvent;
+            // If needed, you can set event.data.stream_start.encoding = YamlUtf8Encoding;
+
+            // 8) Call the function under test
+            let result = yaml_emitter_emit(&mut emitter, &mut event);
+            assert!(
+                !result.fail,
+                "Expected yaml_emitter_emit to succeed"
+            );
+
+            // 9) Free everything so Miri doesn’t see leaks
+            yaml_free(events_array as *mut libc::c_void);
+            yaml_free(raw_buf);
+        }
+    }
+
+    // 8. yaml_emitter_need_more_events
+    #[test]
+    fn test_yaml_emitter_need_more_events() {
+        unsafe {
+            let mut emitter: YamlEmitterT =
+                MaybeUninit::zeroed().assume_init();
+
+            let capacity = 128_usize;
+            let raw_buf = yaml_malloc(capacity as size_t);
+            assert!(!raw_buf.is_null());
+
+            emitter.buffer.start = raw_buf as *mut yaml_char_t;
+            emitter.buffer.pointer = raw_buf as *mut yaml_char_t;
+            emitter.buffer.end =
+                (raw_buf as *mut yaml_char_t).add(capacity);
+
+            emitter.encoding = YamlUtf8Encoding;
+            emitter.line_break = YamlLnBreak;
+
+            // In a real test, you’d enqueue some events if needed
+
+            let result = yaml_emitter_need_more_events(&mut emitter);
+            assert!(
+                !result.fail,
+                "Expected no failure for empty event queue"
+            );
+
+            yaml_free(raw_buf);
+        }
+    }
+
+    // 9. yaml_emitter_append_tag_directive
+    #[test]
+    fn test_yaml_emitter_append_tag_directive() {
+        unsafe {
+            let mut emitter: YamlEmitterT = zeroed();
+            let capacity = 128_usize;
+            let raw_buf = yaml_malloc(capacity as size_t);
+            assert!(!raw_buf.is_null());
+            emitter.buffer.start = raw_buf as *mut yaml_char_t;
+            emitter.buffer.pointer = raw_buf as *mut yaml_char_t;
+            emitter.buffer.end =
+                (raw_buf as *mut yaml_char_t).add(capacity);
+            emitter.encoding = YamlUtf8Encoding;
+            emitter.line_break = YamlLnBreak;
+
+            // Allocate tag_directives buffer
+            let needed = 4usize;
+            let directives_buf = yaml_malloc(
+                (size_of::<YamlTagDirectiveT>() * needed)
+                    .try_into()
+                    .unwrap(),
+            )
+                as *mut YamlTagDirectiveT;
+            assert!(!directives_buf.is_null());
+            emitter.tag_directives.start = directives_buf;
+            emitter.tag_directives.end = directives_buf.add(needed);
+            emitter.tag_directives.top = directives_buf;
+
+            // Allocate strings that we'll free later
+            let handle = yaml_strdup(b"!test!\0".as_ptr());
+            let prefix =
+                yaml_strdup(b"tag:example.com,2023:\0".as_ptr());
+
+            let directive = YamlTagDirectiveT { handle, prefix };
+
+            let result = yaml_emitter_append_tag_directive(
+                &mut emitter,
+                directive,
+                false,
+            );
+            assert!(!result.fail, "Expected success for new directive");
+
+            // Free all tag directives that were copied
+            let mut current = emitter.tag_directives.start;
+            while current < emitter.tag_directives.top {
+                yaml_free((*current).handle as *mut libc::c_void);
+                yaml_free((*current).prefix as *mut libc::c_void);
+                current = current.add(1);
+            }
+
+            // Free our original strings
+            yaml_free(handle as *mut libc::c_void);
+            yaml_free(prefix as *mut libc::c_void);
+
+            // Free the buffers
+            yaml_free(directives_buf as *mut libc::c_void);
+            yaml_free(raw_buf);
+        }
+    }
+
+    #[test]
+    fn test_yaml_emitter_increase_indent() {
+        unsafe {
+            // 1) Zero-initialize the emitter
+            let mut emitter: YamlEmitterT =
+                MaybeUninit::zeroed().assume_init();
+
+            // 2) Allocate a small buffer so pointer arithmetic is safe (in case something needs it)
+            let capacity = 128_usize;
+            let raw_buf = yaml_malloc(capacity as size_t);
+            assert!(
+                !raw_buf.is_null(),
+                "Failed to allocate test buffer"
+            );
+            emitter.buffer.start = raw_buf as *mut yaml_char_t;
+            emitter.buffer.pointer = raw_buf as *mut yaml_char_t;
+            emitter.buffer.end =
+                (raw_buf as *mut yaml_char_t).add(capacity);
+
+            // 3) Provide some default settings for the emitter
+            emitter.encoding = YamlUtf8Encoding;
+            emitter.line_break = YamlLnBreak;
+
+            // 4) Allocate space for the indents stack, since yaml_emitter_increase_indent
+            //    does PUSH!((*emitter).indents, (*emitter).indent)
+            //    If your macros do dynamic reallocation, you could skip this step.
+            let indents_capacity = 4_usize;
+            let indents_memory = yaml_malloc(
+                (indents_capacity * size_of::<libc::c_int>()) as size_t,
+            ) as *mut libc::c_int;
+            assert!(
+                !indents_memory.is_null(),
+                "Failed to allocate indents stack"
+            );
+
+            emitter.indents.start = indents_memory;
+            emitter.indents.top = indents_memory;
+            emitter.indents.end = indents_memory.add(indents_capacity);
+
+            // 5) Set initial indent and best_indent
+            emitter.indent = 2;
+            emitter.best_indent = 2; // how many spaces to add each time
+
+            // 6) Call the function under test
+            //    We'll pass `flow = false` and `indentless = false`.
+            yaml_emitter_increase_indent(&mut emitter, false, false);
+
+            // 7) Now check that emitter.indent was incremented by best_indent (2 -> 4)
+            assert_eq!(
+                emitter.indent, 4,
+                "indent should have increased by best_indent"
+            );
+
+            // 8) Clean up allocations so that Miri doesn’t report memory leaks
+            yaml_free(indents_memory as *mut libc::c_void);
+            yaml_free(raw_buf);
+        }
+    }
+
+    #[test]
+    fn test_yaml_emitter_state_machine() {
+        unsafe {
+            // 1) Zero-initialize the emitter.
+            let mut emitter: YamlEmitterT =
+                MaybeUninit::zeroed().assume_init();
+
+            // 2) Allocate a buffer so pointer arithmetic won’t overflow.
+            let capacity = 128_usize;
+            let raw_buf = yaml_malloc(capacity as size_t);
+            assert!(
+                !raw_buf.is_null(),
+                "Failed to allocate test buffer for YamlEmitterT"
+            );
+            emitter.buffer.start = raw_buf as *mut yaml_char_t;
+            emitter.buffer.pointer = raw_buf as *mut yaml_char_t;
+            emitter.buffer.end =
+                (raw_buf as *mut yaml_char_t).add(capacity);
+
+            // 4) Set a valid initial state. For example, many code paths expect the emitter
+            //    to start in YamlEmitStreamStartState before seeing a YamlStreamStartEvent.
+            emitter.state = YamlEmitStreamStartState;
+
+            // 5) Fill in any other fields your code might rely on (e.g. encoding).
+            emitter.encoding = YamlUtf8Encoding;
+            emitter.line_break = YamlLnBreak;
+            // (If you have states, tag directives, or other stacks that the state machine may push/pop,
+            // allocate them similarly to your other tests.)
+
+            // 6) Create a valid event for the current state: YamlStreamStartEvent
+            //    so the state machine has something to process.
+            let mut event: YamlEventT = zeroed();
+            event.type_ = YamlStreamStartEvent;
+            // If needed, set event.data.stream_start.encoding = YamlUtf8Encoding, etc.
+
+            // 7) Call the state machine under test
+            let result =
+                yaml_emitter_state_machine(&mut emitter, &mut event);
+            assert!(
+            !result.fail,
+            "Expected state machine to handle a STREAM-START event successfully"
+        );
+
+            // 8) Free the allocated buffer so that Miri (if used) doesn't see a leak.
+            yaml_free(raw_buf);
+        }
+    }
+
+    #[test]
+    fn test_yaml_emitter_emit_stream_start() {
+        unsafe {
+            // 1) Zero-initialize the emitter.
+            let mut emitter: YamlEmitterT =
+                MaybeUninit::zeroed().assume_init();
+
+            // 2) Allocate a buffer (some functions do flush or pointer arithmetic).
+            let capacity = 128_usize;
+            let raw_buf = yaml_malloc(capacity as size_t);
+            assert!(
+                !raw_buf.is_null(),
+                "Failed to allocate test buffer for YamlEmitterT"
+            );
+            emitter.buffer.start = raw_buf as *mut yaml_char_t;
+            emitter.buffer.pointer = raw_buf as *mut yaml_char_t;
+            emitter.buffer.end =
+                (raw_buf as *mut yaml_char_t).add(capacity);
+
+            // 3) Set up any other fields or states that might be checked
+            //    by yaml_emitter_emit_stream_start. Often it checks 'emitter.encoding',
+            //    'emitter.best_indent', etc.
+            emitter.encoding = YamlUtf8Encoding;
+            emitter.best_indent = 2; // something valid between 2..9
+            emitter.best_width = 80;
+            emitter.line_break = YamlLnBreak;
+            // E.g., state might be YamlEmitStreamStartState if your code expects that:
+            // emitter.state = YamlEmitStreamStartState;
+
+            // 4) Create a valid stream-start event
+            let mut event: YamlEventT = zeroed();
+            event.type_ = YamlStreamStartEvent;
+            // Typically, event.data.stream_start.encoding = YamlUtf8Encoding;
+            // But if your code doesn't read that, you can skip.
+
+            // 5) Call the function under test
+            let result = yaml_emitter_emit_stream_start(
+                &mut emitter,
+                &mut event,
+            );
+
+            // 6) Check that the function succeeded
+            assert!(
+                !result.fail,
+                "Expected yaml_emitter_emit_stream_start to succeed"
+            );
+
+            // 8) Free the buffer so Miri doesn't see a leak
+            yaml_free(raw_buf);
+        }
+    }
 }

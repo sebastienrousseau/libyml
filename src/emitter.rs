@@ -3029,6 +3029,7 @@ mod tests {
     use super::*;
     use crate::memory::yaml_malloc;
     use crate::YamlEmitterStateT;
+    use core::ffi::CStr;
     use core::mem::zeroed;
     use core::mem::MaybeUninit;
     use core::ptr::null_mut;
@@ -4813,6 +4814,38 @@ mod tests {
     }
 
     #[test]
+    fn test_yaml_emitter_analyze_version_directive_invalid() {
+        unsafe {
+            let mut emitter: YamlEmitterT =
+                MaybeUninit::zeroed().assume_init();
+
+            // Test invalid major version
+            let invalid_major =
+                YamlVersionDirectiveT { major: 2, minor: 1 };
+            let result = yaml_emitter_analyze_version_directive(
+                &mut emitter,
+                invalid_major,
+            );
+            assert!(
+                result.fail,
+                "Expected failure for invalid major version"
+            );
+
+            // Test invalid minor version
+            let invalid_minor =
+                YamlVersionDirectiveT { major: 1, minor: 3 };
+            let result = yaml_emitter_analyze_version_directive(
+                &mut emitter,
+                invalid_minor,
+            );
+            assert!(
+                result.fail,
+                "Expected failure for invalid minor version"
+            );
+        }
+    }
+
+    #[test]
     fn test_yaml_emitter_analyze_tag_directive() {
         unsafe {
             let mut emitter: YamlEmitterT =
@@ -4833,6 +4866,83 @@ mod tests {
             );
         }
     }
+
+    #[test]
+    fn test_yaml_emitter_analyze_tag_directive_invalid() {
+        unsafe {
+            let mut emitter: YamlEmitterT =
+                MaybeUninit::zeroed().assume_init();
+
+            // Test empty handle
+            let empty_handle = YamlTagDirectiveT {
+                handle: b"\0".as_ptr() as *mut yaml_char_t,
+                prefix: b"tag:example.com,2023:\0".as_ptr()
+                    as *mut yaml_char_t,
+            };
+            let result = yaml_emitter_analyze_tag_directive(
+                &mut emitter,
+                empty_handle,
+            );
+            assert!(result.fail, "Expected failure for empty handle");
+
+            // Test handle without starting !
+            let invalid_handle = YamlTagDirectiveT {
+                handle: b"invalid!\0".as_ptr() as *mut yaml_char_t,
+                prefix: b"tag:example.com,2023:\0".as_ptr()
+                    as *mut yaml_char_t,
+            };
+            let result = yaml_emitter_analyze_tag_directive(
+                &mut emitter,
+                invalid_handle,
+            );
+            assert!(
+                result.fail,
+                "Expected failure for handle without starting !"
+            );
+
+            // Test handle without ending !
+            let invalid_end = YamlTagDirectiveT {
+                handle: b"!invalid\0".as_ptr() as *mut yaml_char_t,
+                prefix: b"tag:example.com,2023:\0".as_ptr()
+                    as *mut yaml_char_t,
+            };
+            let result = yaml_emitter_analyze_tag_directive(
+                &mut emitter,
+                invalid_end,
+            );
+            assert!(
+                result.fail,
+                "Expected failure for handle without ending !"
+            );
+
+            // Test handle with non-alphanumeric characters
+            let invalid_chars = YamlTagDirectiveT {
+                handle: b"!inv@lid!\0".as_ptr() as *mut yaml_char_t,
+                prefix: b"tag:example.com,2023:\0".as_ptr()
+                    as *mut yaml_char_t,
+            };
+            let result = yaml_emitter_analyze_tag_directive(
+                &mut emitter,
+                invalid_chars,
+            );
+            assert!(
+                result.fail,
+                "Expected failure for handle with invalid characters"
+            );
+
+            // Test empty prefix
+            let empty_prefix = YamlTagDirectiveT {
+                handle: b"!valid!\0".as_ptr() as *mut yaml_char_t,
+                prefix: b"\0".as_ptr() as *mut yaml_char_t,
+            };
+            let result = yaml_emitter_analyze_tag_directive(
+                &mut emitter,
+                empty_prefix,
+            );
+            assert!(result.fail, "Expected failure for empty prefix");
+        }
+    }
+
     #[test]
     fn test_yaml_emitter_analyze_anchor() {
         unsafe {
@@ -4852,6 +4962,43 @@ mod tests {
     }
 
     #[test]
+    fn test_yaml_emitter_analyze_anchor_invalid() {
+        unsafe {
+            let mut emitter: YamlEmitterT =
+                MaybeUninit::zeroed().assume_init();
+
+            // Test empty anchor
+            let empty_anchor = b"\0";
+            let result = yaml_emitter_analyze_anchor(
+                &mut emitter,
+                empty_anchor.as_ptr() as *mut yaml_char_t,
+                false,
+            );
+            assert!(result.fail, "Expected failure for empty anchor");
+
+            // Test invalid characters in anchor
+            let invalid_anchor = b"my@nchor\0";
+            let result = yaml_emitter_analyze_anchor(
+                &mut emitter,
+                invalid_anchor.as_ptr() as *mut yaml_char_t,
+                false,
+            );
+            assert!(
+                result.fail,
+                "Expected failure for invalid anchor characters"
+            );
+
+            // Test empty alias
+            let result = yaml_emitter_analyze_anchor(
+                &mut emitter,
+                b"\0".as_ptr() as *mut yaml_char_t,
+                true,
+            );
+            assert!(result.fail, "Expected failure for empty alias");
+        }
+    }
+
+    #[test]
     fn test_yaml_emitter_analyze_tag() {
         unsafe {
             let mut emitter: YamlEmitterT =
@@ -4862,6 +5009,80 @@ mod tests {
                 tag.as_ptr() as *mut yaml_char_t,
             );
             assert!(!result.fail, "Expected analyzing tag to succeed");
+        }
+    }
+
+    #[test]
+    fn test_yaml_emitter_analyze_tag_variations() {
+        unsafe {
+            let mut emitter: YamlEmitterT =
+                MaybeUninit::zeroed().assume_init();
+
+            // Setup tag directives (needed for prefix matching test)
+            let tag_directives_capacity = 4_usize;
+            let tag_directives_buf = yaml_malloc(
+                (size_of::<YamlTagDirectiveT>()
+                    * tag_directives_capacity)
+                    .try_into()
+                    .unwrap(),
+            )
+                as *mut YamlTagDirectiveT;
+            assert!(!tag_directives_buf.is_null());
+
+            emitter.tag_directives.start = tag_directives_buf;
+            emitter.tag_directives.top = tag_directives_buf;
+            emitter.tag_directives.end =
+                tag_directives_buf.add(tag_directives_capacity);
+
+            // Add a test directive
+            let test_directive = YamlTagDirectiveT {
+                handle: b"!test!\0".as_ptr() as *mut yaml_char_t,
+                prefix: b"tag:test.org,2023:\0".as_ptr()
+                    as *mut yaml_char_t,
+            };
+            *emitter.tag_directives.top = test_directive;
+            emitter.tag_directives.top =
+                emitter.tag_directives.top.add(1);
+
+            // Test empty tag
+            let result = yaml_emitter_analyze_tag(
+                &mut emitter,
+                b"\0".as_ptr() as *mut yaml_char_t,
+            );
+            assert!(result.fail, "Expected failure for empty tag");
+
+            // Test tag with matching prefix
+            let tag_with_prefix = b"tag:test.org,2023:type\0";
+            let result = yaml_emitter_analyze_tag(
+                &mut emitter,
+                tag_with_prefix.as_ptr() as *mut yaml_char_t,
+            );
+            assert!(
+                !result.fail,
+                "Expected success for tag with matching prefix"
+            );
+            assert!(
+                !emitter.tag_data.handle.is_null(),
+                "Handle should be set for matching prefix"
+            );
+
+            // Test tag without matching prefix
+            let tag_without_prefix = b"tag:other.org,2023:type\0";
+            let result = yaml_emitter_analyze_tag(
+                &mut emitter,
+                tag_without_prefix.as_ptr() as *mut yaml_char_t,
+            );
+            assert!(
+                !result.fail,
+                "Expected success for tag without matching prefix"
+            );
+            assert!(
+                !emitter.tag_data.suffix.is_null(),
+                "Suffix should be set for non-matching prefix"
+            );
+
+            // Cleanup
+            yaml_free(tag_directives_buf as *mut libc::c_void);
         }
     }
 
@@ -4881,6 +5102,100 @@ mod tests {
                 !result.fail,
                 "Expected analyzing scalar to succeed"
             );
+        }
+    }
+
+    #[test]
+    fn test_yaml_emitter_analyze_scalar_special_cases() {
+        unsafe {
+            let mut emitter: YamlEmitterT =
+                MaybeUninit::zeroed().assume_init();
+            emitter.unicode = false; // Test non-unicode mode
+
+            // Test empty scalar
+            let result = yaml_emitter_analyze_scalar(
+                &mut emitter,
+                b"\0".as_ptr() as *mut yaml_char_t,
+                0,
+            );
+            assert!(
+                !result.fail,
+                "Empty scalar analysis should succeed"
+            );
+            assert!(
+                !emitter.scalar_data.multiline,
+                "Empty scalar shouldn't be multiline"
+            );
+            assert!(
+                emitter.scalar_data.block_plain_allowed,
+                "Empty scalar should allow block plain"
+            );
+
+            // Test block indicators
+            let result = yaml_emitter_analyze_scalar(
+                &mut emitter,
+                b"---\0".as_ptr() as *mut yaml_char_t,
+                3,
+            );
+            assert!(
+                !result.fail,
+                "Block indicators analysis should succeed"
+            );
+            assert!(!emitter.scalar_data.flow_plain_allowed || !emitter.scalar_data.block_plain_allowed,
+               "Plain style should be restricted with block indicators");
+
+            // Test multiline with breaks and spaces
+            let result = yaml_emitter_analyze_scalar(
+                &mut emitter,
+                b"line1\n line2\0".as_ptr() as *mut yaml_char_t,
+                11,
+            );
+            assert!(!result.fail, "Multiline analysis should succeed");
+            assert!(
+                emitter.scalar_data.multiline,
+                "Should detect multiline content"
+            );
+            assert!(
+                !emitter.scalar_data.flow_plain_allowed,
+                "Flow plain should not be allowed with line breaks"
+            );
+        }
+    }
+
+    #[test]
+    fn test_yaml_emitter_analyze_scalar_special_characters() {
+        unsafe {
+            let mut emitter: YamlEmitterT =
+                MaybeUninit::zeroed().assume_init();
+            emitter.unicode = false;
+
+            // Test scalar with flow indicators
+            let result = yaml_emitter_analyze_scalar(
+                &mut emitter,
+                b"[test]\0".as_ptr() as *mut yaml_char_t,
+                6,
+            );
+            assert!(
+                !result.fail,
+                "Flow indicators analysis should succeed"
+            );
+            assert!(
+                !emitter.scalar_data.flow_plain_allowed,
+                "Flow plain should not be allowed with flow indicators"
+            );
+
+            // Test scalar with special characters
+            let result = yaml_emitter_analyze_scalar(
+                &mut emitter,
+                b"key: value\0".as_ptr() as *mut yaml_char_t,
+                10,
+            );
+            assert!(
+                !result.fail,
+                "Special characters analysis should succeed"
+            );
+            assert!(!emitter.scalar_data.flow_plain_allowed || !emitter.scalar_data.block_plain_allowed,
+               "Plain style should be restricted with special characters");
         }
     }
 
@@ -4939,6 +5254,96 @@ mod tests {
                 "Expected writing indicator to succeed"
             );
 
+            yaml_free(raw_buf);
+        }
+    }
+
+    #[test]
+    fn test_yaml_emitter_write_indicator_whitespace() {
+        unsafe {
+            let mut emitter: YamlEmitterT =
+                MaybeUninit::zeroed().assume_init();
+
+            // Setup buffer
+            let capacity = 128_usize;
+            let raw_buf = yaml_malloc(capacity as size_t);
+            assert!(!raw_buf.is_null());
+
+            emitter.buffer.start = raw_buf as *mut yaml_char_t;
+            emitter.buffer.pointer = raw_buf as *mut yaml_char_t;
+            emitter.buffer.end =
+                (raw_buf as *mut yaml_char_t).add(capacity);
+
+            // Test with need_whitespace=true and whitespace=false
+            emitter.whitespace = false;
+            emitter.indention = true;
+            let indicator = b"---\0";
+            let result = yaml_emitter_write_indicator(
+                &mut emitter,
+                indicator.as_ptr() as *const libc::c_char,
+                true,  // need_whitespace
+                false, // is_whitespace
+                true,  // is_indention
+            );
+            assert!(
+                !result.fail,
+                "Expected success with need_whitespace=true"
+            );
+            assert!(
+                !emitter.whitespace,
+                "Whitespace flag should not be set"
+            );
+            assert!(
+                emitter.indention,
+                "Indention flag should remain set"
+            );
+
+            // Test with need_whitespace=true and is_whitespace=true
+            emitter.buffer.pointer = emitter.buffer.start; // Reset pointer
+            emitter.whitespace = false;
+            emitter.indention = true;
+            let result = yaml_emitter_write_indicator(
+                &mut emitter,
+                indicator.as_ptr() as *const libc::c_char,
+                true, // need_whitespace
+                true, // is_whitespace
+                true, // is_indention
+            );
+            assert!(!result.fail, "Expected success with need_whitespace=true and is_whitespace=true");
+            assert!(
+                emitter.whitespace,
+                "Whitespace flag should be set"
+            );
+            assert!(
+                emitter.indention,
+                "Indention flag should remain set"
+            );
+
+            // Test preserving indention state
+            emitter.buffer.pointer = emitter.buffer.start; // Reset pointer
+            emitter.whitespace = true;
+            emitter.indention = false;
+            let result = yaml_emitter_write_indicator(
+                &mut emitter,
+                indicator.as_ptr() as *const libc::c_char,
+                false, // need_whitespace
+                false, // is_whitespace
+                false, // is_indention
+            );
+            assert!(
+                !result.fail,
+                "Expected success with indention preservation"
+            );
+            assert!(
+                !emitter.whitespace,
+                "Whitespace flag should not be set"
+            );
+            assert!(
+                !emitter.indention,
+                "Indention flag should remain unset"
+            );
+
+            // Cleanup
             yaml_free(raw_buf);
         }
     }
@@ -5213,6 +5618,249 @@ mod tests {
                 "Expected folded scalar write to succeed"
             );
 
+            yaml_free(raw_buf);
+        }
+    }
+
+    #[test]
+    fn test_yaml_emitter_emit_document_content() {
+        unsafe {
+            let mut emitter: YamlEmitterT =
+                MaybeUninit::zeroed().assume_init();
+
+            // Allocate main buffer
+            let capacity = 128_usize;
+            let raw_buf = yaml_malloc(capacity as size_t);
+            assert!(!raw_buf.is_null());
+            emitter.buffer.start = raw_buf as *mut yaml_char_t;
+            emitter.buffer.pointer = raw_buf as *mut yaml_char_t;
+            emitter.buffer.end =
+                (raw_buf as *mut yaml_char_t).add(capacity);
+
+            // Allocate states stack
+            let states_capacity = 4_usize;
+            let states_buf = yaml_malloc(
+                (size_of::<YamlEmitterStateT>() * states_capacity)
+                    .try_into()
+                    .unwrap(),
+            ) as *mut YamlEmitterStateT;
+            assert!(!states_buf.is_null());
+
+            emitter.states.start = states_buf;
+            emitter.states.top = states_buf;
+            emitter.states.end = states_buf.add(states_capacity);
+
+            // Allocate indents stack
+            let indents_capacity = 4_usize;
+            let indents_buf = yaml_malloc(
+                (size_of::<libc::c_int>() * indents_capacity)
+                    .try_into()
+                    .unwrap(),
+            ) as *mut libc::c_int;
+            assert!(!indents_buf.is_null());
+
+            emitter.indents.start = indents_buf;
+            emitter.indents.top = indents_buf;
+            emitter.indents.end = indents_buf.add(indents_capacity);
+
+            // Setup scalar data
+            let content = b"test content\0";
+            emitter.scalar_data.value =
+                content.as_ptr() as *mut yaml_char_t;
+            emitter.scalar_data.length = 12;
+            emitter.scalar_data.style = YamlPlainScalarStyle;
+            emitter.scalar_data.multiline = false;
+            emitter.scalar_data.flow_plain_allowed = true;
+            emitter.scalar_data.block_plain_allowed = true;
+            emitter.scalar_data.single_quoted_allowed = true;
+            emitter.scalar_data.block_allowed = true;
+
+            // Set up emitter state
+            emitter.encoding = YamlUtf8Encoding;
+            emitter.line_break = YamlLnBreak;
+            emitter.indent = 2;
+            emitter.best_indent = 2;
+            emitter.best_width = 80;
+            emitter.whitespace = true;
+            emitter.indention = true;
+            emitter.root_context = true;
+            emitter.simple_key_context = false;
+
+            // Create scalar event
+            let mut event: YamlEventT = zeroed();
+            event.type_ = YamlScalarEvent;
+            event.data.scalar.value =
+                content.as_ptr() as *mut yaml_char_t;
+            event.data.scalar.length = 12;
+            event.data.scalar.style = YamlPlainScalarStyle;
+            event.data.scalar.plain_implicit = true;
+            event.data.scalar.quoted_implicit = true;
+
+            // Call function under test
+            let result = yaml_emitter_emit_document_content(
+                &mut emitter,
+                &mut event,
+            );
+            assert!(
+                !result.fail,
+                "Expected document_content emission to succeed"
+            );
+
+            // Cleanup
+            yaml_free(indents_buf as *mut libc::c_void);
+            yaml_free(states_buf as *mut libc::c_void);
+            yaml_free(raw_buf);
+        }
+    }
+
+    #[test]
+    fn test_yaml_emitter_emit_document_end_variations() {
+        unsafe {
+            let mut emitter: YamlEmitterT =
+                MaybeUninit::zeroed().assume_init();
+
+            // Setup write handler
+            unsafe fn write_handler(
+                _data: *mut libc::c_void,
+                _buffer: *mut u8,
+                _size: size_t,
+            ) -> libc::c_int {
+                1 // Return success (1 for success, 0 for failure in libyaml)
+            }
+
+            emitter.write_handler = Some(write_handler);
+            emitter.write_handler_data = null_mut(); // Explicitly set to null
+
+            // Setup buffer
+            let capacity = 128_usize;
+            let raw_buf = yaml_malloc(capacity as size_t);
+            assert!(!raw_buf.is_null());
+            emitter.buffer.start = raw_buf as *mut yaml_char_t;
+            emitter.buffer.pointer = raw_buf as *mut yaml_char_t;
+            emitter.buffer.end =
+                (raw_buf as *mut yaml_char_t).add(capacity);
+
+            // Setup states stack
+            let states_capacity = 4_usize;
+            let states_buf = yaml_malloc(
+                (size_of::<YamlEmitterStateT>() * states_capacity)
+                    .try_into()
+                    .unwrap(),
+            ) as *mut YamlEmitterStateT;
+            assert!(!states_buf.is_null());
+
+            emitter.states.start = states_buf;
+            emitter.states.top = states_buf;
+            emitter.states.end = states_buf.add(states_capacity);
+
+            // Push initial state
+            PUSH!(emitter.states, YamlEmitDocumentStartState);
+
+            // Setup indents stack
+            let indents_capacity = 4_usize;
+            let indents_buf = yaml_malloc(
+                (size_of::<libc::c_int>() * indents_capacity)
+                    .try_into()
+                    .unwrap(),
+            ) as *mut libc::c_int;
+            assert!(!indents_buf.is_null());
+
+            emitter.indents.start = indents_buf;
+            emitter.indents.top = indents_buf;
+            emitter.indents.end = indents_buf.add(indents_capacity);
+
+            // Push initial indent
+            PUSH!(emitter.indents, 0);
+
+            // Setup tag directives stack
+            let tag_directives_capacity = 4_usize;
+            let tag_directives_buf = yaml_malloc(
+                (size_of::<YamlTagDirectiveT>()
+                    * tag_directives_capacity)
+                    .try_into()
+                    .unwrap(),
+            )
+                as *mut YamlTagDirectiveT;
+            assert!(!tag_directives_buf.is_null());
+
+            emitter.tag_directives.start = tag_directives_buf;
+            emitter.tag_directives.top = tag_directives_buf;
+            emitter.tag_directives.end =
+                tag_directives_buf.add(tag_directives_capacity);
+
+            // Required emitter state
+            emitter.state = YamlEmitDocumentEndState;
+            emitter.encoding = YamlUtf8Encoding;
+            emitter.line_break = YamlLnBreak;
+            emitter.indent = 2;
+            emitter.best_indent = 2;
+            emitter.best_width = 80;
+            emitter.whitespace = true;
+            emitter.indention = true;
+            emitter.column = 0;
+            emitter.line = 0;
+            emitter.root_context = false;
+            emitter.sequence_context = false;
+            emitter.mapping_context = false;
+            emitter.simple_key_context = false;
+            emitter.flow_level = 0;
+
+            // Test with implicit document end
+            let mut event: YamlEventT = zeroed();
+            event.type_ = YamlDocumentEndEvent;
+            event.data.document_end.implicit = true;
+            emitter.open_ended = 0;
+
+            let result = yaml_emitter_emit_document_end(
+                &mut emitter,
+                &mut event,
+            );
+            if result.fail {
+                assert!(
+                    !result.fail,
+                    "Failed with implicit end. Error: {}",
+                    if !emitter.problem.is_null() {
+                        CStr::from_ptr(emitter.problem)
+                            .to_string_lossy()
+                    } else {
+                        "Unknown error".into()
+                    }
+                );
+            }
+            assert_eq!(
+                emitter.open_ended, 1,
+                "Open ended should be set to 1 for implicit end"
+            );
+
+            // Test with explicit document end
+            emitter.buffer.pointer = emitter.buffer.start;
+            event.data.document_end.implicit = false;
+
+            let result = yaml_emitter_emit_document_end(
+                &mut emitter,
+                &mut event,
+            );
+            assert!(!result.fail, "Expected success with explicit end");
+            assert_eq!(
+                emitter.open_ended, 0,
+                "Open ended should be 0 for explicit end"
+            );
+
+            // Test with wrong event type
+            event.type_ = YamlScalarEvent;
+            let result = yaml_emitter_emit_document_end(
+                &mut emitter,
+                &mut event,
+            );
+            assert!(
+                result.fail,
+                "Expected failure with wrong event type"
+            );
+
+            // Cleanup
+            yaml_free(indents_buf as *mut libc::c_void);
+            yaml_free(states_buf as *mut libc::c_void);
+            yaml_free(tag_directives_buf as *mut libc::c_void);
             yaml_free(raw_buf);
         }
     }

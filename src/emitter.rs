@@ -4883,4 +4883,337 @@ mod tests {
             );
         }
     }
+
+    #[test]
+    fn test_yaml_emitter_write_indent() {
+        unsafe {
+            let mut emitter: YamlEmitterT =
+                MaybeUninit::zeroed().assume_init();
+
+            let capacity = 128_usize;
+            let raw_buf = yaml_malloc(capacity as size_t);
+            assert!(!raw_buf.is_null());
+
+            emitter.buffer.start = raw_buf as *mut yaml_char_t;
+            emitter.buffer.pointer = raw_buf as *mut yaml_char_t;
+            emitter.buffer.end =
+                (raw_buf as *mut yaml_char_t).add(capacity);
+
+            emitter.indent = 2;
+            emitter.encoding = YamlUtf8Encoding;
+            emitter.line_break = YamlLnBreak;
+
+            let result = yaml_emitter_write_indent(&mut emitter);
+            assert!(!result.fail, "Expected write_indent to succeed");
+
+            yaml_free(raw_buf);
+        }
+    }
+
+    #[test]
+    fn test_yaml_emitter_write_indicator() {
+        unsafe {
+            let mut emitter: YamlEmitterT =
+                MaybeUninit::zeroed().assume_init();
+            let capacity = 128_usize;
+            let raw_buf = yaml_malloc(capacity as size_t);
+            assert!(!raw_buf.is_null());
+            emitter.buffer.start = raw_buf as *mut yaml_char_t;
+            emitter.buffer.pointer = raw_buf as *mut yaml_char_t;
+            emitter.buffer.end =
+                (raw_buf as *mut yaml_char_t).add(capacity);
+
+            emitter.encoding = YamlUtf8Encoding;
+            emitter.line_break = YamlLnBreak;
+
+            let indicator = b"---\0";
+            let result = yaml_emitter_write_indicator(
+                &mut emitter,
+                indicator.as_ptr() as *const libc::c_char,
+                true,
+                false,
+                false,
+            );
+            assert!(
+                !result.fail,
+                "Expected writing indicator to succeed"
+            );
+
+            yaml_free(raw_buf);
+        }
+    }
+
+    #[test]
+    fn test_yaml_emitter_write_anchor() {
+        unsafe {
+            let mut emitter: YamlEmitterT =
+                MaybeUninit::zeroed().assume_init();
+            let capacity = 128_usize;
+            let raw_buf = yaml_malloc(capacity as size_t);
+            assert!(!raw_buf.is_null());
+
+            emitter.buffer.start = raw_buf as *mut yaml_char_t;
+            emitter.buffer.pointer = raw_buf as *mut yaml_char_t;
+            emitter.buffer.end =
+                (raw_buf as *mut yaml_char_t).add(capacity);
+
+            let anchor = b"myAnchor\0";
+            let length = 8;
+            let result = yaml_emitter_write_anchor(
+                &mut emitter,
+                anchor.as_ptr() as *mut yaml_char_t,
+                length,
+            );
+            assert!(!result.fail, "Expected anchor writing to succeed");
+
+            yaml_free(raw_buf);
+        }
+    }
+
+    #[test]
+    fn test_yaml_emitter_write_tag_handle() {
+        unsafe {
+            let mut emitter: YamlEmitterT =
+                MaybeUninit::zeroed().assume_init();
+            let capacity = 128_usize;
+            let raw_buf = yaml_malloc(capacity as size_t);
+            assert!(!raw_buf.is_null());
+
+            emitter.buffer.start = raw_buf as *mut yaml_char_t;
+            emitter.buffer.pointer = raw_buf as *mut yaml_char_t;
+            emitter.buffer.end =
+                (raw_buf as *mut yaml_char_t).add(capacity);
+
+            let handle = b"!foo!\0";
+            let length = 5;
+            let result = yaml_emitter_write_tag_handle(
+                &mut emitter,
+                handle.as_ptr() as *mut yaml_char_t,
+                length,
+            );
+            assert!(
+                !result.fail,
+                "Expected writing a tag handle to succeed"
+            );
+
+            yaml_free(raw_buf);
+        }
+    }
+
+    #[test]
+    fn test_yaml_emitter_write_tag_content() {
+        unsafe {
+            let mut emitter: YamlEmitterT =
+                MaybeUninit::zeroed().assume_init();
+            let capacity = 128_usize;
+            let raw_buf = yaml_malloc(capacity as size_t);
+            assert!(!raw_buf.is_null());
+
+            emitter.buffer.start = raw_buf as *mut yaml_char_t;
+            emitter.buffer.pointer = raw_buf as *mut yaml_char_t;
+            emitter.buffer.end =
+                (raw_buf as *mut yaml_char_t).add(capacity);
+
+            let content = b"tag:example.com,2023:\0";
+            let length = 20;
+            let result = yaml_emitter_write_tag_content(
+                &mut emitter,
+                content.as_ptr() as *mut yaml_char_t,
+                length,
+                true,
+            );
+            assert!(
+                !result.fail,
+                "Expected tag content write to succeed"
+            );
+
+            yaml_free(raw_buf);
+        }
+    }
+
+    #[test]
+    fn test_yaml_emitter_write_plain_scalar() {
+        unsafe {
+            let mut emitter: YamlEmitterT =
+                MaybeUninit::zeroed().assume_init();
+            let capacity = 128_usize;
+            let raw_buf = yaml_malloc(capacity as size_t);
+            assert!(!raw_buf.is_null());
+
+            emitter.buffer.start = raw_buf as *mut yaml_char_t;
+            emitter.buffer.pointer = raw_buf as *mut yaml_char_t;
+            emitter.buffer.end =
+                (raw_buf as *mut yaml_char_t).add(capacity);
+
+            let value = b"some plain text\0";
+            let length = 15;
+            let result = yaml_emitter_write_plain_scalar(
+                &mut emitter,
+                value.as_ptr() as *mut yaml_char_t,
+                length,
+                true,
+            );
+            assert!(
+                !result.fail,
+                "Expected plain scalar write to succeed"
+            );
+
+            yaml_free(raw_buf);
+        }
+    }
+
+    #[test]
+    fn test_yaml_emitter_write_single_quoted_scalar() {
+        unsafe {
+            let mut emitter: YamlEmitterT =
+                MaybeUninit::zeroed().assume_init();
+            let capacity = 128_usize;
+            let raw_buf = yaml_malloc(capacity as size_t);
+            assert!(!raw_buf.is_null());
+
+            emitter.buffer.start = raw_buf as *mut yaml_char_t;
+            emitter.buffer.pointer = raw_buf as *mut yaml_char_t;
+            emitter.buffer.end =
+                (raw_buf as *mut yaml_char_t).add(capacity);
+
+            let value = b"single quoted text\0";
+            let length = 19;
+            let result = yaml_emitter_write_single_quoted_scalar(
+                &mut emitter,
+                value.as_ptr() as *mut yaml_char_t,
+                length,
+                true,
+            );
+            assert!(
+                !result.fail,
+                "Expected single-quoted scalar to succeed"
+            );
+
+            yaml_free(raw_buf);
+        }
+    }
+
+    #[test]
+    fn test_yaml_emitter_write_double_quoted_scalar() {
+        unsafe {
+            let mut emitter: YamlEmitterT =
+                MaybeUninit::zeroed().assume_init();
+            let capacity = 128_usize;
+            let raw_buf = yaml_malloc(capacity as size_t);
+            assert!(!raw_buf.is_null());
+
+            emitter.buffer.start = raw_buf as *mut yaml_char_t;
+            emitter.buffer.pointer = raw_buf as *mut yaml_char_t;
+            emitter.buffer.end =
+                (raw_buf as *mut yaml_char_t).add(capacity);
+
+            let value = b"double \"quoted\" text\n\0";
+            let length = 22;
+            let result = yaml_emitter_write_double_quoted_scalar(
+                &mut emitter,
+                value.as_ptr() as *mut yaml_char_t,
+                length,
+                true,
+            );
+            assert!(
+                !result.fail,
+                "Expected double-quoted scalar to succeed"
+            );
+
+            yaml_free(raw_buf);
+        }
+    }
+
+    #[test]
+    fn test_yaml_emitter_write_block_scalar_hints() {
+        unsafe {
+            let mut emitter: YamlEmitterT =
+                MaybeUninit::zeroed().assume_init();
+            let capacity = 128_usize;
+            let raw_buf = yaml_malloc(capacity as size_t);
+            assert!(!raw_buf.is_null());
+
+            emitter.buffer.start = raw_buf as *mut yaml_char_t;
+            emitter.buffer.pointer = raw_buf as *mut yaml_char_t;
+            emitter.buffer.end =
+                (raw_buf as *mut yaml_char_t).add(capacity);
+
+            let test_string = YamlStringT {
+                start: b"\n".as_ptr() as *mut yaml_char_t,
+                end: b"\n".as_ptr().add(1) as *mut yaml_char_t,
+                pointer: b"\n".as_ptr() as *mut yaml_char_t,
+            };
+
+            let result = yaml_emitter_write_block_scalar_hints(
+                &mut emitter,
+                test_string,
+            );
+            assert!(
+                !result.fail,
+                "Expected block scalar hints write to succeed"
+            );
+
+            yaml_free(raw_buf);
+        }
+    }
+
+    #[test]
+    fn test_yaml_emitter_write_literal_scalar() {
+        unsafe {
+            let mut emitter: YamlEmitterT =
+                MaybeUninit::zeroed().assume_init();
+            let capacity = 128_usize;
+            let raw_buf = yaml_malloc(capacity as size_t);
+            assert!(!raw_buf.is_null());
+
+            emitter.buffer.start = raw_buf as *mut yaml_char_t;
+            emitter.buffer.pointer = raw_buf as *mut yaml_char_t;
+            emitter.buffer.end =
+                (raw_buf as *mut yaml_char_t).add(capacity);
+
+            let value = b"multi\nline\nliteral\n\0";
+            let length = 19;
+            let result = yaml_emitter_write_literal_scalar(
+                &mut emitter,
+                value.as_ptr() as *mut yaml_char_t,
+                length,
+            );
+            assert!(
+                !result.fail,
+                "Expected literal scalar write to succeed"
+            );
+
+            yaml_free(raw_buf);
+        }
+    }
+
+    #[test]
+    fn test_yaml_emitter_write_folded_scalar() {
+        unsafe {
+            let mut emitter: YamlEmitterT =
+                MaybeUninit::zeroed().assume_init();
+            let capacity = 128_usize;
+            let raw_buf = yaml_malloc(capacity as size_t);
+            assert!(!raw_buf.is_null());
+
+            emitter.buffer.start = raw_buf as *mut yaml_char_t;
+            emitter.buffer.pointer = raw_buf as *mut yaml_char_t;
+            emitter.buffer.end =
+                (raw_buf as *mut yaml_char_t).add(capacity);
+
+            let value = b"multi\nline\nfolded\n\0";
+            let length = 18;
+            let result = yaml_emitter_write_folded_scalar(
+                &mut emitter,
+                value.as_ptr() as *mut yaml_char_t,
+                length,
+            );
+            assert!(
+                !result.fail,
+                "Expected folded scalar write to succeed"
+            );
+
+            yaml_free(raw_buf);
+        }
+    }
 }

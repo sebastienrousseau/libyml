@@ -3894,4 +3894,993 @@ mod tests {
             yaml_free(raw_buf);
         }
     }
+
+    #[test]
+    fn test_yaml_emitter_emit_block_sequence_item() {
+        unsafe {
+            let mut emitter: YamlEmitterT =
+                MaybeUninit::zeroed().assume_init();
+
+            // Allocate main buffer
+            let capacity = 128_usize;
+            let raw_buf = yaml_malloc(capacity as size_t);
+            assert!(!raw_buf.is_null());
+            emitter.buffer.start = raw_buf as *mut yaml_char_t;
+            emitter.buffer.pointer = raw_buf as *mut yaml_char_t;
+            emitter.buffer.end =
+                (raw_buf as *mut yaml_char_t).add(capacity);
+
+            // Allocate states stack
+            let states_capacity = 4_usize;
+            let states_buf = yaml_malloc(
+                (size_of::<YamlEmitterStateT>() * states_capacity)
+                    .try_into()
+                    .unwrap(),
+            ) as *mut YamlEmitterStateT;
+            assert!(!states_buf.is_null());
+
+            emitter.states.start = states_buf;
+            emitter.states.top = states_buf;
+            emitter.states.end = states_buf.add(states_capacity);
+
+            // Push initial state
+            PUSH!(emitter.states, YamlEmitBlockSequenceFirstItemState);
+
+            // Allocate indents stack
+            let indents_capacity = 4_usize;
+            let indents_buf = yaml_malloc(
+                (size_of::<libc::c_int>() * indents_capacity)
+                    .try_into()
+                    .unwrap(),
+            ) as *mut libc::c_int;
+            assert!(!indents_buf.is_null());
+
+            emitter.indents.start = indents_buf;
+            emitter.indents.top = indents_buf;
+            emitter.indents.end = indents_buf.add(indents_capacity);
+
+            // Set initial indent and push it onto stack
+            emitter.indent = 2;
+            PUSH!(emitter.indents, emitter.indent);
+
+            // Set up emitter state
+            emitter.state = YamlEmitBlockSequenceFirstItemState;
+            emitter.encoding = YamlUtf8Encoding;
+            emitter.line_break = YamlLnBreak;
+            emitter.best_indent = 2;
+            emitter.best_width = 80;
+            emitter.column = 0;
+            emitter.whitespace = true;
+            emitter.indention = true;
+            emitter.flow_level = 0; // Block sequence means flow_level = 0
+            emitter.mapping_context = false;
+
+            // Create sequence end event
+            let mut event: YamlEventT = zeroed();
+            event.type_ = YamlSequenceEndEvent;
+
+            // Call function under test
+            let result = yaml_emitter_emit_block_sequence_item(
+                &mut emitter,
+                &mut event,
+                true,
+            );
+            assert!(
+                !result.fail,
+                "Expected block_sequence_item to succeed"
+            );
+
+            // Cleanup
+            yaml_free(indents_buf as *mut libc::c_void);
+            yaml_free(states_buf as *mut libc::c_void);
+            yaml_free(raw_buf);
+        }
+    }
+
+    #[test]
+    fn test_yaml_emitter_emit_block_mapping_key() {
+        unsafe {
+            let mut emitter: YamlEmitterT =
+                MaybeUninit::zeroed().assume_init();
+
+            // Allocate main buffer
+            let capacity = 128_usize;
+            let raw_buf = yaml_malloc(capacity as size_t);
+            assert!(!raw_buf.is_null());
+            emitter.buffer.start = raw_buf as *mut yaml_char_t;
+            emitter.buffer.pointer = raw_buf as *mut yaml_char_t;
+            emitter.buffer.end =
+                (raw_buf as *mut yaml_char_t).add(capacity);
+
+            // Allocate states stack
+            let states_capacity = 4_usize;
+            let states_buf = yaml_malloc(
+                (size_of::<YamlEmitterStateT>() * states_capacity)
+                    .try_into()
+                    .unwrap(),
+            ) as *mut YamlEmitterStateT;
+            assert!(!states_buf.is_null());
+
+            emitter.states.start = states_buf;
+            emitter.states.top = states_buf;
+            emitter.states.end = states_buf.add(states_capacity);
+
+            // Push initial state
+            PUSH!(emitter.states, YamlEmitBlockMappingFirstKeyState);
+
+            // Allocate indents stack
+            let indents_capacity = 4_usize;
+            let indents_buf = yaml_malloc(
+                (size_of::<libc::c_int>() * indents_capacity)
+                    .try_into()
+                    .unwrap(),
+            ) as *mut libc::c_int;
+            assert!(!indents_buf.is_null());
+
+            emitter.indents.start = indents_buf;
+            emitter.indents.top = indents_buf;
+            emitter.indents.end = indents_buf.add(indents_capacity);
+
+            // Set initial indent and push it onto stack
+            emitter.indent = 2;
+            PUSH!(emitter.indents, emitter.indent);
+
+            // Set up emitter state
+            emitter.state = YamlEmitBlockMappingFirstKeyState;
+            emitter.encoding = YamlUtf8Encoding;
+            emitter.line_break = YamlLnBreak;
+            emitter.best_indent = 2;
+            emitter.best_width = 80;
+            emitter.column = 0;
+            emitter.whitespace = true;
+            emitter.indention = true;
+            emitter.flow_level = 0; // Block mapping means flow_level = 0
+            emitter.mapping_context = true;
+
+            // Create mapping end event
+            let mut event: YamlEventT = zeroed();
+            event.type_ = YamlMappingEndEvent;
+
+            // Call function under test
+            let result = yaml_emitter_emit_block_mapping_key(
+                &mut emitter,
+                &mut event,
+                true,
+            );
+            assert!(
+                !result.fail,
+                "Expected block_mapping_key to succeed"
+            );
+
+            // Cleanup
+            yaml_free(indents_buf as *mut libc::c_void);
+            yaml_free(states_buf as *mut libc::c_void);
+            yaml_free(raw_buf);
+        }
+    }
+
+    #[test]
+    fn test_yaml_emitter_emit_block_mapping_value() {
+        unsafe {
+            let mut emitter: YamlEmitterT =
+                MaybeUninit::zeroed().assume_init();
+
+            // Allocate main buffer
+            let capacity = 128_usize;
+            let raw_buf = yaml_malloc(capacity as size_t);
+            assert!(!raw_buf.is_null());
+            emitter.buffer.start = raw_buf as *mut yaml_char_t;
+            emitter.buffer.pointer = raw_buf as *mut yaml_char_t;
+            emitter.buffer.end =
+                (raw_buf as *mut yaml_char_t).add(capacity);
+
+            // Allocate states stack
+            let states_capacity = 4_usize;
+            let states_buf = yaml_malloc(
+                (size_of::<YamlEmitterStateT>() * states_capacity)
+                    .try_into()
+                    .unwrap(),
+            ) as *mut YamlEmitterStateT;
+            assert!(!states_buf.is_null());
+
+            emitter.states.start = states_buf;
+            emitter.states.top = states_buf;
+            emitter.states.end = states_buf.add(states_capacity);
+
+            // Push initial state
+            PUSH!(emitter.states, YamlEmitBlockMappingKeyState);
+
+            // Allocate indents stack
+            let indents_capacity = 4_usize;
+            let indents_buf = yaml_malloc(
+                (size_of::<libc::c_int>() * indents_capacity)
+                    .try_into()
+                    .unwrap(),
+            ) as *mut libc::c_int;
+            assert!(!indents_buf.is_null());
+
+            emitter.indents.start = indents_buf;
+            emitter.indents.top = indents_buf;
+            emitter.indents.end = indents_buf.add(indents_capacity);
+
+            // Set initial indent and push it onto stack
+            emitter.indent = 2;
+            PUSH!(emitter.indents, emitter.indent);
+
+            // Set up emitter state
+            emitter.state = YamlEmitBlockMappingKeyState;
+            emitter.encoding = YamlUtf8Encoding;
+            emitter.line_break = YamlLnBreak;
+            emitter.best_indent = 2;
+            emitter.best_width = 80;
+            emitter.column = 0;
+            emitter.whitespace = true;
+            emitter.indention = true;
+            emitter.flow_level = 0; // Block mapping means flow_level = 0
+            emitter.mapping_context = true;
+
+            // Create scalar event for the value
+            let mut event: YamlEventT = zeroed();
+            event.type_ = YamlScalarEvent;
+            let content = b"test value\0";
+            event.data.scalar.value =
+                content.as_ptr() as *mut yaml_char_t;
+            event.data.scalar.length = 10;
+            event.data.scalar.style = YamlPlainScalarStyle;
+            event.data.scalar.plain_implicit = true;
+            event.data.scalar.quoted_implicit = true;
+
+            // Call function under test
+            let result = yaml_emitter_emit_block_mapping_value(
+                &mut emitter,
+                &mut event,
+                false, // non-simple value mode
+            );
+            assert!(
+                !result.fail,
+                "Expected block_mapping_value to succeed"
+            );
+
+            // Cleanup
+            yaml_free(indents_buf as *mut libc::c_void);
+            yaml_free(states_buf as *mut libc::c_void);
+            yaml_free(raw_buf);
+        }
+    }
+
+    #[test]
+    fn test_yaml_emitter_emit_node() {
+        unsafe {
+            let mut emitter: YamlEmitterT =
+                MaybeUninit::zeroed().assume_init();
+
+            // Allocate main buffer
+            let capacity = 128_usize;
+            let raw_buf = yaml_malloc(capacity as size_t);
+            assert!(!raw_buf.is_null());
+            emitter.buffer.start = raw_buf as *mut yaml_char_t;
+            emitter.buffer.pointer = raw_buf as *mut yaml_char_t;
+            emitter.buffer.end =
+                (raw_buf as *mut yaml_char_t).add(capacity);
+
+            // Allocate states stack
+            let states_capacity = 4_usize;
+            let states_buf = yaml_malloc(
+                (size_of::<YamlEmitterStateT>() * states_capacity)
+                    .try_into()
+                    .unwrap(),
+            ) as *mut YamlEmitterStateT;
+            assert!(!states_buf.is_null());
+
+            emitter.states.start = states_buf;
+            emitter.states.top = states_buf;
+            emitter.states.end = states_buf.add(states_capacity);
+
+            // Push initial state
+            PUSH!(emitter.states, YamlEmitDocumentContentState);
+
+            // Allocate indents stack
+            let indents_capacity = 4_usize;
+            let indents_buf = yaml_malloc(
+                (size_of::<libc::c_int>() * indents_capacity)
+                    .try_into()
+                    .unwrap(),
+            ) as *mut libc::c_int;
+            assert!(!indents_buf.is_null());
+
+            emitter.indents.start = indents_buf;
+            emitter.indents.top = indents_buf;
+            emitter.indents.end = indents_buf.add(indents_capacity);
+
+            // Set initial indent and push it onto stack
+            emitter.indent = 2;
+            PUSH!(emitter.indents, emitter.indent);
+
+            // Set up emitter state
+            emitter.encoding = YamlUtf8Encoding;
+            emitter.line_break = YamlLnBreak;
+            emitter.best_indent = 2;
+            emitter.best_width = 80;
+            emitter.column = 0;
+            emitter.whitespace = true;
+            emitter.indention = true;
+            emitter.flow_level = 0;
+
+            // Create scalar event
+            let mut event: YamlEventT = zeroed();
+            event.type_ = YamlScalarEvent;
+            let content = b"test scalar\0";
+            event.data.scalar.value =
+                content.as_ptr() as *mut yaml_char_t;
+            event.data.scalar.length = 11;
+            event.data.scalar.style = YamlPlainScalarStyle;
+            event.data.scalar.plain_implicit = true;
+            event.data.scalar.quoted_implicit = true;
+
+            // Initialize scalar data in emitter
+            emitter.scalar_data.value = event.data.scalar.value;
+            emitter.scalar_data.length = event.data.scalar.length;
+            emitter.scalar_data.style = YamlPlainScalarStyle;
+            emitter.scalar_data.multiline = false;
+            emitter.scalar_data.flow_plain_allowed = true;
+            emitter.scalar_data.block_plain_allowed = true;
+            emitter.scalar_data.single_quoted_allowed = true;
+            emitter.scalar_data.block_allowed = true;
+
+            // Call function under test with root node flags
+            let result = yaml_emitter_emit_node(
+                &mut emitter,
+                &mut event,
+                true,  // root
+                false, // sequence
+                false, // mapping
+                false, // simple key
+            );
+            assert!(!result.fail, "Expected node emission to succeed");
+
+            // Cleanup
+            yaml_free(indents_buf as *mut libc::c_void);
+            yaml_free(states_buf as *mut libc::c_void);
+            yaml_free(raw_buf);
+        }
+    }
+
+    #[test]
+    fn test_yaml_emitter_emit_alias() {
+        unsafe {
+            let mut emitter: YamlEmitterT =
+                MaybeUninit::zeroed().assume_init();
+
+            // Allocate main buffer
+            let capacity = 128_usize;
+            let raw_buf = yaml_malloc(capacity as size_t);
+            assert!(!raw_buf.is_null());
+            emitter.buffer.start = raw_buf as *mut yaml_char_t;
+            emitter.buffer.pointer = raw_buf as *mut yaml_char_t;
+            emitter.buffer.end =
+                (raw_buf as *mut yaml_char_t).add(capacity);
+
+            // Allocate states stack
+            let states_capacity = 4_usize;
+            let states_buf = yaml_malloc(
+                (size_of::<YamlEmitterStateT>() * states_capacity)
+                    .try_into()
+                    .unwrap(),
+            ) as *mut YamlEmitterStateT;
+            assert!(!states_buf.is_null());
+
+            emitter.states.start = states_buf;
+            emitter.states.top = states_buf;
+            emitter.states.end = states_buf.add(states_capacity);
+
+            // Push initial state
+            PUSH!(emitter.states, YamlEmitDocumentContentState);
+
+            // Set up emitter state
+            emitter.encoding = YamlUtf8Encoding;
+            emitter.line_break = YamlLnBreak;
+            emitter.best_indent = 2;
+            emitter.best_width = 80;
+            emitter.column = 0;
+            emitter.whitespace = true;
+            emitter.simple_key_context = true;
+
+            // Set up anchor data
+            let anchor = b"test_alias\0";
+            emitter.anchor_data.anchor =
+                anchor.as_ptr() as *mut yaml_char_t;
+            emitter.anchor_data.anchor_length = 10;
+            emitter.anchor_data.alias = true;
+
+            // Create alias event
+            let mut event: YamlEventT = zeroed();
+            event.type_ = YamlAliasEvent;
+            event.data.alias.anchor =
+                anchor.as_ptr() as *mut yaml_char_t;
+
+            // Call function under test
+            let result =
+                yaml_emitter_emit_alias(&mut emitter, &mut event);
+            assert!(!result.fail, "Expected alias emission to succeed");
+
+            // Cleanup
+            yaml_free(states_buf as *mut libc::c_void);
+            yaml_free(raw_buf);
+        }
+    }
+
+    #[test]
+    fn test_yaml_emitter_emit_scalar() {
+        unsafe {
+            let mut emitter: YamlEmitterT =
+                MaybeUninit::zeroed().assume_init();
+
+            // Allocate main buffer
+            let capacity = 128_usize;
+            let raw_buf = yaml_malloc(capacity as size_t);
+            assert!(!raw_buf.is_null());
+            emitter.buffer.start = raw_buf as *mut yaml_char_t;
+            emitter.buffer.pointer = raw_buf as *mut yaml_char_t;
+            emitter.buffer.end =
+                (raw_buf as *mut yaml_char_t).add(capacity);
+
+            // Allocate states stack
+            let states_capacity = 4_usize;
+            let states_buf = yaml_malloc(
+                (size_of::<YamlEmitterStateT>() * states_capacity)
+                    .try_into()
+                    .unwrap(),
+            ) as *mut YamlEmitterStateT;
+            assert!(!states_buf.is_null());
+
+            emitter.states.start = states_buf;
+            emitter.states.top = states_buf;
+            emitter.states.end = states_buf.add(states_capacity);
+
+            // Push initial state
+            PUSH!(emitter.states, YamlEmitDocumentContentState);
+
+            // Allocate indents stack
+            let indents_capacity = 4_usize;
+            let indents_buf = yaml_malloc(
+                (size_of::<libc::c_int>() * indents_capacity)
+                    .try_into()
+                    .unwrap(),
+            ) as *mut libc::c_int;
+            assert!(!indents_buf.is_null());
+
+            emitter.indents.start = indents_buf;
+            emitter.indents.top = indents_buf;
+            emitter.indents.end = indents_buf.add(indents_capacity);
+
+            // Set initial indent and push it onto stack
+            emitter.indent = 2;
+            PUSH!(emitter.indents, emitter.indent);
+
+            // Set up emitter state
+            emitter.encoding = YamlUtf8Encoding;
+            emitter.line_break = YamlLnBreak;
+            emitter.best_indent = 2;
+            emitter.best_width = 80;
+            emitter.column = 0;
+            emitter.whitespace = true;
+            emitter.indention = true;
+            emitter.canonical = false;
+
+            // Set up scalar data in emitter
+            let content = b"test scalar\0";
+            emitter.scalar_data.value =
+                content.as_ptr() as *mut yaml_char_t;
+            emitter.scalar_data.length = 11;
+            emitter.scalar_data.style = YamlPlainScalarStyle;
+            emitter.scalar_data.multiline = false;
+            emitter.scalar_data.flow_plain_allowed = true;
+            emitter.scalar_data.block_plain_allowed = true;
+            emitter.scalar_data.single_quoted_allowed = true;
+            emitter.scalar_data.block_allowed = true;
+
+            // Create scalar event
+            let mut event: YamlEventT = zeroed();
+            event.type_ = YamlScalarEvent;
+            event.data.scalar.value =
+                content.as_ptr() as *mut yaml_char_t;
+            event.data.scalar.length = 11;
+            event.data.scalar.style = YamlPlainScalarStyle;
+            event.data.scalar.plain_implicit = true;
+            event.data.scalar.quoted_implicit = true;
+
+            // Initialize empty tag and anchor data
+            emitter.tag_data.handle = null_mut();
+            emitter.tag_data.suffix = null_mut();
+            emitter.anchor_data.anchor = null_mut();
+            emitter.anchor_data.anchor_length = 0;
+
+            // Call function under test
+            let result =
+                yaml_emitter_emit_scalar(&mut emitter, &mut event);
+            assert!(
+                !result.fail,
+                "Expected scalar emission to succeed"
+            );
+
+            // Cleanup
+            yaml_free(indents_buf as *mut libc::c_void);
+            yaml_free(states_buf as *mut libc::c_void);
+            yaml_free(raw_buf);
+        }
+    }
+
+    #[test]
+    fn test_yaml_emitter_emit_sequence_start() {
+        unsafe {
+            let mut emitter: YamlEmitterT =
+                MaybeUninit::zeroed().assume_init();
+
+            // Allocate main buffer
+            let capacity = 128_usize;
+            let raw_buf = yaml_malloc(capacity as size_t);
+            assert!(!raw_buf.is_null());
+            emitter.buffer.start = raw_buf as *mut yaml_char_t;
+            emitter.buffer.pointer = raw_buf as *mut yaml_char_t;
+            emitter.buffer.end =
+                (raw_buf as *mut yaml_char_t).add(capacity);
+
+            // Allocate states stack
+            let states_capacity = 4_usize;
+            let states_buf = yaml_malloc(
+                (size_of::<YamlEmitterStateT>() * states_capacity)
+                    .try_into()
+                    .unwrap(),
+            ) as *mut YamlEmitterStateT;
+            assert!(!states_buf.is_null());
+
+            emitter.states.start = states_buf;
+            emitter.states.top = states_buf;
+            emitter.states.end = states_buf.add(states_capacity);
+
+            // Push initial state
+            PUSH!(emitter.states, YamlEmitDocumentContentState);
+
+            // Allocate events queue
+            let events_capacity = 4_usize;
+            let events_buf = yaml_malloc(
+                (size_of::<YamlEventT>() * events_capacity)
+                    .try_into()
+                    .unwrap(),
+            ) as *mut YamlEventT;
+            assert!(!events_buf.is_null());
+
+            emitter.events.start = events_buf;
+            emitter.events.head = events_buf;
+            emitter.events.tail = events_buf;
+            emitter.events.end = events_buf.add(events_capacity);
+
+            // Set up emitter state
+            emitter.encoding = YamlUtf8Encoding;
+            emitter.line_break = YamlLnBreak;
+            emitter.best_indent = 2;
+            emitter.best_width = 80;
+            emitter.column = 0;
+            emitter.whitespace = true;
+            emitter.indention = true;
+            emitter.canonical = false;
+            emitter.flow_level = 0;
+
+            // Initialize empty tag and anchor data
+            emitter.tag_data.handle = null_mut();
+            emitter.tag_data.suffix = null_mut();
+            emitter.anchor_data.anchor = null_mut();
+            emitter.anchor_data.anchor_length = 0;
+
+            // Create sequence start event
+            let mut event: YamlEventT = zeroed();
+            event.type_ = YamlSequenceStartEvent;
+            event.data.sequence_start.anchor = null_mut();
+            event.data.sequence_start.tag = null_mut();
+            event.data.sequence_start.implicit = true;
+            event.data.sequence_start.style = YamlFlowSequenceStyle;
+
+            // Push a sequence end event for the empty sequence check
+            let mut end_event: YamlEventT = zeroed();
+            end_event.type_ = YamlSequenceEndEvent;
+            ENQUEUE!(emitter.events, end_event);
+
+            // Call function under test
+            let result = yaml_emitter_emit_sequence_start(
+                &mut emitter,
+                &mut event,
+            );
+            assert!(
+                !result.fail,
+                "Expected sequence start emission to succeed"
+            );
+
+            // Cleanup
+            yaml_free(events_buf as *mut libc::c_void);
+            yaml_free(states_buf as *mut libc::c_void);
+            yaml_free(raw_buf);
+        }
+    }
+
+    #[test]
+    fn test_yaml_emitter_emit_mapping_start() {
+        unsafe {
+            let mut emitter: YamlEmitterT =
+                MaybeUninit::zeroed().assume_init();
+
+            // Allocate main buffer
+            let capacity = 128_usize;
+            let raw_buf = yaml_malloc(capacity as size_t);
+            assert!(!raw_buf.is_null());
+            emitter.buffer.start = raw_buf as *mut yaml_char_t;
+            emitter.buffer.pointer = raw_buf as *mut yaml_char_t;
+            emitter.buffer.end =
+                (raw_buf as *mut yaml_char_t).add(capacity);
+
+            // Allocate states stack
+            let states_capacity = 4_usize;
+            let states_buf = yaml_malloc(
+                (size_of::<YamlEmitterStateT>() * states_capacity)
+                    .try_into()
+                    .unwrap(),
+            ) as *mut YamlEmitterStateT;
+            assert!(!states_buf.is_null());
+
+            emitter.states.start = states_buf;
+            emitter.states.top = states_buf;
+            emitter.states.end = states_buf.add(states_capacity);
+
+            // Push initial state
+            PUSH!(emitter.states, YamlEmitDocumentContentState);
+
+            // Allocate events queue
+            let events_capacity = 4_usize;
+            let events_buf = yaml_malloc(
+                (size_of::<YamlEventT>() * events_capacity)
+                    .try_into()
+                    .unwrap(),
+            ) as *mut YamlEventT;
+            assert!(!events_buf.is_null());
+
+            emitter.events.start = events_buf;
+            emitter.events.head = events_buf;
+            emitter.events.tail = events_buf;
+            emitter.events.end = events_buf.add(events_capacity);
+
+            // Set up emitter state
+            emitter.encoding = YamlUtf8Encoding;
+            emitter.line_break = YamlLnBreak;
+            emitter.best_indent = 2;
+            emitter.best_width = 80;
+            emitter.column = 0;
+            emitter.whitespace = true;
+            emitter.indention = true;
+            emitter.canonical = false;
+            emitter.flow_level = 0;
+
+            // Initialize empty tag and anchor data
+            emitter.tag_data.handle = null_mut();
+            emitter.tag_data.suffix = null_mut();
+            emitter.anchor_data.anchor = null_mut();
+            emitter.anchor_data.anchor_length = 0;
+
+            // Create mapping start event
+            let mut event: YamlEventT = zeroed();
+            event.type_ = YamlMappingStartEvent;
+            event.data.mapping_start.anchor = null_mut();
+            event.data.mapping_start.tag = null_mut();
+            event.data.mapping_start.implicit = true;
+            event.data.mapping_start.style = YamlFlowMappingStyle;
+
+            // Push a mapping end event for the empty mapping check
+            let mut end_event: YamlEventT = zeroed();
+            end_event.type_ = YamlMappingEndEvent;
+            ENQUEUE!(emitter.events, end_event);
+
+            // Call function under test
+            let result = yaml_emitter_emit_mapping_start(
+                &mut emitter,
+                &mut event,
+            );
+            assert!(
+                !result.fail,
+                "Expected mapping start emission to succeed"
+            );
+
+            // Cleanup
+            yaml_free(events_buf as *mut libc::c_void);
+            yaml_free(states_buf as *mut libc::c_void);
+            yaml_free(raw_buf);
+        }
+    }
+
+    #[test]
+    fn test_yaml_emitter_check_empty_document() {
+        unsafe {
+            let mut emitter: YamlEmitterT =
+                MaybeUninit::zeroed().assume_init();
+
+            let is_empty =
+                yaml_emitter_check_empty_document(&mut emitter);
+            assert!(
+                !is_empty,
+                "Expected function to return false by default"
+            );
+        }
+    }
+
+    #[test]
+    fn test_yaml_emitter_check_empty_sequence() {
+        unsafe {
+            let mut emitter: YamlEmitterT =
+                MaybeUninit::zeroed().assume_init();
+
+            let is_empty =
+                yaml_emitter_check_empty_sequence(&mut emitter);
+
+            assert!(
+                !is_empty,
+                "Expected empty sequence to be false in naive test"
+            );
+        }
+    }
+
+    #[test]
+    fn test_yaml_emitter_check_empty_mapping() {
+        unsafe {
+            let mut emitter: YamlEmitterT =
+                MaybeUninit::zeroed().assume_init();
+
+            let is_empty =
+                yaml_emitter_check_empty_mapping(&mut emitter);
+            assert!(
+                !is_empty,
+                "Expected empty mapping to be false in naive test"
+            );
+        }
+    }
+
+    #[test]
+    fn test_yaml_emitter_check_simple_key() {
+        unsafe {
+            let mut emitter: YamlEmitterT =
+                MaybeUninit::zeroed().assume_init();
+
+            let is_simple = yaml_emitter_check_simple_key(&mut emitter);
+            assert!(
+                !is_simple,
+                "Expected no simple key in naive empty test"
+            );
+        }
+    }
+
+    #[test]
+    fn test_yaml_emitter_select_scalar_style() {
+        unsafe {
+            let mut emitter: YamlEmitterT =
+                MaybeUninit::zeroed().assume_init();
+
+            // Set up scalar data in emitter
+            let content = b"test scalar content\0";
+            emitter.scalar_data.value =
+                content.as_ptr() as *mut yaml_char_t;
+            emitter.scalar_data.length = 18;
+            emitter.scalar_data.multiline = false;
+            emitter.scalar_data.flow_plain_allowed = true;
+            emitter.scalar_data.block_plain_allowed = true;
+            emitter.scalar_data.single_quoted_allowed = true;
+            emitter.scalar_data.block_allowed = true;
+
+            // Initialize empty tag data
+            emitter.tag_data.handle = null_mut();
+            emitter.tag_data.suffix = null_mut();
+            emitter.tag_data.handle_length = 0;
+            emitter.tag_data.suffix_length = 0;
+
+            // Set up emitter flags
+            emitter.canonical = false;
+            emitter.simple_key_context = false;
+            emitter.flow_level = 0;
+
+            // Create scalar event
+            let mut event: YamlEventT = zeroed();
+            event.type_ = YamlScalarEvent;
+            event.data.scalar.value =
+                content.as_ptr() as *mut yaml_char_t;
+            event.data.scalar.length = 18;
+            event.data.scalar.style = YamlAnyScalarStyle;
+            event.data.scalar.plain_implicit = true;
+            event.data.scalar.quoted_implicit = true;
+
+            // Call function under test
+            let result = yaml_emitter_select_scalar_style(
+                &mut emitter,
+                &mut event,
+            );
+            assert!(
+                !result.fail,
+                "Expected scalar style selection to succeed"
+            );
+
+            // Verify the style was selected
+            assert!(
+                emitter.scalar_data.style != YamlAnyScalarStyle,
+                "Expected a specific scalar style to be selected"
+            );
+        }
+    }
+    #[test]
+    fn test_yaml_emitter_process_anchor() {
+        unsafe {
+            let mut emitter: YamlEmitterT =
+                MaybeUninit::zeroed().assume_init();
+            // If there's no anchor, function returns OK
+            let result = yaml_emitter_process_anchor(&mut emitter);
+            assert!(
+                !result.fail,
+                "Expected anchor process to succeed (none set)"
+            );
+        }
+    }
+    #[test]
+    fn test_yaml_emitter_process_tag() {
+        unsafe {
+            let mut emitter: YamlEmitterT =
+                MaybeUninit::zeroed().assume_init();
+            let result = yaml_emitter_process_tag(&mut emitter);
+            assert!(
+                !result.fail,
+                "Expected tag process to succeed (none set)"
+            );
+        }
+    }
+
+    #[test]
+    fn test_yaml_emitter_process_scalar() {
+        unsafe {
+            let mut emitter: YamlEmitterT =
+                MaybeUninit::zeroed().assume_init();
+
+            // Allocate main buffer
+            let capacity = 128_usize;
+            let raw_buf = yaml_malloc(capacity as size_t);
+            assert!(!raw_buf.is_null());
+            emitter.buffer.start = raw_buf as *mut yaml_char_t;
+            emitter.buffer.pointer = raw_buf as *mut yaml_char_t;
+            emitter.buffer.end =
+                (raw_buf as *mut yaml_char_t).add(capacity);
+
+            // Set up scalar data
+            let content = b"test scalar\0";
+            emitter.scalar_data.value =
+                content.as_ptr() as *mut yaml_char_t;
+            emitter.scalar_data.length = 11;
+            emitter.scalar_data.style = YamlPlainScalarStyle;
+            emitter.scalar_data.multiline = false;
+            emitter.scalar_data.flow_plain_allowed = true;
+            emitter.scalar_data.block_plain_allowed = true;
+            emitter.scalar_data.single_quoted_allowed = true;
+            emitter.scalar_data.block_allowed = true;
+
+            // Set up emitter state
+            emitter.column = 0;
+            emitter.whitespace = true;
+            emitter.indention = true;
+            emitter.simple_key_context = false;
+            emitter.flow_level = 0;
+            emitter.best_width = 80;
+            emitter.best_indent = 2;
+
+            // Call function under test
+            let result = yaml_emitter_process_scalar(&mut emitter);
+            assert!(
+                !result.fail,
+                "Expected scalar processing to succeed"
+            );
+
+            // Verify buffer contains scalar content
+            let buf_ptr = raw_buf as *mut u8;
+            for (i, &byte) in b"test scalar".iter().enumerate() {
+                assert_eq!(
+                    *buf_ptr.add(i),
+                    byte,
+                    "Buffer content mismatch"
+                );
+            }
+
+            // Cleanup
+            yaml_free(raw_buf);
+        }
+    }
+
+    #[test]
+    fn test_yaml_emitter_analyze_version_directive() {
+        unsafe {
+            let mut emitter: YamlEmitterT =
+                MaybeUninit::zeroed().assume_init();
+            let version_dir =
+                YamlVersionDirectiveT { major: 1, minor: 2 };
+
+            let result = yaml_emitter_analyze_version_directive(
+                &mut emitter,
+                version_dir,
+            );
+            assert!(
+                !result.fail,
+                "Expected analyzing version 1.2 to succeed"
+            );
+        }
+    }
+
+    #[test]
+    fn test_yaml_emitter_analyze_tag_directive() {
+        unsafe {
+            let mut emitter: YamlEmitterT =
+                MaybeUninit::zeroed().assume_init();
+            let tag_directive = YamlTagDirectiveT {
+                handle: b"!foo!\0".as_ptr() as *mut yaml_char_t,
+                prefix: b"tag:example.com,2023:\0".as_ptr()
+                    as *mut yaml_char_t,
+            };
+
+            let result = yaml_emitter_analyze_tag_directive(
+                &mut emitter,
+                tag_directive,
+            );
+            assert!(
+                !result.fail,
+                "Expected analyzing tag directive to succeed"
+            );
+        }
+    }
+    #[test]
+    fn test_yaml_emitter_analyze_anchor() {
+        unsafe {
+            let mut emitter: YamlEmitterT =
+                MaybeUninit::zeroed().assume_init();
+            let anchor = b"myAnchor\0";
+            let result = yaml_emitter_analyze_anchor(
+                &mut emitter,
+                anchor.as_ptr() as *mut yaml_char_t,
+                false,
+            );
+            assert!(
+                !result.fail,
+                "Expected analyzing anchor to succeed"
+            );
+        }
+    }
+
+    #[test]
+    fn test_yaml_emitter_analyze_tag() {
+        unsafe {
+            let mut emitter: YamlEmitterT =
+                MaybeUninit::zeroed().assume_init();
+            let tag = b"!foo!\0";
+            let result = yaml_emitter_analyze_tag(
+                &mut emitter,
+                tag.as_ptr() as *mut yaml_char_t,
+            );
+            assert!(!result.fail, "Expected analyzing tag to succeed");
+        }
+    }
+
+    #[test]
+    fn test_yaml_emitter_analyze_scalar() {
+        unsafe {
+            let mut emitter: YamlEmitterT =
+                MaybeUninit::zeroed().assume_init();
+            let value = b"test value\0";
+            let length = 10;
+            let result = yaml_emitter_analyze_scalar(
+                &mut emitter,
+                value.as_ptr() as *mut yaml_char_t,
+                length,
+            );
+            assert!(
+                !result.fail,
+                "Expected analyzing scalar to succeed"
+            );
+        }
+    }
 }

@@ -3028,8 +3028,10 @@ unsafe fn yaml_emitter_write_folded_scalar(
 mod tests {
     use super::*;
     use crate::memory::yaml_malloc;
+    use crate::YamlEmitterStateT;
     use core::mem::zeroed;
     use core::mem::MaybeUninit;
+    use core::ptr::null_mut;
 
     #[test]
     fn test_flush() {
@@ -3584,6 +3586,311 @@ mod tests {
             );
 
             // 8) Free the buffer so Miri doesn't see a leak
+            yaml_free(raw_buf);
+        }
+    }
+
+    #[test]
+    fn test_yaml_emitter_emit_document_start() {
+        unsafe {
+            let mut emitter: YamlEmitterT =
+                MaybeUninit::zeroed().assume_init();
+
+            // 1) Allocate the main buffer
+            let capacity = 128_usize;
+            let raw_buf = yaml_malloc(capacity as size_t);
+            assert!(!raw_buf.is_null());
+            emitter.buffer.start = raw_buf as *mut yaml_char_t;
+            emitter.buffer.pointer = raw_buf as *mut yaml_char_t;
+            emitter.buffer.end =
+                (raw_buf as *mut yaml_char_t).add(capacity);
+
+            // 2) Allocate space for tag_directives
+            use core::mem::size_of;
+            let tag_directives_capacity = 4_usize;
+            let tag_directives_buf = yaml_malloc(
+                (size_of::<YamlTagDirectiveT>()
+                    * tag_directives_capacity)
+                    .try_into()
+                    .unwrap(),
+            )
+                as *mut YamlTagDirectiveT;
+            assert!(!tag_directives_buf.is_null());
+
+            emitter.tag_directives.start = tag_directives_buf;
+            emitter.tag_directives.top = tag_directives_buf;
+            emitter.tag_directives.end =
+                tag_directives_buf.add(tag_directives_capacity);
+
+            // 3) Set up other emitter fields
+            emitter.state = YamlEmitFirstDocumentStartState;
+            emitter.encoding = YamlUtf8Encoding;
+            emitter.line_break = YamlLnBreak;
+            emitter.best_indent = 2;
+            emitter.best_width = 80;
+
+            // 4) Create a document start event
+            let mut event: YamlEventT = zeroed();
+            event.type_ = YamlDocumentStartEvent;
+            event.data.document_start.version_directive = null_mut();
+            event.data.document_start.implicit = true;
+
+            // 5) Call the function
+            let result = yaml_emitter_emit_document_start(
+                &mut emitter,
+                &mut event,
+                true,
+            );
+            assert!(!result.fail, "Expected document_start to succeed");
+
+            // 6) **Free** the newly appended tag directives' handle/prefix
+            let mut current = emitter.tag_directives.start;
+            while current < emitter.tag_directives.top {
+                // Both handle and prefix were allocated via yaml_strdup
+                yaml_free((*current).handle as *mut libc::c_void);
+                yaml_free((*current).prefix as *mut libc::c_void);
+                current = current.add(1);
+            }
+
+            // 7) Free the tag_directives buffer array
+            yaml_free(tag_directives_buf as *mut libc::c_void);
+
+            // 8) Finally free the main buffer
+            yaml_free(raw_buf);
+        }
+    }
+
+    #[test]
+    fn test_yaml_emitter_emit_flow_sequence_item() {
+        unsafe {
+            let mut emitter: YamlEmitterT =
+                MaybeUninit::zeroed().assume_init();
+
+            // Allocate main buffer
+            let capacity = 128_usize;
+            let raw_buf = yaml_malloc(capacity as size_t);
+            assert!(!raw_buf.is_null());
+            emitter.buffer.start = raw_buf as *mut yaml_char_t;
+            emitter.buffer.pointer = raw_buf as *mut yaml_char_t;
+            emitter.buffer.end =
+                (raw_buf as *mut yaml_char_t).add(capacity);
+
+            // Allocate states stack
+            let states_capacity = 4_usize;
+            let states_buf = yaml_malloc(
+                (size_of::<YamlEmitterStateT>() * states_capacity)
+                    .try_into()
+                    .unwrap(),
+            ) as *mut YamlEmitterStateT;
+            assert!(!states_buf.is_null());
+
+            emitter.states.start = states_buf;
+            emitter.states.top = states_buf;
+            emitter.states.end = states_buf.add(states_capacity);
+
+            // Allocate indents stack
+            let indents_capacity = 4_usize;
+            let indents_buf = yaml_malloc(
+                (size_of::<libc::c_int>() * indents_capacity)
+                    .try_into()
+                    .unwrap(),
+            ) as *mut libc::c_int;
+            assert!(!indents_buf.is_null());
+
+            emitter.indents.start = indents_buf;
+            emitter.indents.top = indents_buf;
+            emitter.indents.end = indents_buf.add(indents_capacity);
+
+            // Set initial indent and push it onto stack
+            emitter.indent = 2;
+            PUSH!(emitter.indents, emitter.indent);
+
+            // Set up emitter state
+            emitter.state = YamlEmitFlowSequenceFirstItemState;
+            emitter.encoding = YamlUtf8Encoding;
+            emitter.line_break = YamlLnBreak;
+            emitter.best_indent = 2;
+            emitter.best_width = 80;
+            emitter.flow_level = 1; // Since we're in a flow sequence
+
+            // Create sequence end event
+            let mut event: YamlEventT = zeroed();
+            event.type_ = YamlSequenceEndEvent;
+
+            // Call function under test
+            let result = yaml_emitter_emit_flow_sequence_item(
+                &mut emitter,
+                &mut event,
+                true,
+            );
+            assert!(!result.fail, "Expected flow_sequence_item to succeed (ending sequence)");
+
+            // Cleanup
+            yaml_free(indents_buf as *mut libc::c_void);
+            yaml_free(states_buf as *mut libc::c_void);
+            yaml_free(raw_buf);
+        }
+    }
+
+    #[test]
+    fn test_yaml_emitter_emit_flow_mapping_key() {
+        unsafe {
+            let mut emitter: YamlEmitterT =
+                MaybeUninit::zeroed().assume_init();
+
+            // Allocate main buffer
+            let capacity = 128_usize;
+            let raw_buf = yaml_malloc(capacity as size_t);
+            assert!(!raw_buf.is_null());
+            emitter.buffer.start = raw_buf as *mut yaml_char_t;
+            emitter.buffer.pointer = raw_buf as *mut yaml_char_t;
+            emitter.buffer.end =
+                (raw_buf as *mut yaml_char_t).add(capacity);
+
+            // Allocate states stack
+            let states_capacity = 4_usize;
+            let states_buf = yaml_malloc(
+                (size_of::<YamlEmitterStateT>() * states_capacity)
+                    .try_into()
+                    .unwrap(),
+            ) as *mut YamlEmitterStateT;
+            assert!(!states_buf.is_null());
+
+            emitter.states.start = states_buf;
+            emitter.states.top = states_buf;
+            emitter.states.end = states_buf.add(states_capacity);
+
+            // Allocate indents stack
+            let indents_capacity = 4_usize;
+            let indents_buf = yaml_malloc(
+                (size_of::<libc::c_int>() * indents_capacity)
+                    .try_into()
+                    .unwrap(),
+            ) as *mut libc::c_int;
+            assert!(!indents_buf.is_null());
+
+            emitter.indents.start = indents_buf;
+            emitter.indents.top = indents_buf;
+            emitter.indents.end = indents_buf.add(indents_capacity);
+
+            // Set initial indent and push it onto stack
+            emitter.indent = 2;
+            PUSH!(emitter.indents, emitter.indent);
+
+            // Set up emitter state
+            emitter.state = YamlEmitFlowMappingFirstKeyState;
+            emitter.encoding = YamlUtf8Encoding;
+            emitter.line_break = YamlLnBreak;
+            emitter.best_indent = 2;
+            emitter.best_width = 80;
+            emitter.flow_level = 1; // Since we're in a flow mapping
+
+            // Create mapping end event
+            let mut event: YamlEventT = zeroed();
+            event.type_ = YamlMappingEndEvent;
+
+            // Call function under test
+            let result = yaml_emitter_emit_flow_mapping_key(
+                &mut emitter,
+                &mut event,
+                true,
+            );
+            assert!(
+                !result.fail,
+                "Expected flow_mapping_key to succeed (ending mapping)"
+            );
+
+            // Cleanup
+            yaml_free(indents_buf as *mut libc::c_void);
+            yaml_free(states_buf as *mut libc::c_void);
+            yaml_free(raw_buf);
+        }
+    }
+
+    #[test]
+    fn test_yaml_emitter_emit_flow_mapping_value() {
+        unsafe {
+            let mut emitter: YamlEmitterT =
+                MaybeUninit::zeroed().assume_init();
+
+            // Allocate main buffer
+            let capacity = 128_usize;
+            let raw_buf = yaml_malloc(capacity as size_t);
+            assert!(!raw_buf.is_null());
+            emitter.buffer.start = raw_buf as *mut yaml_char_t;
+            emitter.buffer.pointer = raw_buf as *mut yaml_char_t;
+            emitter.buffer.end =
+                (raw_buf as *mut yaml_char_t).add(capacity);
+
+            // Allocate states stack
+            let states_capacity = 4_usize;
+            let states_buf = yaml_malloc(
+                (size_of::<YamlEmitterStateT>() * states_capacity)
+                    .try_into()
+                    .unwrap(),
+            ) as *mut YamlEmitterStateT;
+            assert!(!states_buf.is_null());
+
+            emitter.states.start = states_buf;
+            emitter.states.top = states_buf;
+            emitter.states.end = states_buf.add(states_capacity);
+
+            // Push initial state onto states stack
+            PUSH!(emitter.states, YamlEmitFlowMappingKeyState);
+
+            // Allocate indents stack
+            let indents_capacity = 4_usize;
+            let indents_buf = yaml_malloc(
+                (size_of::<libc::c_int>() * indents_capacity)
+                    .try_into()
+                    .unwrap(),
+            ) as *mut libc::c_int;
+            assert!(!indents_buf.is_null());
+
+            emitter.indents.start = indents_buf;
+            emitter.indents.top = indents_buf;
+            emitter.indents.end = indents_buf.add(indents_capacity);
+
+            // Set initial indent and push it onto stack
+            emitter.indent = 2;
+            PUSH!(emitter.indents, emitter.indent);
+
+            // Set up emitter state
+            emitter.state = YamlEmitFlowMappingKeyState;
+            emitter.encoding = YamlUtf8Encoding;
+            emitter.line_break = YamlLnBreak;
+            emitter.best_indent = 2;
+            emitter.best_width = 80;
+            emitter.flow_level = 1; // Since we're in a flow mapping
+            emitter.column = 0; // Start at column 0
+            emitter.canonical = false;
+            emitter.whitespace = true;
+
+            // Create scalar event for the value
+            let mut event: YamlEventT = zeroed();
+            event.type_ = YamlScalarEvent;
+            let content = b"test\0";
+            event.data.scalar.value =
+                content.as_ptr() as *mut yaml_char_t;
+            event.data.scalar.length = 4;
+            event.data.scalar.style = YamlPlainScalarStyle;
+            event.data.scalar.plain_implicit = true;
+            event.data.scalar.quoted_implicit = true;
+
+            // Call function under test
+            let result = yaml_emitter_emit_flow_mapping_value(
+                &mut emitter,
+                &mut event,
+                true, // simple value mode
+            );
+            assert!(
+                !result.fail,
+                "Expected flow_mapping_value to succeed"
+            );
+
+            // Cleanup
+            yaml_free(indents_buf as *mut libc::c_void);
+            yaml_free(states_buf as *mut libc::c_void);
             yaml_free(raw_buf);
         }
     }

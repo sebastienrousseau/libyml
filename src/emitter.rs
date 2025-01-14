@@ -3027,12 +3027,12 @@ unsafe fn yaml_emitter_write_folded_scalar(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::memory::yaml_malloc;
-    use crate::YamlEmitterStateT;
-    use core::ffi::CStr;
-    use core::mem::zeroed;
-    use core::mem::MaybeUninit;
-    use core::ptr::null_mut;
+    use crate::{memory::yaml_malloc, YamlEmitterStateT};
+    use core::{
+        ffi::CStr,
+        mem::{zeroed, MaybeUninit},
+        ptr::null_mut,
+    };
 
     #[test]
     fn test_flush() {
@@ -5861,6 +5861,413 @@ mod tests {
             yaml_free(indents_buf as *mut libc::c_void);
             yaml_free(states_buf as *mut libc::c_void);
             yaml_free(tag_directives_buf as *mut libc::c_void);
+            yaml_free(raw_buf);
+        }
+    }
+
+    #[test]
+    fn test_yaml_emitter_analyze_event_variations() {
+        unsafe {
+            let mut emitter: YamlEmitterT =
+                MaybeUninit::zeroed().assume_init();
+
+            // Test alias event
+            let mut alias_event: YamlEventT = zeroed();
+            alias_event.type_ = YamlAliasEvent;
+            alias_event.data.alias.anchor =
+                b"test_alias\0".as_ptr() as *mut yaml_char_t;
+            let result = yaml_emitter_analyze_event(
+                &mut emitter,
+                &mut alias_event,
+            );
+            assert!(
+                !result.fail,
+                "Expected alias event analysis to succeed"
+            );
+
+            // Test sequence start event with anchor and tag
+            let mut seq_event: YamlEventT = zeroed();
+            seq_event.type_ = YamlSequenceStartEvent;
+            seq_event.data.sequence_start.anchor =
+                b"seq_anchor\0".as_ptr() as *mut yaml_char_t;
+            seq_event.data.sequence_start.tag =
+                b"!seq\0".as_ptr() as *mut yaml_char_t;
+            seq_event.data.sequence_start.implicit = false;
+            let result = yaml_emitter_analyze_event(
+                &mut emitter,
+                &mut seq_event,
+            );
+            assert!(
+                !result.fail,
+                "Expected sequence event analysis to succeed"
+            );
+
+            // Test mapping start event with anchor and tag
+            let mut map_event: YamlEventT = zeroed();
+            map_event.type_ = YamlMappingStartEvent;
+            map_event.data.mapping_start.anchor =
+                b"map_anchor\0".as_ptr() as *mut yaml_char_t;
+            map_event.data.mapping_start.tag =
+                b"!map\0".as_ptr() as *mut yaml_char_t;
+            map_event.data.mapping_start.implicit = false;
+            let result = yaml_emitter_analyze_event(
+                &mut emitter,
+                &mut map_event,
+            );
+            assert!(
+                !result.fail,
+                "Expected mapping event analysis to succeed"
+            );
+        }
+    }
+
+    #[test]
+    fn test_yaml_emitter_check_empty_sequence_detailed() {
+        unsafe {
+            let mut emitter: YamlEmitterT =
+                MaybeUninit::zeroed().assume_init();
+
+            // Set up events queue
+            let events_capacity = 4_usize;
+            let events_buf = yaml_malloc(
+                (size_of::<YamlEventT>() * events_capacity)
+                    .try_into()
+                    .unwrap(),
+            ) as *mut YamlEventT;
+            assert!(!events_buf.is_null());
+
+            emitter.events.start = events_buf;
+            emitter.events.head = events_buf;
+            emitter.events.tail = events_buf.add(2); // Add 2 events
+            emitter.events.end = events_buf.add(events_capacity);
+
+            // Create sequence start and end events
+            let seq_start = &mut *events_buf;
+            seq_start.type_ = YamlSequenceStartEvent;
+
+            let seq_end = &mut *events_buf.add(1);
+            seq_end.type_ = YamlSequenceEndEvent;
+
+            let is_empty =
+                yaml_emitter_check_empty_sequence(&mut emitter);
+            assert!(
+                is_empty,
+                "Expected sequence to be identified as empty"
+            );
+
+            // Clean up
+            yaml_free(events_buf as *mut libc::c_void);
+        }
+    }
+
+    #[test]
+    fn test_yaml_emitter_check_empty_mapping_detailed() {
+        unsafe {
+            let mut emitter: YamlEmitterT =
+                MaybeUninit::zeroed().assume_init();
+
+            // Set up events queue
+            let events_capacity = 4_usize;
+            let events_buf = yaml_malloc(
+                (size_of::<YamlEventT>() * events_capacity)
+                    .try_into()
+                    .unwrap(),
+            ) as *mut YamlEventT;
+            assert!(!events_buf.is_null());
+
+            emitter.events.start = events_buf;
+            emitter.events.head = events_buf;
+            emitter.events.tail = events_buf.add(2); // Add 2 events
+            emitter.events.end = events_buf.add(events_capacity);
+
+            // Create mapping start and end events
+            let map_start = &mut *events_buf;
+            map_start.type_ = YamlMappingStartEvent;
+
+            let map_end = &mut *events_buf.add(1);
+            map_end.type_ = YamlMappingEndEvent;
+
+            let is_empty =
+                yaml_emitter_check_empty_mapping(&mut emitter);
+            assert!(
+                is_empty,
+                "Expected mapping to be identified as empty"
+            );
+
+            // Clean up
+            yaml_free(events_buf as *mut libc::c_void);
+        }
+    }
+
+    #[test]
+    fn test_yaml_emitter_write_tag_content_special_chars() {
+        unsafe {
+            let mut emitter: YamlEmitterT =
+                MaybeUninit::zeroed().assume_init();
+
+            // Allocate buffer
+            let capacity = 128_usize;
+            let raw_buf = yaml_malloc(capacity as size_t);
+            assert!(!raw_buf.is_null());
+
+            emitter.buffer.start = raw_buf as *mut yaml_char_t;
+            emitter.buffer.pointer = raw_buf as *mut yaml_char_t;
+            emitter.buffer.end =
+                (raw_buf as *mut yaml_char_t).add(capacity);
+
+            // Test content with special characters that need escaping
+            let content = b"tag:example.com,2023:type@special\0";
+            let length = 29;
+
+            let result = yaml_emitter_write_tag_content(
+                &mut emitter,
+                content.as_ptr() as *mut yaml_char_t,
+                length,
+                true,
+            );
+            assert!(!result.fail, "Expected tag content write with special chars to succeed");
+
+            yaml_free(raw_buf);
+        }
+    }
+
+    #[test]
+    fn test_yaml_emitter_write_double_quoted_scalar_special() {
+        unsafe {
+            let mut emitter: YamlEmitterT =
+                MaybeUninit::zeroed().assume_init();
+
+            // Allocate buffer
+            let capacity = 256_usize; // Larger buffer for escaped content
+            let raw_buf = yaml_malloc(capacity as size_t);
+            assert!(!raw_buf.is_null());
+
+            emitter.buffer.start = raw_buf as *mut yaml_char_t;
+            emitter.buffer.pointer = raw_buf as *mut yaml_char_t;
+            emitter.buffer.end =
+                (raw_buf as *mut yaml_char_t).add(capacity);
+
+            // Test string with special characters
+            let value = b"special\x07\x08\x0C\x0B\\\"\x1B\x0A\0";
+            let length = 10;
+
+            emitter.unicode = true;
+
+            let result = yaml_emitter_write_double_quoted_scalar(
+                &mut emitter,
+                value.as_ptr() as *mut yaml_char_t,
+                length,
+                true,
+            );
+            assert!(
+                !result.fail,
+                "Expected special character escaping to succeed"
+            );
+
+            yaml_free(raw_buf);
+        }
+    }
+
+    #[test]
+    fn test_yaml_emitter_write_folded_scalar_multiline() {
+        unsafe {
+            let mut emitter: YamlEmitterT =
+                MaybeUninit::zeroed().assume_init();
+
+            // Allocate buffer - larger for multiline content
+            let capacity = 512_usize;
+            let raw_buf = yaml_malloc(capacity as size_t);
+            assert!(!raw_buf.is_null());
+
+            emitter.buffer.start = raw_buf as *mut yaml_char_t;
+            emitter.buffer.pointer = raw_buf as *mut yaml_char_t;
+            emitter.buffer.end =
+                (raw_buf as *mut yaml_char_t).add(capacity);
+
+            // Setup required emitter state
+            emitter.encoding = YamlUtf8Encoding;
+            emitter.line_break = YamlLnBreak;
+            emitter.best_indent = 2;
+            emitter.best_width = 80;
+            emitter.whitespace = true;
+            emitter.indention = true;
+            emitter.column = 0;
+
+            // Test different types of line breaks and spaces
+            let value = b"This is a multiline\n  folded text with\n\n\
+                     preserved\n   indented lines\n  and varied\n \
+                     spacing\n\0";
+            let length = 89;
+
+            let result = yaml_emitter_write_folded_scalar(
+                &mut emitter,
+                value.as_ptr() as *mut yaml_char_t,
+                length,
+            );
+            assert!(
+                !result.fail,
+                "Expected multiline folded scalar write to succeed"
+            );
+
+            yaml_free(raw_buf);
+        }
+    }
+
+    #[test]
+    fn test_yaml_emitter_write_literal_scalar_multiline() {
+        unsafe {
+            let mut emitter: YamlEmitterT =
+                MaybeUninit::zeroed().assume_init();
+
+            // Allocate buffer
+            let capacity = 512_usize;
+            let raw_buf = yaml_malloc(capacity as size_t);
+            assert!(!raw_buf.is_null());
+
+            emitter.buffer.start = raw_buf as *mut yaml_char_t;
+            emitter.buffer.pointer = raw_buf as *mut yaml_char_t;
+            emitter.buffer.end =
+                (raw_buf as *mut yaml_char_t).add(capacity);
+
+            // Setup required emitter state
+            emitter.encoding = YamlUtf8Encoding;
+            emitter.line_break = YamlLnBreak;
+            emitter.best_indent = 2;
+            emitter.whitespace = true;
+            emitter.indention = true;
+            emitter.column = 0;
+
+            // Test content with preserved line breaks and indentation
+            let value =
+                b"First line\n  Indented line\n\nBlank line above\n\
+                     \tTabbed line\nLast line\n\0";
+            let length = 63;
+
+            let result = yaml_emitter_write_literal_scalar(
+                &mut emitter,
+                value.as_ptr() as *mut yaml_char_t,
+                length,
+            );
+            assert!(
+                !result.fail,
+                "Expected multiline literal scalar write to succeed"
+            );
+
+            yaml_free(raw_buf);
+        }
+    }
+
+    #[test]
+    fn test_yaml_emitter_write_block_scalar_hints_complex() {
+        unsafe {
+            let mut emitter: YamlEmitterT =
+                MaybeUninit::zeroed().assume_init();
+
+            let capacity = 256_usize;
+            let raw_buf = yaml_malloc(capacity as size_t);
+            assert!(!raw_buf.is_null());
+
+            emitter.buffer.start = raw_buf as *mut yaml_char_t;
+            emitter.buffer.pointer = raw_buf as *mut yaml_char_t;
+            emitter.buffer.end =
+                (raw_buf as *mut yaml_char_t).add(capacity);
+
+            emitter.best_indent = 2;
+            emitter.whitespace = true;
+
+            // Test different string scenarios
+            let test_cases = [
+                // Case 1: String with leading spaces
+                YamlStringT {
+                    start: b"  leading spaces\n\0".as_ptr()
+                        as *mut yaml_char_t,
+                    end: b"  leading spaces\n\0".as_ptr().add(16)
+                        as *mut yaml_char_t,
+                    pointer: b"  leading spaces\n\0".as_ptr()
+                        as *mut yaml_char_t,
+                },
+                // Case 2: String with trailing newlines
+                YamlStringT {
+                    start: b"content\n\n\0".as_ptr()
+                        as *mut yaml_char_t,
+                    end: b"content\n\n\0".as_ptr().add(9)
+                        as *mut yaml_char_t,
+                    pointer: b"content\n\n\0".as_ptr()
+                        as *mut yaml_char_t,
+                },
+                // Case 3: Empty string
+                YamlStringT {
+                    start: b"\0".as_ptr() as *mut yaml_char_t,
+                    end: b"\0".as_ptr().add(1) as *mut yaml_char_t,
+                    pointer: b"\0".as_ptr() as *mut yaml_char_t,
+                },
+            ];
+
+            for test_string in test_cases.iter() {
+                emitter.buffer.pointer = emitter.buffer.start;
+                let result = yaml_emitter_write_block_scalar_hints(
+                    &mut emitter,
+                    *test_string,
+                );
+                assert!(
+                    !result.fail,
+                    "Expected block scalar hints write to succeed"
+                );
+            }
+
+            yaml_free(raw_buf);
+        }
+    }
+
+    #[test]
+    fn test_yaml_emitter_write_single_quoted_scalar_complex() {
+        unsafe {
+            let mut emitter: YamlEmitterT =
+                MaybeUninit::zeroed().assume_init();
+
+            let capacity = 256_usize;
+            let raw_buf = yaml_malloc(capacity as size_t);
+            assert!(!raw_buf.is_null());
+
+            emitter.buffer.start = raw_buf as *mut yaml_char_t;
+            emitter.buffer.pointer = raw_buf as *mut yaml_char_t;
+            emitter.buffer.end =
+                (raw_buf as *mut yaml_char_t).add(capacity);
+
+            emitter.best_width = 80;
+            emitter.best_indent = 2;
+            emitter.column = 0;
+            emitter.whitespace = true;
+
+            // Test with quotes and linebreaks
+            let value =
+                b"It''s a string with 'quotes'\nand line breaks\n\0";
+            let length = 39;
+
+            let result = yaml_emitter_write_single_quoted_scalar(
+                &mut emitter,
+                value.as_ptr() as *mut yaml_char_t,
+                length,
+                true,
+            );
+            assert!(!result.fail, "Expected complex single quoted scalar write to succeed");
+
+            // Test with long content forcing line breaks
+            let long_value = b"This is a very long string that should be broken into multiple lines because it exceeds the best width setting of the emitter\0";
+            let long_length = 108;
+
+            emitter.buffer.pointer = emitter.buffer.start;
+            let result = yaml_emitter_write_single_quoted_scalar(
+                &mut emitter,
+                long_value.as_ptr() as *mut yaml_char_t,
+                long_length,
+                true,
+            );
+            assert!(
+                !result.fail,
+                "Expected long single quoted scalar write to succeed"
+            );
+
             yaml_free(raw_buf);
         }
     }

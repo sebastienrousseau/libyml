@@ -48,6 +48,7 @@ doc-scrape-examples = false
 
 [features]
 default = [] # No default features
+std = [] # Feature for standard library
 test-utils = [] # Feature for test utilities
 
 # -----------------------------------------------------------------------------

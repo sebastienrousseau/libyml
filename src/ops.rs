@@ -637,6 +637,7 @@ mod tests {
             }
 
             #[test]
+            #[should_panic]
             fn test_u8_near_overflow() {
                 // 128 * 2 = 256 (overflow for u8)
                 let _ = 128u8.force_mul(2);

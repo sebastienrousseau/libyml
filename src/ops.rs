@@ -106,7 +106,10 @@ pub(crate) fn die<T>() -> T {
         }
 
         #[cfg(not(any(target_arch = "x86", target_arch = "x86_64")))]
-        loop {}
+        loop {
+            // Fallback to an infinite loop on other architectures
+            core::hint::spin_loop();
+        }
     }
 
     #[cfg(test)]
@@ -244,8 +247,6 @@ impl<T> ForceInto for T {
 #[cfg(all(test, feature = "std"))]
 mod tests {
     use super::*;
-
-    use std::println; // Allowed in test mode only
 
     // -------------------------------------------------------------------------
     // FORCE ADD TESTS
@@ -910,6 +911,7 @@ mod tests {
         }
 
         #[test]
+        #[should_panic]
         fn test_sequential_operations() {
             let x: i32 = 1;
             let y: i32 = 2;
@@ -921,7 +923,6 @@ mod tests {
             assert_eq!(product, 9);
 
             // Overflow check: (i32::MAX - 1 + 1) * 2 => i32::MAX * 2 => should fail
-            #[should_panic]
             {
                 let max_minus_one = i32::MAX - 1;
                 let sum = max_minus_one.force_add(1);

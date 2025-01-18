@@ -7,6 +7,7 @@ use std::path::Path;
 use tar::Archive;
 
 const TAG: &str = "data-2020-02-11";
+// TODO: const TAG: &str = "data-2022-01-17";
 
 fn main() {
     let needs_clone = match fs::read_to_string("yaml-test-suite/COMMIT")

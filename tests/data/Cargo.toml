@@ -10,7 +10,7 @@ path = "lib.rs"
 proc-macro = true
 
 [dependencies]
-proc-macro2 = "1.0.92"
+proc-macro2 = "1.0.93"
 quote = "1.0.38"
 
 [build-dependencies]

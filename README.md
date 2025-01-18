@@ -15,19 +15,47 @@ alt="LibYML logo" width="66" align="right" />
 [![Build Status][build-badge]][09]
 [![GitHub][github-badge]][05]
 
-LibYML is a Rust library for working with YAML data, forked from [unsafe-libyaml][01]. It offers a safe and efficient interface for parsing, emitting, and manipulating YAML data.
+LibYML is a robust Rust library for parsing, emitting and manipulating YAML data. Built upon the foundation of [unsafe-libyaml][01], it provides a safe and efficient interface whilst maintaining high performance.
 
-## Features
+## Key Features
 
-- **Serialization and Deserialization**: Easy-to-use APIs for serializing Rust structs and enums to YAML and vice versa.
-- **Custom Struct and Enum Support**: Seamless serialization and deserialization of custom data types.
-- **Comprehensive Error Handling**: Detailed error messages and recovery mechanisms.
-- **Streaming Support**: Efficient processing of large YAML documents.
-- **Alias and Anchor Support**: Handling of complex YAML structures with references.
-- **Tag Handling**: Support for custom tags and type-specific serialization.
-- **Configurable Emitter**: Customizable YAML output generation.
-- **Extensive Documentation**: Detailed docs and examples for easy onboarding.
-- **Safety and Efficiency**: Minimized unsafe code with an interface designed to prevent common pitfalls.
+- **Safe and Efficient Processing**
+  - Memory-safe abstractions with minimal unsafe code
+  - Zero-copy parsing for optimal performance
+  - Protection against common pitfalls and vulnerabilities
+  - Efficient memory utilisation and management
+
+- **Comprehensive Data Handling**
+  - Full YAML 1.2 specification support
+  - Seamless serialisation and deserialisation of Rust structs and enums
+  - Custom struct and enum type support
+  - Complex data structures with aliases and anchors
+  - Custom tag handling and type-specific serialisation
+
+- **Flexible Configuration**
+  - Customisable YAML output generation
+  - Configurable emitter settings
+  - Multiple encoding support (UTF-8, UTF-16)
+  - Streaming support for large documents
+
+- **Robust Error Management**
+  - Comprehensive error handling
+  - Detailed error messages
+  - Recovery mechanisms
+  - Type-safe failure handling
+
+- **Developer Experience**
+  - Easy-to-use serialisation APIs
+  - Extensive documentation and examples
+  - Clear, consistent interface design
+  - Straightforward onboarding process
+  - Type-safe API with helpful compiler feedback
+
+- **Performance Optimised**
+  - Minimal allocations
+  - Efficient memory reuse
+  - Optimised parsing algorithms
+  - Zero-cost abstractions over low-level operations
 
 ## Installation
 

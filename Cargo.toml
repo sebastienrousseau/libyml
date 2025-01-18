@@ -42,6 +42,14 @@ path = "src/lib.rs"
 crate-type = ["lib"]
 doc-scrape-examples = false
 
+# [[bin]]
+# name = "run-emitter-test-suite"
+# path = "src/bin/run-emitter-test-suite.rs"
+
+# [[bin]]
+# name = "run-parser-test-suite"
+# path = "src/bin/run-parser-test-suite.rs"
+
 # -----------------------------------------------------------------------------
 # Features
 # -----------------------------------------------------------------------------

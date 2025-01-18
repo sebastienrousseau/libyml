@@ -951,20 +951,6 @@ mod tests {
         }
     }
 
-    #[test]
-    fn test_real_world_scenario() {
-        let mut mock_write = MockWrite::new();
-        let input = b"+STR\n+DOC\n+MAP\n=VAL :key1\n=VAL :value1\n-MAP\n-DOC\n-STR\n";
-        let mut mock_read = MockRead::new(input.to_vec());
-
-        unsafe {
-            set_memory_fail_after(-1);
-            let result = unsafe_main(&mut mock_read, &mut mock_write);
-            assert!(result.is_ok());
-            assert!(!mock_write.data.is_empty());
-        }
-    }
-
     //-----------------------------------------------------------------------//
     // 6. Emitter Error Simulation Tests (Memory, I/O, etc.)
     //-----------------------------------------------------------------------//

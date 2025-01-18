@@ -940,7 +940,8 @@ mod tests {
     #[test]
     fn test_malformed_input() {
         let mut mock_write = MockWrite::new();
-        let input = b"+STR\n+DOC\n=VAL :test\n-DOC\nINVALID\n-STR\n";
+        let input =
+            b"+STR\n+DOC\n=VAL :test\nINVALID_LINE\n-DOC\n-STR\n";
         let mut mock_read = MockRead::new(input.to_vec());
 
         unsafe {

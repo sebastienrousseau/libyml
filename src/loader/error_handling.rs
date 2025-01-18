@@ -210,7 +210,6 @@ mod tests {
     use crate::internal::yaml_stack_extend;
     use crate::memory::yaml_malloc;
     use crate::memory::yaml_strdup;
-    use crate::yaml::yaml_char_t;
     use crate::YamlAliasDataT;
     use crate::YamlEventTypeT::YamlStreamEndEvent;
     use crate::{
@@ -507,9 +506,7 @@ mod tests {
 
             // Create a test alias
             let alias_data = YamlAliasDataT {
-                anchor: yaml_strdup(
-                    b"test_anchor\0" as *const u8 as *const yaml_char_t,
-                ),
+                anchor: yaml_strdup(b"test_anchor\0" as *const u8),
                 index: 1,
                 mark: YamlMarkT {
                     index: 0,
@@ -802,9 +799,7 @@ mod tests {
 
             for (anchor_name, index) in aliases {
                 let alias_data = YamlAliasDataT {
-                    anchor: yaml_strdup(
-                        anchor_name.as_ptr() as *const yaml_char_t
-                    ),
+                    anchor: yaml_strdup(anchor_name.as_ptr()),
                     index,
                     mark: YamlMarkT::default(),
                 };

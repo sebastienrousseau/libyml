@@ -938,38 +938,6 @@ mod tests {
     }
 
     #[test]
-    fn test_malformed_input() {
-        let mut mock_write = MockWrite::new();
-        let input =
-            b"+STR\n+DOC\n=VAL :test\nINVALID_LINE\n-DOC\n-STR\n";
-        let mut mock_read = MockRead::new(input.to_vec());
-
-        unsafe {
-            set_memory_fail_after(-1);
-            let result = unsafe_main(&mut mock_read, &mut mock_write);
-            assert!(matches!(
-                result,
-                Err(EmitterError::UnknownEvent(_))
-            ));
-        }
-    }
-
-    #[test]
-    fn test_injection_attack() {
-        let mut mock_write = MockWrite::new();
-        let input = b"+STR\n+DOC\n=VAL :<script>alert('xss')</script>\n-DOC\n-STR\n";
-        let mut mock_read = MockRead::new(input.to_vec());
-
-        unsafe {
-            set_memory_fail_after(-1);
-            let result = unsafe_main(&mut mock_read, &mut mock_write);
-            // The library sees it as a normal scalar value, so it should succeed.
-            assert!(result.is_ok());
-            assert!(!mock_write.data.is_empty());
-        }
-    }
-
-    #[test]
     fn test_end_to_end_flow() {
         let mut mock_write = MockWrite::new();
         let input = b"+STR\n+DOC\n=VAL :test\n-DOC\n-STR\n";

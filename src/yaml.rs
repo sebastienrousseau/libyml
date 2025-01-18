@@ -128,7 +128,9 @@ impl Default for YamlErrorTypeT {
 }
 
 /// The pointer position in the YAML stream (line, column, index).
-#[derive(Copy, Clone, Debug, Default)]
+#[derive(
+    Clone, Copy, Debug, Default, Eq, Hash, Ord, PartialEq, PartialOrd,
+)]
 #[repr(C)]
 #[non_exhaustive]
 pub struct YamlMarkT {
@@ -141,7 +143,7 @@ pub struct YamlMarkT {
 }
 
 /// Styles for YAML scalars (plain, single-quoted, etc.).
-#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 #[repr(u32)]
 #[non_exhaustive]
 pub enum YamlScalarStyleT {

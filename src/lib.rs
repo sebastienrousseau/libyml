@@ -4,7 +4,7 @@
     clippy::cast_sign_loss,
     clippy::missing_safety_doc,
     clippy::module_name_repetitions,
-    clippy::literal_string_with_formatting_args
+    clippy::to_string_in_format_args
 )]
 //! # LibYML
 //!

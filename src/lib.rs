@@ -1,6 +1,5 @@
 // lib.rs
 
-#![allow(clippy::literal_string_with_formatting_args)]
 #![allow(
     clippy::cast_possible_truncation,
     clippy::cast_sign_loss,

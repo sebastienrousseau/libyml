@@ -1,6 +1,12 @@
 // lib.rs
-
-//! # LibYML (a fork of unsafe-libyaml)
+#![allow(
+    clippy::cast_possible_truncation,
+    clippy::cast_sign_loss,
+    clippy::missing_safety_doc,
+    clippy::module_name_repetitions,
+    clippy::literal_string_with_formatting_args
+)]
+//! # LibYML
 //!
 //! [![Made With Love][made-with-rust]][10]
 //! [![Crates.io][crates-badge]][06]

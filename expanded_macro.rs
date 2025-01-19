@@ -1,5 +1,5 @@
 #![feature(prelude_import)]
-//! # LibYML (a fork of unsafe-libyaml)
+//! # LibYML
 //!
 //! [![Made With Love][made-with-rust]][10]
 //! [![Crates.io][crates-badge]][06]
@@ -85,8 +85,8 @@
 use core::prelude::rust_2021::*;
 #[macro_use]
 extern crate core;
-extern crate compiler_builtins as _;
 extern crate alloc;
+extern crate compiler_builtins as _;
 use core::mem::size_of;
 /// Declarations for C library functions used within the LibYML library.
 ///
@@ -97,7 +97,8 @@ pub mod libc {
     pub use core::ffi::c_char;
     pub use core::ffi::c_void;
     pub use core::primitive::{
-        i32 as c_int, i64 as c_long, u32 as c_uint, u64 as c_ulong, u8 as c_uchar,
+        i32 as c_int, i64 as c_long, u32 as c_uint, u64 as c_ulong,
+        u8 as c_uchar,
     };
 }
 /// Extern functions and macros for interacting with the underlying libyaml C library.
@@ -121,7 +122,11 @@ pub mod externs {
     const MALLOC_ALIGN: usize = {
         let int_align = align_of::<libc::c_ulong>();
         let ptr_align = align_of::<usize>();
-        if int_align >= ptr_align { int_align } else { ptr_align }
+        if int_align >= ptr_align {
+            int_align
+        } else {
+            ptr_align
+        }
     };
     /// Allocates memory.
     ///
@@ -153,7 +158,8 @@ pub mod externs {
     ) -> *mut libc::c_void {
         let mut memory = ptr.cast::<u8>().sub(HEADER);
         let size = memory.cast::<usize>().read();
-        let layout = Layout::from_size_align_unchecked(size, MALLOC_ALIGN);
+        let layout =
+            Layout::from_size_align_unchecked(size, MALLOC_ALIGN);
         let new_size = HEADER.force_add(new_size.force_into());
         memory = rust::realloc(memory, layout, new_size);
         if memory.is_null() {
@@ -171,7 +177,8 @@ pub mod externs {
     pub unsafe fn free(ptr: *mut libc::c_void) {
         let memory = ptr.cast::<u8>().sub(HEADER);
         let size = memory.cast::<usize>().read();
-        let layout = Layout::from_size_align_unchecked(size, MALLOC_ALIGN);
+        let layout =
+            Layout::from_size_align_unchecked(size, MALLOC_ALIGN);
         rust::dealloc(memory, layout);
     }
     /// Compares two memory blocks.
@@ -185,8 +192,10 @@ pub mod externs {
         rhs: *const libc::c_void,
         count: libc::c_ulong,
     ) -> libc::c_int {
-        let lhs = slice::from_raw_parts(lhs.cast::<u8>(), count as usize);
-        let rhs = slice::from_raw_parts(rhs.cast::<u8>(), count as usize);
+        let lhs =
+            slice::from_raw_parts(lhs.cast::<u8>(), count as usize);
+        let rhs =
+            slice::from_raw_parts(rhs.cast::<u8>(), count as usize);
         lhs.cmp(rhs) as libc::c_int
     }
     /// Copies memory from `src` to `dest`.
@@ -255,8 +264,14 @@ pub mod externs {
         if lhs.is_null() || rhs.is_null() {
             return die();
         }
-        let lhs = slice::from_raw_parts(lhs.cast::<u8>(), strlen(lhs) as usize);
-        let rhs = slice::from_raw_parts(rhs.cast::<u8>(), strlen(rhs) as usize);
+        let lhs = slice::from_raw_parts(
+            lhs.cast::<u8>(),
+            strlen(lhs) as usize,
+        );
+        let rhs = slice::from_raw_parts(
+            rhs.cast::<u8>(),
+            strlen(rhs) as usize,
+        );
         lhs.cmp(rhs) as libc::c_int
     }
     /// Returns the length of a string.
@@ -264,7 +279,9 @@ pub mod externs {
     /// # Safety
     ///
     /// The caller must ensure the string is null-terminated and valid.
-    pub(crate) unsafe fn strlen(str: *const libc::c_char) -> libc::c_ulong {
+    pub(crate) unsafe fn strlen(
+        str: *const libc::c_char,
+    ) -> libc::c_ulong {
         let mut end = str;
         while *end != 0 {
             end = end.add(1);
@@ -291,7 +308,11 @@ pub mod externs {
             rhs = rhs.add(1);
             count -= 1;
         }
-        if count == 0 { 0 } else { (*lhs).cmp(&*rhs) as libc::c_int }
+        if count == 0 {
+            0
+        } else {
+            (*lhs).cmp(&*rhs) as libc::c_int
+        }
     }
     /// Internal function for handling assertion failures.
     ///
@@ -307,20 +328,18 @@ pub mod externs {
         impl Drop for Abort {
             fn drop(&mut self) {
                 {
-                    ::core::panicking::panic_fmt(format_args!("arithmetic overflow"));
+                    ::core::panicking::panic_fmt(format_args!(
+                        "arithmetic overflow"
+                    ));
                 };
             }
         }
         let _abort_on_panic = Abort;
         {
-            ::core::panicking::panic_fmt(
-                format_args!(
-                    "{0}:{1}: Assertion `{2}` failed.",
-                    __file,
-                    __line,
-                    __assertion,
-                ),
-            );
+            ::core::panicking::panic_fmt(format_args!(
+                "{0}:{1}: Assertion `{2}` failed.",
+                __file, __line, __assertion,
+            ));
         };
     }
 }
@@ -402,19 +421,29 @@ pub mod utils {
 pub mod api {
     use crate::{
         externs::{memcpy, memset, strlen},
-        internal::yaml_check_utf8, libc, memory::{yaml_free, yaml_malloc, yaml_strdup},
-        ops::ForceAdd as _, success::{Success, FAIL, OK},
+        internal::yaml_check_utf8,
+        libc,
+        memory::{yaml_free, yaml_malloc, yaml_strdup},
+        ops::ForceAdd as _,
+        success::{Success, FAIL, OK},
         yaml::{size_t, yaml_char_t},
-        PointerExt, YamlAliasEvent, YamlAliasToken, YamlAnchorToken, YamlAnyEncoding,
-        YamlBreakT, YamlEmitterStateT, YamlEmitterT, YamlEncodingT, YamlEventT,
-        YamlEventTypeT::{YamlDocumentStartEvent, YamlScalarEvent, YamlStreamEndEvent},
-        YamlMappingEndEvent, YamlMappingStartEvent, YamlMappingStyleT, YamlMarkT,
-        YamlParserT, YamlReadHandlerT, YamlScalarStyleT, YamlScalarToken,
-        YamlSequenceEndEvent, YamlSequenceStartEvent, YamlSequenceStyleT,
-        YamlStreamStartEvent, YamlTagDirectiveT, YamlTagDirectiveToken, YamlTagToken,
-        YamlTokenT, YamlWriteHandlerT,
+        PointerExt, YamlAliasEvent, YamlAliasToken, YamlAnchorToken,
+        YamlAnyEncoding, YamlBreakT, YamlEmitterStateT, YamlEmitterT,
+        YamlEncodingT, YamlEventT,
+        YamlEventTypeT::{
+            YamlDocumentStartEvent, YamlScalarEvent, YamlStreamEndEvent,
+        },
+        YamlMappingEndEvent, YamlMappingStartEvent, YamlMappingStyleT,
+        YamlMarkT, YamlParserT, YamlReadHandlerT, YamlScalarStyleT,
+        YamlScalarToken, YamlSequenceEndEvent, YamlSequenceStartEvent,
+        YamlSequenceStyleT, YamlStreamStartEvent, YamlTagDirectiveT,
+        YamlTagDirectiveToken, YamlTagToken, YamlTokenT,
+        YamlWriteHandlerT,
     };
-    use core::{mem::size_of, ptr::{self, addr_of_mut}};
+    use core::{
+        mem::size_of,
+        ptr::{self, addr_of_mut},
+    };
     const OUTPUT_BUFFER_SIZE: usize = 16384;
     const OUTPUT_RAW_BUFFER_SIZE: usize = OUTPUT_BUFFER_SIZE * 2 + 2;
     unsafe fn yaml_string_read_handler(
@@ -424,19 +453,25 @@ pub mod api {
         size_read: *mut size_t,
     ) -> libc::c_int {
         let parser: *mut YamlParserT = data as *mut YamlParserT;
-        if (*parser).input.string.current == (*parser).input.string.end {
+        if (*parser).input.string.current == (*parser).input.string.end
+        {
             *size_read = 0_u64;
             return 1;
         }
         if size
-            > (*parser).input.string.end.c_offset_from((*parser).input.string.current)
+            > (*parser)
+                .input
+                .string
+                .end
+                .c_offset_from((*parser).input.string.current)
                 as size_t
         {
             size = (*parser)
                 .input
                 .string
                 .end
-                .c_offset_from((*parser).input.string.current) as size_t;
+                .c_offset_from((*parser).input.string.current)
+                as size_t;
         }
         let _ = memcpy(
             buffer as *mut libc::c_void,
@@ -469,7 +504,9 @@ pub mod api {
         size: size_t,
     ) {
         if !!parser.is_null() {
-            ::core::panicking::panic("assertion failed: !parser.is_null()")
+            ::core::panicking::panic(
+                "assertion failed: !parser.is_null()",
+            )
         }
         if !(*parser).read_handler.is_none() {
             ::core::panicking::panic(
@@ -477,13 +514,16 @@ pub mod api {
             )
         }
         if !!input.is_null() {
-            ::core::panicking::panic("assertion failed: !input.is_null()")
+            ::core::panicking::panic(
+                "assertion failed: !input.is_null()",
+            )
         }
         (*parser).read_handler = Some(yaml_string_read_handler);
         (*parser).read_handler_data = parser as *mut libc::c_void;
         (*parser).input.string.start = input;
         (*parser).input.string.current = input;
-        (*parser).input.string.end = input.wrapping_offset(size as isize);
+        (*parser).input.string.end =
+            input.wrapping_offset(size as isize);
     }
     /// Set a generic input handler.
     ///
@@ -503,7 +543,11 @@ pub mod api {
         data: *mut libc::c_void,
     ) {
         if !!parser.is_null() {
-            crate::externs::__assert_fail("!parser.is_null()", "src/api.rs", 114u32);
+            crate::externs::__assert_fail(
+                "!parser.is_null()",
+                "src/api.rs",
+                114u32,
+            );
         }
         if !((*parser).read_handler).is_none() {
             crate::externs::__assert_fail(
@@ -532,7 +576,11 @@ pub mod api {
         encoding: YamlEncodingT,
     ) {
         if !!parser.is_null() {
-            crate::externs::__assert_fail("!parser.is_null()", "src/api.rs", 136u32);
+            crate::externs::__assert_fail(
+                "!parser.is_null()",
+                "src/api.rs",
+                136u32,
+            );
         }
         if !((*parser).encoding == YamlAnyEncoding) {
             crate::externs::__assert_fail(
@@ -554,9 +602,15 @@ pub mod api {
     /// - The `YamlEmitterT` struct must be properly aligned and have the expected memory layout.
     /// - The caller is responsible for properly destroying the emitter object using `yaml_emitter_delete`.
     ///
-    pub unsafe fn yaml_emitter_initialize(emitter: *mut YamlEmitterT) -> Success {
+    pub unsafe fn yaml_emitter_initialize(
+        emitter: *mut YamlEmitterT,
+    ) -> Success {
         if !!emitter.is_null() {
-            crate::externs::__assert_fail("!emitter.is_null()", "src/api.rs", 155u32);
+            crate::externs::__assert_fail(
+                "!emitter.is_null()",
+                "src/api.rs",
+                155u32,
+            );
         }
         let _ = memset(
             emitter as *mut libc::c_void,
@@ -565,7 +619,8 @@ pub mod api {
         );
         {
             let start = &raw mut (*emitter).buffer.start;
-            *start = yaml_malloc(OUTPUT_BUFFER_SIZE as size_t) as *mut yaml_char_t;
+            *start = yaml_malloc(OUTPUT_BUFFER_SIZE as size_t)
+                as *mut yaml_char_t;
             if !start.is_null() {
                 let _ = memset(
                     *start as *mut libc::c_void,
@@ -574,9 +629,9 @@ pub mod api {
                 );
             } else {
                 {
-                    ::core::panicking::panic_fmt(
-                        format_args!("Failed to allocate memory for buffer"),
-                    );
+                    ::core::panicking::panic_fmt(format_args!(
+                        "Failed to allocate memory for buffer"
+                    ));
                 };
             }
             let pointer = &raw mut (*emitter).buffer.pointer;
@@ -588,7 +643,8 @@ pub mod api {
         };
         {
             let start = &raw mut (*emitter).raw_buffer.start;
-            *start = yaml_malloc(OUTPUT_RAW_BUFFER_SIZE as size_t) as *mut yaml_char_t;
+            *start = yaml_malloc(OUTPUT_RAW_BUFFER_SIZE as size_t)
+                as *mut yaml_char_t;
             if !start.is_null() {
                 let _ = memset(
                     *start as *mut libc::c_void,
@@ -597,9 +653,9 @@ pub mod api {
                 );
             } else {
                 {
-                    ::core::panicking::panic_fmt(
-                        format_args!("Failed to allocate memory for buffer"),
-                    );
+                    ::core::panicking::panic_fmt(format_args!(
+                        "Failed to allocate memory for buffer"
+                    ));
                 };
             }
             let pointer = &raw mut (*emitter).raw_buffer.pointer;
@@ -612,9 +668,11 @@ pub mod api {
         {
             (*emitter).states.start = yaml_malloc(
                 16 * size_of::<YamlEmitterStateT>() as libc::c_ulong,
-            ) as *mut YamlEmitterStateT;
+            )
+                as *mut YamlEmitterStateT;
             (*emitter).states.top = (*emitter).states.start;
-            (*emitter).states.end = (*emitter).states.start.offset(16_isize);
+            (*emitter).states.end =
+                (*emitter).states.start.offset(16_isize);
         };
         {
             (*emitter).events.start = yaml_malloc(
@@ -622,24 +680,27 @@ pub mod api {
             ) as *mut YamlEventT;
             (*emitter).events.tail = (*emitter).events.start;
             (*emitter).events.head = (*emitter).events.tail;
-            (*emitter).events.end = (*emitter).events.start.offset(16_isize);
+            (*emitter).events.end =
+                (*emitter).events.start.offset(16_isize);
         };
         {
             (*emitter).indents.start = yaml_malloc(
                 16 * size_of::<libc::c_int>() as libc::c_ulong,
-            ) as *mut libc::c_int;
+            )
+                as *mut libc::c_int;
             (*emitter).indents.top = (*emitter).indents.start;
-            (*emitter).indents.end = (*emitter).indents.start.offset(16_isize);
+            (*emitter).indents.end =
+                (*emitter).indents.start.offset(16_isize);
         };
         {
             (*emitter).tag_directives.start = yaml_malloc(
                 16 * size_of::<YamlTagDirectiveT>() as libc::c_ulong,
-            ) as *mut YamlTagDirectiveT;
-            (*emitter).tag_directives.top = (*emitter).tag_directives.start;
-            (*emitter).tag_directives.end = (*emitter)
-                .tag_directives
-                .start
-                .offset(16_isize);
+            )
+                as *mut YamlTagDirectiveT;
+            (*emitter).tag_directives.top =
+                (*emitter).tag_directives.start;
+            (*emitter).tag_directives.end =
+                (*emitter).tag_directives.start.offset(16_isize);
         };
         OK
     }
@@ -657,7 +718,11 @@ pub mod api {
     ///
     pub unsafe fn yaml_emitter_delete(emitter: *mut YamlEmitterT) {
         if !!emitter.is_null() {
-            crate::externs::__assert_fail("!emitter.is_null()", "src/api.rs", 183u32);
+            crate::externs::__assert_fail(
+                "!emitter.is_null()",
+                "src/api.rs",
+                183u32,
+            );
         }
         {
             yaml_free((*emitter).buffer.start as *mut libc::c_void);
@@ -668,8 +733,10 @@ pub mod api {
         };
         {
             yaml_free((*emitter).raw_buffer.start as *mut libc::c_void);
-            (*emitter).raw_buffer.start = ptr::null_mut::<yaml_char_t>();
-            (*emitter).raw_buffer.pointer = ptr::null_mut::<yaml_char_t>();
+            (*emitter).raw_buffer.start =
+                ptr::null_mut::<yaml_char_t>();
+            (*emitter).raw_buffer.pointer =
+                ptr::null_mut::<yaml_char_t>();
             (*emitter).raw_buffer.last = ptr::null_mut::<yaml_char_t>();
             (*emitter).raw_buffer.end = ptr::null_mut::<yaml_char_t>();
         };
@@ -678,13 +745,12 @@ pub mod api {
         (*emitter).states.top = ptr::null_mut();
         (*emitter).states.start = ptr::null_mut();
         while !((*emitter).events.head == (*emitter).events.tail) {
-            yaml_event_delete(
-                &raw mut *{
-                    let head = (*emitter).events.head;
-                    (*emitter).events.head = (*emitter).events.head.wrapping_offset(1);
-                    head
-                },
-            );
+            yaml_event_delete(&raw mut *{
+                let head = (*emitter).events.head;
+                (*emitter).events.head =
+                    (*emitter).events.head.wrapping_offset(1);
+                head
+            });
         }
         yaml_free((*emitter).events.start as *mut libc::c_void);
         (*emitter).events.end = ptr::null_mut();
@@ -695,9 +761,12 @@ pub mod api {
         (*emitter).indents.end = ptr::null_mut();
         (*emitter).indents.top = ptr::null_mut();
         (*emitter).indents.start = ptr::null_mut();
-        while !((*emitter).tag_directives.start == (*emitter).tag_directives.top) {
+        while !((*emitter).tag_directives.start
+            == (*emitter).tag_directives.top)
+        {
             let tag_directive = *{
-                (*emitter).tag_directives.top = (*emitter).tag_directives.top.offset(-1);
+                (*emitter).tag_directives.top =
+                    (*emitter).tag_directives.top.offset(-1);
                 (*emitter).tag_directives.top
             };
             yaml_free(tag_directive.handle as *mut libc::c_void);
@@ -724,36 +793,31 @@ pub mod api {
             .output
             .string
             .size
-            .wrapping_sub(*(*emitter).output.string.size_written) < size
+            .wrapping_sub(*(*emitter).output.string.size_written)
+            < size
         {
             let _ = memcpy(
-                (*emitter)
-                    .output
-                    .string
-                    .buffer
-                    .wrapping_offset(*(*emitter).output.string.size_written as isize)
-                    as *mut libc::c_void,
+                (*emitter).output.string.buffer.wrapping_offset(
+                    *(*emitter).output.string.size_written as isize,
+                ) as *mut libc::c_void,
                 buffer as *const libc::c_void,
-                (*emitter)
-                    .output
-                    .string
-                    .size
-                    .wrapping_sub(*(*emitter).output.string.size_written),
+                (*emitter).output.string.size.wrapping_sub(
+                    *(*emitter).output.string.size_written,
+                ),
             );
-            *(*emitter).output.string.size_written = (*emitter).output.string.size;
+            *(*emitter).output.string.size_written =
+                (*emitter).output.string.size;
             return 0;
         }
         let _ = memcpy(
-            (*emitter)
-                .output
-                .string
-                .buffer
-                .wrapping_offset(*(*emitter).output.string.size_written as isize)
-                as *mut libc::c_void,
+            (*emitter).output.string.buffer.wrapping_offset(
+                *(*emitter).output.string.size_written as isize,
+            ) as *mut libc::c_void,
             buffer as *const libc::c_void,
             size,
         );
-        let fresh153 = &raw mut (*(*emitter).output.string.size_written);
+        let fresh153 =
+            &raw mut (*(*emitter).output.string.size_written);
         *fresh153 = (*fresh153).wrapping_add(size);
         1
     }
@@ -781,7 +845,9 @@ pub mod api {
         size_written: *mut size_t,
     ) {
         if !!emitter.is_null() {
-            ::core::panicking::panic("assertion failed: !emitter.is_null()")
+            ::core::panicking::panic(
+                "assertion failed: !emitter.is_null()",
+            )
         }
         if !(*emitter).write_handler.is_none() {
             ::core::panicking::panic(
@@ -789,7 +855,9 @@ pub mod api {
             )
         }
         if !!output.is_null() {
-            ::core::panicking::panic("assertion failed: !output.is_null()")
+            ::core::panicking::panic(
+                "assertion failed: !output.is_null()",
+            )
         }
         (*emitter).write_handler = Some(yaml_string_write_handler);
         (*emitter).write_handler_data = emitter as *mut libc::c_void;
@@ -815,7 +883,11 @@ pub mod api {
         data: *mut libc::c_void,
     ) {
         if !!emitter.is_null() {
-            crate::externs::__assert_fail("!emitter.is_null()", "src/api.rs", 297u32);
+            crate::externs::__assert_fail(
+                "!emitter.is_null()",
+                "src/api.rs",
+                297u32,
+            );
         }
         if !((*emitter).write_handler).is_none() {
             crate::externs::__assert_fail(
@@ -844,7 +916,11 @@ pub mod api {
         encoding: YamlEncodingT,
     ) {
         if !!emitter.is_null() {
-            crate::externs::__assert_fail("!emitter.is_null()", "src/api.rs", 319u32);
+            crate::externs::__assert_fail(
+                "!emitter.is_null()",
+                "src/api.rs",
+                319u32,
+            );
         }
         if !((*emitter).encoding == YamlAnyEncoding) {
             crate::externs::__assert_fail(
@@ -871,7 +947,11 @@ pub mod api {
         canonical: bool,
     ) {
         if !!emitter.is_null() {
-            crate::externs::__assert_fail("!emitter.is_null()", "src/api.rs", 339u32);
+            crate::externs::__assert_fail(
+                "!emitter.is_null()",
+                "src/api.rs",
+                339u32,
+            );
         }
         (*emitter).canonical = canonical;
     }
@@ -890,9 +970,14 @@ pub mod api {
         indent: libc::c_int,
     ) {
         if !!emitter.is_null() {
-            crate::externs::__assert_fail("!emitter.is_null()", "src/api.rs", 357u32);
+            crate::externs::__assert_fail(
+                "!emitter.is_null()",
+                "src/api.rs",
+                357u32,
+            );
         }
-        (*emitter).best_indent = if 1 < indent && indent < 10 { indent } else { 2 };
+        (*emitter).best_indent =
+            if 1 < indent && indent < 10 { indent } else { 2 };
     }
     /// Set the preferred line width. -1 means unlimited.
     ///
@@ -909,7 +994,11 @@ pub mod api {
         width: libc::c_int,
     ) {
         if !!emitter.is_null() {
-            crate::externs::__assert_fail("!emitter.is_null()", "src/api.rs", 376u32);
+            crate::externs::__assert_fail(
+                "!emitter.is_null()",
+                "src/api.rs",
+                376u32,
+            );
         }
         (*emitter).best_width = if width >= 0 { width } else { -1 };
     }
@@ -923,9 +1012,16 @@ pub mod api {
     /// - `emitter` must be a valid, non-null pointer to a properly initialized `YamlEmitterT` struct.
     /// - The `YamlEmitterT` struct and its associated data structures must be properly aligned and have the expected memory layout.
     ///
-    pub unsafe fn yaml_emitter_set_unicode(emitter: *mut YamlEmitterT, unicode: bool) {
+    pub unsafe fn yaml_emitter_set_unicode(
+        emitter: *mut YamlEmitterT,
+        unicode: bool,
+    ) {
         if !!emitter.is_null() {
-            crate::externs::__assert_fail("!emitter.is_null()", "src/api.rs", 394u32);
+            crate::externs::__assert_fail(
+                "!emitter.is_null()",
+                "src/api.rs",
+                394u32,
+            );
         }
         (*emitter).unicode = unicode;
     }
@@ -943,7 +1039,11 @@ pub mod api {
         line_break: YamlBreakT,
     ) {
         if !!emitter.is_null() {
-            crate::externs::__assert_fail("!emitter.is_null()", "src/api.rs", 411u32);
+            crate::externs::__assert_fail(
+                "!emitter.is_null()",
+                "src/api.rs",
+                411u32,
+            );
         }
         (*emitter).line_break = line_break;
     }
@@ -960,25 +1060,45 @@ pub mod api {
     ///
     pub unsafe fn yaml_token_delete(token: *mut YamlTokenT) {
         if !!token.is_null() {
-            crate::externs::__assert_fail("!token.is_null()", "src/api.rs", 427u32);
+            crate::externs::__assert_fail(
+                "!token.is_null()",
+                "src/api.rs",
+                427u32,
+            );
         }
         match (*token).type_ {
             YamlTagDirectiveToken => {
-                yaml_free((*token).data.tag_directive.handle as *mut libc::c_void);
-                yaml_free((*token).data.tag_directive.prefix as *mut libc::c_void);
+                yaml_free(
+                    (*token).data.tag_directive.handle
+                        as *mut libc::c_void,
+                );
+                yaml_free(
+                    (*token).data.tag_directive.prefix
+                        as *mut libc::c_void,
+                );
             }
             YamlAliasToken => {
-                yaml_free((*token).data.alias.value as *mut libc::c_void);
+                yaml_free(
+                    (*token).data.alias.value as *mut libc::c_void,
+                );
             }
             YamlAnchorToken => {
-                yaml_free((*token).data.anchor.value as *mut libc::c_void);
+                yaml_free(
+                    (*token).data.anchor.value as *mut libc::c_void,
+                );
             }
             YamlTagToken => {
-                yaml_free((*token).data.tag.handle as *mut libc::c_void);
-                yaml_free((*token).data.tag.suffix as *mut libc::c_void);
+                yaml_free(
+                    (*token).data.tag.handle as *mut libc::c_void,
+                );
+                yaml_free(
+                    (*token).data.tag.suffix as *mut libc::c_void,
+                );
             }
             YamlScalarToken => {
-                yaml_free((*token).data.scalar.value as *mut libc::c_void);
+                yaml_free(
+                    (*token).data.scalar.value as *mut libc::c_void,
+                );
             }
             _ => {}
         }
@@ -1008,7 +1128,11 @@ pub mod api {
             column: 0_u64,
         };
         if !!event.is_null() {
-            crate::externs::__assert_fail("!event.is_null()", "src/api.rs", 478u32);
+            crate::externs::__assert_fail(
+                "!event.is_null()",
+                "src/api.rs",
+                478u32,
+            );
         }
         let _ = memset(
             event as *mut libc::c_void,
@@ -1031,14 +1155,20 @@ pub mod api {
     /// - `event` must be a valid, non-null pointer to a `YamlEventT` struct that can be safely written to.
     /// - The `YamlEventT` struct must be properly aligned and have the expected memory layout.
     ///
-    pub unsafe fn yaml_stream_end_event_initialize(event: *mut YamlEventT) -> Success {
+    pub unsafe fn yaml_stream_end_event_initialize(
+        event: *mut YamlEventT,
+    ) -> Success {
         let mark = YamlMarkT {
             index: 0_u64,
             line: 0_u64,
             column: 0_u64,
         };
         if !!event.is_null() {
-            crate::externs::__assert_fail("!event.is_null()", "src/api.rs", 509u32);
+            crate::externs::__assert_fail(
+                "!event.is_null()",
+                "src/api.rs",
+                509u32,
+            );
         }
         let _ = memset(
             event as *mut libc::c_void,
@@ -1069,12 +1199,22 @@ pub mod api {
             column: 0_u64,
         };
         if !!event.is_null() {
-            crate::externs::__assert_fail("!event.is_null()", "src/api.rs", 539u32);
+            crate::externs::__assert_fail(
+                "!event.is_null()",
+                "src/api.rs",
+                539u32,
+            );
         }
         if !!anchor.is_null() {
-            crate::externs::__assert_fail("!anchor.is_null()", "src/api.rs", 540u32);
+            crate::externs::__assert_fail(
+                "!anchor.is_null()",
+                "src/api.rs",
+                540u32,
+            );
         }
-        if yaml_check_utf8(anchor, strlen(anchor as *mut libc::c_char)).fail {
+        if yaml_check_utf8(anchor, strlen(anchor as *mut libc::c_char))
+            .fail
+        {
             return FAIL;
         }
         let anchor_copy: *mut yaml_char_t = yaml_strdup(anchor);
@@ -1134,20 +1274,31 @@ pub mod api {
     impl<'a> ::core::clone::Clone for ScalarEventData<'a> {
         #[inline]
         fn clone(&self) -> ScalarEventData<'a> {
-            let _: ::core::clone::AssertParamIsClone<*const yaml_char_t>;
-            let _: ::core::clone::AssertParamIsClone<*const yaml_char_t>;
-            let _: ::core::clone::AssertParamIsClone<*const yaml_char_t>;
+            let _: ::core::clone::AssertParamIsClone<
+                *const yaml_char_t,
+            >;
+            let _: ::core::clone::AssertParamIsClone<
+                *const yaml_char_t,
+            >;
+            let _: ::core::clone::AssertParamIsClone<
+                *const yaml_char_t,
+            >;
             let _: ::core::clone::AssertParamIsClone<libc::c_int>;
             let _: ::core::clone::AssertParamIsClone<bool>;
             let _: ::core::clone::AssertParamIsClone<YamlScalarStyleT>;
-            let _: ::core::clone::AssertParamIsClone<core::marker::PhantomData<&'a ()>>;
+            let _: ::core::clone::AssertParamIsClone<
+                core::marker::PhantomData<&'a ()>,
+            >;
             *self
         }
     }
     #[automatically_derived]
     impl<'a> ::core::fmt::Debug for ScalarEventData<'a> {
         #[inline]
-        fn fmt(&self, f: &mut ::core::fmt::Formatter) -> ::core::fmt::Result {
+        fn fmt(
+            &self,
+            f: &mut ::core::fmt::Formatter,
+        ) -> ::core::fmt::Result {
             let names: &'static _ = &[
                 "anchor",
                 "tag",
@@ -1182,11 +1333,14 @@ pub mod api {
     impl<'a> ::core::cmp::PartialEq for ScalarEventData<'a> {
         #[inline]
         fn eq(&self, other: &ScalarEventData<'a>) -> bool {
-            self.anchor == other.anchor && self.tag == other.tag
-                && self.value == other.value && self.length == other.length
+            self.anchor == other.anchor
+                && self.tag == other.tag
+                && self.value == other.value
+                && self.length == other.length
                 && self.plain_implicit == other.plain_implicit
                 && self.quoted_implicit == other.quoted_implicit
-                && self.style == other.style && self._marker == other._marker
+                && self.style == other.style
+                && self._marker == other._marker
         }
     }
     #[automatically_derived]
@@ -1201,7 +1355,9 @@ pub mod api {
             let _: ::core::cmp::AssertParamIsEq<libc::c_int>;
             let _: ::core::cmp::AssertParamIsEq<bool>;
             let _: ::core::cmp::AssertParamIsEq<YamlScalarStyleT>;
-            let _: ::core::cmp::AssertParamIsEq<core::marker::PhantomData<&'a ()>>;
+            let _: ::core::cmp::AssertParamIsEq<
+                core::marker::PhantomData<&'a ()>,
+            >;
         }
     }
     /// Create a SCALAR event.
@@ -1230,18 +1386,32 @@ pub mod api {
             line: 0_u64,
             column: 0_u64,
         };
-        let mut anchor_copy: *mut yaml_char_t = ptr::null_mut::<yaml_char_t>();
-        let mut tag_copy: *mut yaml_char_t = ptr::null_mut::<yaml_char_t>();
-        let mut value_copy: *mut yaml_char_t = ptr::null_mut::<yaml_char_t>();
+        let mut anchor_copy: *mut yaml_char_t =
+            ptr::null_mut::<yaml_char_t>();
+        let mut tag_copy: *mut yaml_char_t =
+            ptr::null_mut::<yaml_char_t>();
+        let mut value_copy: *mut yaml_char_t =
+            ptr::null_mut::<yaml_char_t>();
         if !!event.is_null() {
-            crate::externs::__assert_fail("!event.is_null()", "src/api.rs", 631u32);
+            crate::externs::__assert_fail(
+                "!event.is_null()",
+                "src/api.rs",
+                631u32,
+            );
         }
         if !!data.value.is_null() {
-            crate::externs::__assert_fail("!data.value.is_null()", "src/api.rs", 632u32);
+            crate::externs::__assert_fail(
+                "!data.value.is_null()",
+                "src/api.rs",
+                632u32,
+            );
         }
         if !data.anchor.is_null() {
-            if yaml_check_utf8(data.anchor, strlen(data.anchor as *mut libc::c_char))
-                .fail
+            if yaml_check_utf8(
+                data.anchor,
+                strlen(data.anchor as *mut libc::c_char),
+            )
+            .fail
             {
                 current_block = 16285396129609901221;
             } else {
@@ -1257,7 +1427,11 @@ pub mod api {
         }
         if current_block == 8515828400728868193 {
             if !data.tag.is_null() {
-                if yaml_check_utf8(data.tag, strlen(data.tag as *mut libc::c_char)).fail
+                if yaml_check_utf8(
+                    data.tag,
+                    strlen(data.tag as *mut libc::c_char),
+                )
+                .fail
                 {
                     current_block = 16285396129609901221;
                 } else {
@@ -1273,17 +1447,22 @@ pub mod api {
             }
             if current_block != 16285396129609901221 {
                 if data.length < 0 {
-                    data.length = strlen(data.value as *mut libc::c_char) as libc::c_int;
+                    data.length =
+                        strlen(data.value as *mut libc::c_char)
+                            as libc::c_int;
                 }
-                if yaml_check_utf8(data.value, data.length as size_t).ok {
-                    value_copy = yaml_malloc(data.length.force_add(1) as size_t)
-                        as *mut yaml_char_t;
+                if yaml_check_utf8(data.value, data.length as size_t).ok
+                {
+                    value_copy =
+                        yaml_malloc(data.length.force_add(1) as size_t)
+                            as *mut yaml_char_t;
                     let _ = memcpy(
                         value_copy as *mut libc::c_void,
                         data.value as *const libc::c_void,
                         data.length as libc::c_ulong,
                     );
-                    *value_copy.wrapping_offset(data.length as isize) = b'\0';
+                    *value_copy.wrapping_offset(data.length as isize) =
+                        b'\0';
                     let _ = memset(
                         event as *mut libc::c_void,
                         0,
@@ -1299,8 +1478,10 @@ pub mod api {
                     let fresh170 = &raw mut (*event).data.scalar.value;
                     *fresh170 = value_copy;
                     (*event).data.scalar.length = data.length as size_t;
-                    (*event).data.scalar.plain_implicit = data.plain_implicit;
-                    (*event).data.scalar.quoted_implicit = data.quoted_implicit;
+                    (*event).data.scalar.plain_implicit =
+                        data.plain_implicit;
+                    (*event).data.scalar.quoted_implicit =
+                        data.quoted_implicit;
                     (*event).data.scalar.style = data.style;
                     return OK;
                 }
@@ -1338,13 +1519,24 @@ pub mod api {
             line: 0_u64,
             column: 0_u64,
         };
-        let mut anchor_copy: *mut yaml_char_t = ptr::null_mut::<yaml_char_t>();
-        let mut tag_copy: *mut yaml_char_t = ptr::null_mut::<yaml_char_t>();
+        let mut anchor_copy: *mut yaml_char_t =
+            ptr::null_mut::<yaml_char_t>();
+        let mut tag_copy: *mut yaml_char_t =
+            ptr::null_mut::<yaml_char_t>();
         if !!event.is_null() {
-            crate::externs::__assert_fail("!event.is_null()", "src/api.rs", 754u32);
+            crate::externs::__assert_fail(
+                "!event.is_null()",
+                "src/api.rs",
+                754u32,
+            );
         }
         if !anchor.is_null() {
-            if yaml_check_utf8(anchor, strlen(anchor as *mut libc::c_char)).fail {
+            if yaml_check_utf8(
+                anchor,
+                strlen(anchor as *mut libc::c_char),
+            )
+            .fail
+            {
                 current_block = 8817775685815971442;
             } else {
                 anchor_copy = yaml_strdup(anchor);
@@ -1359,7 +1551,12 @@ pub mod api {
         }
         if current_block == 11006700562992250127 {
             if !tag.is_null() {
-                if yaml_check_utf8(tag, strlen(tag as *mut libc::c_char)).fail {
+                if yaml_check_utf8(
+                    tag,
+                    strlen(tag as *mut libc::c_char),
+                )
+                .fail
+                {
                     current_block = 8817775685815971442;
                 } else {
                     tag_copy = yaml_strdup(tag);
@@ -1381,9 +1578,11 @@ pub mod api {
                 (*event).type_ = YamlSequenceStartEvent;
                 (*event).start_mark = mark;
                 (*event).end_mark = mark;
-                let fresh171 = &raw mut (*event).data.sequence_start.anchor;
+                let fresh171 =
+                    &raw mut (*event).data.sequence_start.anchor;
                 *fresh171 = anchor_copy;
-                let fresh172 = &raw mut (*event).data.sequence_start.tag;
+                let fresh172 =
+                    &raw mut (*event).data.sequence_start.tag;
                 *fresh172 = tag_copy;
                 (*event).data.sequence_start.implicit = implicit;
                 (*event).data.sequence_start.style = style;
@@ -1404,14 +1603,20 @@ pub mod api {
     /// - `event` must be a valid, non-null pointer to a `YamlEventT` struct that can be safely written to.
     /// - The `YamlEventT` struct must be properly aligned and have the expected memory layout.
     ///
-    pub unsafe fn yaml_sequence_end_event_initialize(event: *mut YamlEventT) -> Success {
+    pub unsafe fn yaml_sequence_end_event_initialize(
+        event: *mut YamlEventT,
+    ) -> Success {
         let mark = YamlMarkT {
             index: 0_u64,
             line: 0_u64,
             column: 0_u64,
         };
         if !!event.is_null() {
-            crate::externs::__assert_fail("!event.is_null()", "src/api.rs", 831u32);
+            crate::externs::__assert_fail(
+                "!event.is_null()",
+                "src/api.rs",
+                831u32,
+            );
         }
         let _ = memset(
             event as *mut libc::c_void,
@@ -1453,13 +1658,24 @@ pub mod api {
             line: 0_u64,
             column: 0_u64,
         };
-        let mut anchor_copy: *mut yaml_char_t = ptr::null_mut::<yaml_char_t>();
-        let mut tag_copy: *mut yaml_char_t = ptr::null_mut::<yaml_char_t>();
+        let mut anchor_copy: *mut yaml_char_t =
+            ptr::null_mut::<yaml_char_t>();
+        let mut tag_copy: *mut yaml_char_t =
+            ptr::null_mut::<yaml_char_t>();
         if !!event.is_null() {
-            crate::externs::__assert_fail("!event.is_null()", "src/api.rs", 876u32);
+            crate::externs::__assert_fail(
+                "!event.is_null()",
+                "src/api.rs",
+                876u32,
+            );
         }
         if !anchor.is_null() {
-            if yaml_check_utf8(anchor, strlen(anchor as *mut libc::c_char)).fail {
+            if yaml_check_utf8(
+                anchor,
+                strlen(anchor as *mut libc::c_char),
+            )
+            .fail
+            {
                 current_block = 14748279734549812740;
             } else {
                 anchor_copy = yaml_strdup(anchor);
@@ -1474,7 +1690,12 @@ pub mod api {
         }
         if current_block == 11006700562992250127 {
             if !tag.is_null() {
-                if yaml_check_utf8(tag, strlen(tag as *mut libc::c_char)).fail {
+                if yaml_check_utf8(
+                    tag,
+                    strlen(tag as *mut libc::c_char),
+                )
+                .fail
+                {
                     current_block = 14748279734549812740;
                 } else {
                     tag_copy = yaml_strdup(tag);
@@ -1496,7 +1717,8 @@ pub mod api {
                 (*event).type_ = YamlMappingStartEvent;
                 (*event).start_mark = mark;
                 (*event).end_mark = mark;
-                let fresh173 = &raw mut (*event).data.mapping_start.anchor;
+                let fresh173 =
+                    &raw mut (*event).data.mapping_start.anchor;
                 *fresh173 = anchor_copy;
                 let fresh174 = &raw mut (*event).data.mapping_start.tag;
                 *fresh174 = tag_copy;
@@ -1519,14 +1741,20 @@ pub mod api {
     /// - `event` must be a valid, non-null pointer to a `YamlEventT` struct that can be safely written to.
     /// - The `YamlEventT` struct must be properly aligned and have the expected memory layout.
     ///
-    pub unsafe fn yaml_mapping_end_event_initialize(event: *mut YamlEventT) -> Success {
+    pub unsafe fn yaml_mapping_end_event_initialize(
+        event: *mut YamlEventT,
+    ) -> Success {
         let mark = YamlMarkT {
             index: 0_u64,
             line: 0_u64,
             column: 0_u64,
         };
         if !!event.is_null() {
-            crate::externs::__assert_fail("!event.is_null()", "src/api.rs", 953u32);
+            crate::externs::__assert_fail(
+                "!event.is_null()",
+                "src/api.rs",
+                953u32,
+            );
         }
         let _ = memset(
             event as *mut libc::c_void,
@@ -1552,17 +1780,29 @@ pub mod api {
     pub unsafe fn yaml_event_delete(event: *mut YamlEventT) {
         let mut tag_directive: *mut YamlTagDirectiveT;
         if !!event.is_null() {
-            crate::externs::__assert_fail("!event.is_null()", "src/api.rs", 978u32);
+            crate::externs::__assert_fail(
+                "!event.is_null()",
+                "src/api.rs",
+                978u32,
+            );
         }
         match (*event).type_ {
             YamlDocumentStartEvent => {
                 yaml_free(
-                    (*event).data.document_start.version_directive as *mut libc::c_void,
+                    (*event).data.document_start.version_directive
+                        as *mut libc::c_void,
                 );
-                tag_directive = (*event).data.document_start.tag_directives.start;
-                while tag_directive != (*event).data.document_start.tag_directives.end {
-                    yaml_free((*tag_directive).handle as *mut libc::c_void);
-                    yaml_free((*tag_directive).prefix as *mut libc::c_void);
+                tag_directive =
+                    (*event).data.document_start.tag_directives.start;
+                while tag_directive
+                    != (*event).data.document_start.tag_directives.end
+                {
+                    yaml_free(
+                        (*tag_directive).handle as *mut libc::c_void,
+                    );
+                    yaml_free(
+                        (*tag_directive).prefix as *mut libc::c_void,
+                    );
                     tag_directive = tag_directive.wrapping_offset(1);
                 }
                 yaml_free(
@@ -1571,20 +1811,40 @@ pub mod api {
                 );
             }
             YamlAliasEvent => {
-                yaml_free((*event).data.alias.anchor as *mut libc::c_void);
+                yaml_free(
+                    (*event).data.alias.anchor as *mut libc::c_void,
+                );
             }
             YamlScalarEvent => {
-                yaml_free((*event).data.scalar.anchor as *mut libc::c_void);
-                yaml_free((*event).data.scalar.tag as *mut libc::c_void);
-                yaml_free((*event).data.scalar.value as *mut libc::c_void);
+                yaml_free(
+                    (*event).data.scalar.anchor as *mut libc::c_void,
+                );
+                yaml_free(
+                    (*event).data.scalar.tag as *mut libc::c_void,
+                );
+                yaml_free(
+                    (*event).data.scalar.value as *mut libc::c_void,
+                );
             }
             YamlSequenceStartEvent => {
-                yaml_free((*event).data.sequence_start.anchor as *mut libc::c_void);
-                yaml_free((*event).data.sequence_start.tag as *mut libc::c_void);
+                yaml_free(
+                    (*event).data.sequence_start.anchor
+                        as *mut libc::c_void,
+                );
+                yaml_free(
+                    (*event).data.sequence_start.tag
+                        as *mut libc::c_void,
+                );
             }
             YamlMappingStartEvent => {
-                yaml_free((*event).data.mapping_start.anchor as *mut libc::c_void);
-                yaml_free((*event).data.mapping_start.tag as *mut libc::c_void);
+                yaml_free(
+                    (*event).data.mapping_start.anchor
+                        as *mut libc::c_void,
+                );
+                yaml_free(
+                    (*event).data.mapping_start.tag
+                        as *mut libc::c_void,
+                );
             }
             _ => {}
         }
@@ -1600,7 +1860,9 @@ pub mod api {
 /// This module provides utilities for working with YAML strings.
 pub mod string {
     use crate::{
-        externs::memset, libc, memory::{yaml_realloc, yaml_strdup},
+        externs::memset,
+        libc,
+        memory::{yaml_realloc, yaml_strdup},
         yaml::{size_t, yaml_char_t},
     };
     /// Extend a string buffer by reallocating and copying the existing data.
@@ -1622,15 +1884,17 @@ pub mod string {
         end: *mut *mut yaml_char_t,
     ) {
         let current_size: size_t = (*end).offset_from(*start) as size_t;
-        let old_offset: size_t = (*pointer).offset_from(*start) as size_t;
+        let old_offset: size_t =
+            (*pointer).offset_from(*start) as size_t;
         let new_size: size_t = current_size * 2;
-        let new_start = yaml_realloc((*start).cast::<libc::c_void>(), new_size)
-            as *mut yaml_char_t;
+        let new_start =
+            yaml_realloc((*start).cast::<libc::c_void>(), new_size)
+                as *mut yaml_char_t;
         if new_start.is_null() {
             {
-                ::core::panicking::panic_fmt(
-                    format_args!("yaml_string_extend: reallocation failed"),
-                );
+                ::core::panicking::panic_fmt(format_args!(
+                    "yaml_string_extend: reallocation failed"
+                ));
             };
         }
         memset(
@@ -1645,7 +1909,9 @@ pub mod string {
     /// Duplicate a null-terminated string.
     /// # Safety
     /// - This function is unsafe because it involves memory allocation.
-    pub unsafe fn yaml_string_duplicate(str: *const yaml_char_t) -> *mut yaml_char_t {
+    pub unsafe fn yaml_string_duplicate(
+        str: *const yaml_char_t,
+    ) -> *mut yaml_char_t {
         yaml_strdup(str)
     }
     /// Join two string buffers by copying data from one to the other.
@@ -1675,7 +1941,8 @@ pub mod string {
             return;
         }
         let b_length = ((*b_pointer).offset_from(*b_start))
-            .min((*b_end).offset_from(*b_start)) as usize;
+            .min((*b_end).offset_from(*b_start))
+            as usize;
         if b_length == 0 {
             return;
         }
@@ -1697,14 +1964,17 @@ pub mod dumper {
     use crate::ops::ForceMul as _;
     use crate::success::{Success, FAIL, OK};
     use crate::yaml::{
-        yaml_char_t, YamlAliasEvent, YamlAnchorsT, YamlAnyEncoding, YamlDocumentEndEvent,
-        YamlDocumentStartEvent, YamlDocumentT, YamlEmitterT, YamlEventT,
-        YamlMappingEndEvent, YamlMappingNode, YamlMappingStartEvent, YamlMarkT,
-        YamlNodeItemT, YamlNodePairT, YamlNodeT, YamlScalarEvent, YamlScalarNode,
+        yaml_char_t, YamlAliasEvent, YamlAnchorsT, YamlAnyEncoding,
+        YamlDocumentEndEvent, YamlDocumentStartEvent, YamlDocumentT,
+        YamlEmitterT, YamlEventT, YamlMappingEndEvent, YamlMappingNode,
+        YamlMappingStartEvent, YamlMarkT, YamlNodeItemT, YamlNodePairT,
+        YamlNodeT, YamlScalarEvent, YamlScalarNode,
         YamlSequenceEndEvent, YamlSequenceNode, YamlSequenceStartEvent,
         YamlStreamEndEvent, YamlStreamStartEvent,
     };
-    use crate::{libc, yaml_document_delete, yaml_emitter_emit, PointerExt};
+    use crate::{
+        libc, yaml_document_delete, yaml_emitter_emit, PointerExt,
+    };
     use core::mem::{size_of, MaybeUninit};
     use core::ptr::{self, addr_of_mut};
     /// Start a YAML stream.
@@ -1717,7 +1987,9 @@ pub mod dumper {
     /// - The `YamlEmitterT` struct must not be in an opened state.
     /// - The `YamlEmitterT` struct must be properly aligned and have the expected memory layout.
     ///
-    pub unsafe fn yaml_emitter_open(emitter: *mut YamlEmitterT) -> Success {
+    pub unsafe fn yaml_emitter_open(
+        emitter: *mut YamlEmitterT,
+    ) -> Success {
         if emitter.is_null() {
             return FAIL;
         }
@@ -1760,7 +2032,9 @@ pub mod dumper {
     /// - The `YamlEmitterT` struct must be in an opened state and not already closed.
     /// - The `YamlEmitterT` struct must be properly aligned and have the expected memory layout.
     ///
-    pub unsafe fn yaml_emitter_close(emitter: *mut YamlEmitterT) -> Success {
+    pub unsafe fn yaml_emitter_close(
+        emitter: *mut YamlEmitterT,
+    ) -> Success {
         if emitter.is_null() {
             return FAIL;
         }
@@ -1818,7 +2092,11 @@ pub mod dumper {
             column: 0_u64,
         };
         if !!emitter.is_null() {
-            crate::externs::__assert_fail("!emitter.is_null()", "src/dumper.rs", 150u32);
+            crate::externs::__assert_fail(
+                "!emitter.is_null()",
+                "src/dumper.rs",
+                150u32,
+            );
         }
         if !!document.is_null() {
             crate::externs::__assert_fail(
@@ -1847,20 +2125,24 @@ pub mod dumper {
             }
             let fresh1 = &raw mut (*emitter).anchors;
             *fresh1 = yaml_malloc(
-                (size_of::<YamlAnchorsT>() as libc::c_ulong)
-                    .force_mul(
-                        (*document).nodes.top.c_offset_from((*document).nodes.start)
-                            as libc::c_ulong,
-                    ),
+                (size_of::<YamlAnchorsT>() as libc::c_ulong).force_mul(
+                    (*document)
+                        .nodes
+                        .top
+                        .c_offset_from((*document).nodes.start)
+                        as libc::c_ulong,
+                ),
             ) as *mut YamlAnchorsT;
             let _ = memset(
                 (*emitter).anchors as *mut libc::c_void,
                 0,
-                (size_of::<YamlAnchorsT>() as libc::c_ulong)
-                    .force_mul(
-                        (*document).nodes.top.c_offset_from((*document).nodes.start)
-                            as libc::c_ulong,
-                    ),
+                (size_of::<YamlAnchorsT>() as libc::c_ulong).force_mul(
+                    (*document)
+                        .nodes
+                        .top
+                        .c_offset_from((*document).nodes.start)
+                        as libc::c_ulong,
+                ),
             );
             let _ = memset(
                 event as *mut libc::c_void,
@@ -1870,15 +2152,14 @@ pub mod dumper {
             (*event).type_ = YamlDocumentStartEvent;
             (*event).start_mark = mark;
             (*event).end_mark = mark;
-            (*event).data.document_start.version_directive = (*document)
-                .version_directive;
-            (*event).data.document_start.tag_directives.start = (*document)
-                .tag_directives
-                .start;
-            (*event).data.document_start.tag_directives.end = (*document)
-                .tag_directives
-                .end;
-            (*event).data.document_start.implicit = (*document).start_implicit;
+            (*event).data.document_start.version_directive =
+                (*document).version_directive;
+            (*event).data.document_start.tag_directives.start =
+                (*document).tag_directives.start;
+            (*event).data.document_start.tag_directives.end =
+                (*document).tag_directives.end;
+            (*event).data.document_start.implicit =
+                (*document).start_implicit;
             if yaml_emitter_emit(emitter, event).ok {
                 yaml_emitter_anchor_node(emitter, 1);
                 if yaml_emitter_dump_node(emitter, 1).ok {
@@ -1890,9 +2171,12 @@ pub mod dumper {
                     (*event).type_ = YamlDocumentEndEvent;
                     (*event).start_mark = mark;
                     (*event).end_mark = mark;
-                    (*event).data.document_end.implicit = (*document).end_implicit;
+                    (*event).data.document_end.implicit =
+                        (*document).end_implicit;
                     if yaml_emitter_emit(emitter, event).ok {
-                        yaml_emitter_delete_document_and_anchors(emitter);
+                        yaml_emitter_delete_document_and_anchors(
+                            emitter,
+                        );
                         return OK;
                     }
                 }
@@ -1901,7 +2185,9 @@ pub mod dumper {
         yaml_emitter_delete_document_and_anchors(emitter);
         FAIL
     }
-    unsafe fn yaml_emitter_delete_document_and_anchors(emitter: *mut YamlEmitterT) {
+    unsafe fn yaml_emitter_delete_document_and_anchors(
+        emitter: *mut YamlEmitterT,
+    ) {
         let mut index: libc::c_int;
         if (*emitter).anchors.is_null() {
             yaml_document_delete((*emitter).document);
@@ -1910,34 +2196,47 @@ pub mod dumper {
             return;
         }
         index = 0;
-        while (*(*emitter).document).nodes.start.wrapping_offset(index as isize)
+        while (*(*emitter).document)
+            .nodes
+            .start
+            .wrapping_offset(index as isize)
             < (*(*emitter).document).nodes.top
         {
             let mut node: YamlNodeT = *(*(*emitter).document)
                 .nodes
                 .start
                 .wrapping_offset(index as isize);
-            if !(*(*emitter).anchors.wrapping_offset(index as isize)).serialized {
+            if !(*(*emitter).anchors.wrapping_offset(index as isize))
+                .serialized
+            {
                 yaml_free(node.tag as *mut libc::c_void);
                 if node.type_ == YamlScalarNode {
-                    yaml_free(node.data.scalar.value as *mut libc::c_void);
+                    yaml_free(
+                        node.data.scalar.value as *mut libc::c_void,
+                    );
                 }
             }
             if node.type_ == YamlSequenceNode {
-                yaml_free(node.data.sequence.items.start as *mut libc::c_void);
+                yaml_free(
+                    node.data.sequence.items.start as *mut libc::c_void,
+                );
                 node.data.sequence.items.end = ptr::null_mut();
                 node.data.sequence.items.top = ptr::null_mut();
                 node.data.sequence.items.start = ptr::null_mut();
             }
             if node.type_ == YamlMappingNode {
-                yaml_free(node.data.mapping.pairs.start as *mut libc::c_void);
+                yaml_free(
+                    node.data.mapping.pairs.start as *mut libc::c_void,
+                );
                 node.data.mapping.pairs.end = ptr::null_mut();
                 node.data.mapping.pairs.top = ptr::null_mut();
                 node.data.mapping.pairs.start = ptr::null_mut();
             }
             index += 1;
         }
-        yaml_free((*(*emitter).document).nodes.start as *mut libc::c_void);
+        yaml_free(
+            (*(*emitter).document).nodes.start as *mut libc::c_void,
+        );
         (*(*emitter).document).nodes.end = ptr::null_mut();
         (*(*emitter).document).nodes.top = ptr::null_mut();
         (*(*emitter).document).nodes.start = ptr::null_mut();
@@ -1952,14 +2251,20 @@ pub mod dumper {
         emitter: *mut YamlEmitterT,
         index: libc::c_int,
     ) {
-        (*((*emitter).anchors).offset((index - 1) as isize)).references += 1;
-        if (*(*emitter).anchors.offset((index - 1) as isize)).references == 2 {
+        (*((*emitter).anchors).offset((index - 1) as isize))
+            .references += 1;
+        if (*(*emitter).anchors.offset((index - 1) as isize)).references
+            == 2
+        {
             (*emitter).last_anchor_id += 1;
-            (*(*emitter).anchors.offset((index - 1) as isize)).anchor = (*emitter)
-                .last_anchor_id;
+            (*(*emitter).anchors.offset((index - 1) as isize)).anchor =
+                (*emitter).last_anchor_id;
         }
     }
-    unsafe fn yaml_emitter_anchor_node(emitter: *mut YamlEmitterT, index: libc::c_int) {
+    unsafe fn yaml_emitter_anchor_node(
+        emitter: *mut YamlEmitterT,
+        index: libc::c_int,
+    ) {
         let node: *mut YamlNodeT = (*(*emitter).document)
             .nodes
             .start
@@ -1969,9 +2274,12 @@ pub mod dumper {
         let mut pair: *mut YamlNodePairT;
         let fresh8 = &raw mut (*((*emitter).anchors)
             .wrapping_offset((index - 1) as isize))
-            .references;
+        .references;
         *fresh8 += 1;
-        if (*(*emitter).anchors.wrapping_offset((index - 1) as isize)).references == 1 {
+        if (*(*emitter).anchors.wrapping_offset((index - 1) as isize))
+            .references
+            == 1
+        {
             match (*node).type_ {
                 YamlSequenceNode => {
                     item = (*node).data.sequence.items.start;
@@ -1983,27 +2291,41 @@ pub mod dumper {
                 YamlMappingNode => {
                     pair = (*node).data.mapping.pairs.start;
                     while pair < (*node).data.mapping.pairs.top {
-                        yaml_emitter_anchor_node_sub(emitter, (*pair).key);
-                        yaml_emitter_anchor_node_sub(emitter, (*pair).value);
+                        yaml_emitter_anchor_node_sub(
+                            emitter,
+                            (*pair).key,
+                        );
+                        yaml_emitter_anchor_node_sub(
+                            emitter,
+                            (*pair).value,
+                        );
                         pair = pair.wrapping_offset(1);
                     }
                 }
                 _ => {}
             }
-        } else if (*(*emitter).anchors.wrapping_offset((index - 1) as isize)).references
+        } else if (*(*emitter)
+            .anchors
+            .wrapping_offset((index - 1) as isize))
+        .references
             == 2
         {
             let fresh9 = &raw mut (*emitter).last_anchor_id;
             *fresh9 += 1;
-            (*(*emitter).anchors.wrapping_offset((index - 1) as isize)).anchor = *fresh9;
+            (*(*emitter)
+                .anchors
+                .wrapping_offset((index - 1) as isize))
+            .anchor = *fresh9;
         }
     }
     unsafe fn yaml_emitter_generate_anchor(
         _emitter: *mut YamlEmitterT,
         anchor_id: libc::c_int,
     ) -> *mut yaml_char_t {
-        let anchor: *mut yaml_char_t = yaml_malloc(16_u64) as *mut yaml_char_t;
-        WriteToPtr::new(anchor).write_fmt(format_args!("id{0:03}\0", anchor_id));
+        let anchor: *mut yaml_char_t =
+            yaml_malloc(16_u64) as *mut yaml_char_t;
+        WriteToPtr::new(anchor)
+            .write_fmt(format_args!("id{0:03}\0", anchor_id));
         anchor
     }
     /// Dumps a YAML node to the emitter.
@@ -2024,23 +2346,36 @@ pub mod dumper {
             .start
             .wrapping_offset(index as isize)
             .wrapping_offset(-1_isize);
-        let anchor_id: libc::c_int = (*(*emitter)
-            .anchors
-            .wrapping_offset((index - 1) as isize))
-            .anchor;
-        let mut anchor: *mut yaml_char_t = ptr::null_mut::<yaml_char_t>();
+        let anchor_id: libc::c_int =
+            (*(*emitter).anchors.wrapping_offset((index - 1) as isize))
+                .anchor;
+        let mut anchor: *mut yaml_char_t =
+            ptr::null_mut::<yaml_char_t>();
         if anchor_id != 0 {
             anchor = yaml_emitter_generate_anchor(emitter, anchor_id);
         }
-        if (*(*emitter).anchors.wrapping_offset((index - 1) as isize)).serialized {
+        if (*(*emitter).anchors.wrapping_offset((index - 1) as isize))
+            .serialized
+        {
             return yaml_emitter_dump_alias(emitter, anchor);
         }
-        (*(*emitter).anchors.wrapping_offset((index - 1) as isize)).serialized = true;
+        (*(*emitter).anchors.wrapping_offset((index - 1) as isize))
+            .serialized = true;
         match (*node).type_ {
-            YamlScalarNode => yaml_emitter_dump_scalar(emitter, node, anchor),
-            YamlSequenceNode => yaml_emitter_dump_sequence(emitter, node, anchor),
-            YamlMappingNode => yaml_emitter_dump_mapping(emitter, node, anchor),
-            _ => crate::externs::__assert_fail("false", "src/dumper.rs", 400u32),
+            YamlScalarNode => {
+                yaml_emitter_dump_scalar(emitter, node, anchor)
+            }
+            YamlSequenceNode => {
+                yaml_emitter_dump_sequence(emitter, node, anchor)
+            }
+            YamlMappingNode => {
+                yaml_emitter_dump_mapping(emitter, node, anchor)
+            }
+            _ => crate::externs::__assert_fail(
+                "false",
+                "src/dumper.rs",
+                400u32,
+            ),
         }
     }
     unsafe fn yaml_emitter_dump_alias(
@@ -2089,11 +2424,13 @@ pub mod dumper {
         };
         let plain_implicit = strcmp(
             (*node).tag as *mut libc::c_char,
-            b"tag:yaml.org,2002:str\0" as *const u8 as *const libc::c_char,
+            b"tag:yaml.org,2002:str\0" as *const u8
+                as *const libc::c_char,
         ) == 0;
         let quoted_implicit = strcmp(
             (*node).tag as *mut libc::c_char,
-            b"tag:yaml.org,2002:str\0" as *const u8 as *const libc::c_char,
+            b"tag:yaml.org,2002:str\0" as *const u8
+                as *const libc::c_char,
         ) == 0;
         let _ = memset(
             event as *mut libc::c_void,
@@ -2137,7 +2474,8 @@ pub mod dumper {
         };
         let implicit = strcmp(
             (*node).tag as *mut libc::c_char,
-            b"tag:yaml.org,2002:seq\0" as *const u8 as *const libc::c_char,
+            b"tag:yaml.org,2002:seq\0" as *const u8
+                as *const libc::c_char,
         ) == 0;
         let mut item: *mut YamlNodeItemT;
         let _ = memset(
@@ -2151,7 +2489,8 @@ pub mod dumper {
         (*event).data.sequence_start.anchor = anchor;
         (*event).data.sequence_start.tag = (*node).tag;
         (*event).data.sequence_start.implicit = implicit;
-        (*event).data.sequence_start.style = (*node).data.sequence.style;
+        (*event).data.sequence_start.style =
+            (*node).data.sequence.style;
         if yaml_emitter_emit(emitter, event).fail {
             return FAIL;
         }
@@ -2197,7 +2536,8 @@ pub mod dumper {
         };
         let implicit = strcmp(
             (*node).tag as *mut libc::c_char,
-            b"tag:yaml.org,2002:map\0" as *const u8 as *const libc::c_char,
+            b"tag:yaml.org,2002:map\0" as *const u8
+                as *const libc::c_char,
         ) == 0;
         let mut pair: *mut YamlNodePairT;
         let _ = memset(
@@ -2247,27 +2587,38 @@ mod emitter {
     use crate::success::{Success, FAIL, OK};
     use crate::yaml::{size_t, yaml_char_t, YamlStringT};
     use crate::{
-        libc, yaml_emitter_flush, yaml_event_delete, PointerExt, YamlAliasEvent,
-        YamlAnyBreak, YamlAnyEncoding, YamlAnyScalarStyle, YamlCrBreak, YamlCrlnBreak,
-        YamlDocumentEndEvent, YamlDocumentStartEvent, YamlDoubleQuotedScalarStyle,
-        YamlEmitBlockMappingFirstKeyState, YamlEmitBlockMappingKeyState,
-        YamlEmitBlockMappingSimpleValueState, YamlEmitBlockMappingValueState,
-        YamlEmitBlockSequenceFirstItemState, YamlEmitBlockSequenceItemState,
-        YamlEmitDocumentContentState, YamlEmitDocumentEndState,
-        YamlEmitDocumentStartState, YamlEmitEndState, YamlEmitFirstDocumentStartState,
+        libc, yaml_emitter_flush, yaml_event_delete, PointerExt,
+        YamlAliasEvent, YamlAnyBreak, YamlAnyEncoding,
+        YamlAnyScalarStyle, YamlCrBreak, YamlCrlnBreak,
+        YamlDocumentEndEvent, YamlDocumentStartEvent,
+        YamlDoubleQuotedScalarStyle, YamlEmitBlockMappingFirstKeyState,
+        YamlEmitBlockMappingKeyState,
+        YamlEmitBlockMappingSimpleValueState,
+        YamlEmitBlockMappingValueState,
+        YamlEmitBlockSequenceFirstItemState,
+        YamlEmitBlockSequenceItemState, YamlEmitDocumentContentState,
+        YamlEmitDocumentEndState, YamlEmitDocumentStartState,
+        YamlEmitEndState, YamlEmitFirstDocumentStartState,
         YamlEmitFlowMappingFirstKeyState, YamlEmitFlowMappingKeyState,
-        YamlEmitFlowMappingSimpleValueState, YamlEmitFlowMappingValueState,
-        YamlEmitFlowSequenceFirstItemState, YamlEmitFlowSequenceItemState,
-        YamlEmitStreamStartState, YamlEmitterError, YamlEmitterT, YamlEventT,
-        YamlFlowMappingStyle, YamlFlowSequenceStyle, YamlFoldedScalarStyle,
-        YamlLiteralScalarStyle, YamlLnBreak, YamlMappingEndEvent, YamlMappingStartEvent,
-        YamlPlainScalarStyle, YamlScalarEvent, YamlScalarStyleT, YamlSequenceEndEvent,
-        YamlSequenceStartEvent, YamlSingleQuotedScalarStyle, YamlStreamEndEvent,
-        YamlStreamStartEvent, YamlTagDirectiveT, YamlUtf8Encoding, YamlVersionDirectiveT,
+        YamlEmitFlowMappingSimpleValueState,
+        YamlEmitFlowMappingValueState,
+        YamlEmitFlowSequenceFirstItemState,
+        YamlEmitFlowSequenceItemState, YamlEmitStreamStartState,
+        YamlEmitterError, YamlEmitterT, YamlEventT,
+        YamlFlowMappingStyle, YamlFlowSequenceStyle,
+        YamlFoldedScalarStyle, YamlLiteralScalarStyle, YamlLnBreak,
+        YamlMappingEndEvent, YamlMappingStartEvent,
+        YamlPlainScalarStyle, YamlScalarEvent, YamlScalarStyleT,
+        YamlSequenceEndEvent, YamlSequenceStartEvent,
+        YamlSingleQuotedScalarStyle, YamlStreamEndEvent,
+        YamlStreamStartEvent, YamlTagDirectiveT, YamlUtf8Encoding,
+        YamlVersionDirectiveT,
     };
     use core::ptr::{self, addr_of_mut};
     unsafe fn flush(emitter: *mut YamlEmitterT) -> Success {
-        if (*emitter).buffer.pointer.wrapping_offset(5_isize) < (*emitter).buffer.end {
+        if (*emitter).buffer.pointer.wrapping_offset(5_isize)
+            < (*emitter).buffer.end
+        {
             OK
         } else {
             yaml_emitter_flush(emitter)
@@ -2314,43 +2665,56 @@ mod emitter {
         *fresh70 += 1;
         OK
     }
-    unsafe fn write(emitter: *mut YamlEmitterT, string: *mut YamlStringT) -> Success {
+    unsafe fn write(
+        emitter: *mut YamlEmitterT,
+        string: *mut YamlStringT,
+    ) -> Success {
         if flush(emitter).fail {
             return FAIL;
         }
         if *(*string).pointer & 0x80 == 0x00 {
             *(*emitter).buffer.pointer = *(*string).pointer;
-            (*emitter).buffer.pointer = (*emitter).buffer.pointer.wrapping_offset(1);
+            (*emitter).buffer.pointer =
+                (*emitter).buffer.pointer.wrapping_offset(1);
             (*string).pointer = (*string).pointer.wrapping_offset(1);
         } else if *(*string).pointer & 0xE0 == 0xC0 {
             *(*emitter).buffer.pointer = *(*string).pointer;
-            (*emitter).buffer.pointer = (*emitter).buffer.pointer.wrapping_offset(1);
+            (*emitter).buffer.pointer =
+                (*emitter).buffer.pointer.wrapping_offset(1);
             (*string).pointer = (*string).pointer.wrapping_offset(1);
             *(*emitter).buffer.pointer = *(*string).pointer;
-            (*emitter).buffer.pointer = (*emitter).buffer.pointer.wrapping_offset(1);
+            (*emitter).buffer.pointer =
+                (*emitter).buffer.pointer.wrapping_offset(1);
             (*string).pointer = (*string).pointer.wrapping_offset(1);
         } else if *(*string).pointer & 0xF0 == 0xE0 {
             *(*emitter).buffer.pointer = *(*string).pointer;
-            (*emitter).buffer.pointer = (*emitter).buffer.pointer.wrapping_offset(1);
+            (*emitter).buffer.pointer =
+                (*emitter).buffer.pointer.wrapping_offset(1);
             (*string).pointer = (*string).pointer.wrapping_offset(1);
             *(*emitter).buffer.pointer = *(*string).pointer;
-            (*emitter).buffer.pointer = (*emitter).buffer.pointer.wrapping_offset(1);
+            (*emitter).buffer.pointer =
+                (*emitter).buffer.pointer.wrapping_offset(1);
             (*string).pointer = (*string).pointer.wrapping_offset(1);
             *(*emitter).buffer.pointer = *(*string).pointer;
-            (*emitter).buffer.pointer = (*emitter).buffer.pointer.wrapping_offset(1);
+            (*emitter).buffer.pointer =
+                (*emitter).buffer.pointer.wrapping_offset(1);
             (*string).pointer = (*string).pointer.wrapping_offset(1);
         } else if *(*string).pointer & 0xF8 == 0xF0 {
             *(*emitter).buffer.pointer = *(*string).pointer;
-            (*emitter).buffer.pointer = (*emitter).buffer.pointer.wrapping_offset(1);
+            (*emitter).buffer.pointer =
+                (*emitter).buffer.pointer.wrapping_offset(1);
             (*string).pointer = (*string).pointer.wrapping_offset(1);
             *(*emitter).buffer.pointer = *(*string).pointer;
-            (*emitter).buffer.pointer = (*emitter).buffer.pointer.wrapping_offset(1);
+            (*emitter).buffer.pointer =
+                (*emitter).buffer.pointer.wrapping_offset(1);
             (*string).pointer = (*string).pointer.wrapping_offset(1);
             *(*emitter).buffer.pointer = *(*string).pointer;
-            (*emitter).buffer.pointer = (*emitter).buffer.pointer.wrapping_offset(1);
+            (*emitter).buffer.pointer =
+                (*emitter).buffer.pointer.wrapping_offset(1);
             (*string).pointer = (*string).pointer.wrapping_offset(1);
             *(*emitter).buffer.pointer = *(*string).pointer;
-            (*emitter).buffer.pointer = (*emitter).buffer.pointer.wrapping_offset(1);
+            (*emitter).buffer.pointer =
+                (*emitter).buffer.pointer.wrapping_offset(1);
             (*string).pointer = (*string).pointer.wrapping_offset(1);
         }
         let fresh107 = &raw mut (*emitter).column;
@@ -2370,38 +2734,58 @@ mod emitter {
         } else {
             if *(*string).pointer & 0x80 == 0x00 {
                 *(*emitter).buffer.pointer = *(*string).pointer;
-                (*emitter).buffer.pointer = (*emitter).buffer.pointer.wrapping_offset(1);
-                (*string).pointer = (*string).pointer.wrapping_offset(1);
+                (*emitter).buffer.pointer =
+                    (*emitter).buffer.pointer.wrapping_offset(1);
+                (*string).pointer =
+                    (*string).pointer.wrapping_offset(1);
             } else if *(*string).pointer & 0xE0 == 0xC0 {
                 *(*emitter).buffer.pointer = *(*string).pointer;
-                (*emitter).buffer.pointer = (*emitter).buffer.pointer.wrapping_offset(1);
-                (*string).pointer = (*string).pointer.wrapping_offset(1);
+                (*emitter).buffer.pointer =
+                    (*emitter).buffer.pointer.wrapping_offset(1);
+                (*string).pointer =
+                    (*string).pointer.wrapping_offset(1);
                 *(*emitter).buffer.pointer = *(*string).pointer;
-                (*emitter).buffer.pointer = (*emitter).buffer.pointer.wrapping_offset(1);
-                (*string).pointer = (*string).pointer.wrapping_offset(1);
+                (*emitter).buffer.pointer =
+                    (*emitter).buffer.pointer.wrapping_offset(1);
+                (*string).pointer =
+                    (*string).pointer.wrapping_offset(1);
             } else if *(*string).pointer & 0xF0 == 0xE0 {
                 *(*emitter).buffer.pointer = *(*string).pointer;
-                (*emitter).buffer.pointer = (*emitter).buffer.pointer.wrapping_offset(1);
-                (*string).pointer = (*string).pointer.wrapping_offset(1);
+                (*emitter).buffer.pointer =
+                    (*emitter).buffer.pointer.wrapping_offset(1);
+                (*string).pointer =
+                    (*string).pointer.wrapping_offset(1);
                 *(*emitter).buffer.pointer = *(*string).pointer;
-                (*emitter).buffer.pointer = (*emitter).buffer.pointer.wrapping_offset(1);
-                (*string).pointer = (*string).pointer.wrapping_offset(1);
+                (*emitter).buffer.pointer =
+                    (*emitter).buffer.pointer.wrapping_offset(1);
+                (*string).pointer =
+                    (*string).pointer.wrapping_offset(1);
                 *(*emitter).buffer.pointer = *(*string).pointer;
-                (*emitter).buffer.pointer = (*emitter).buffer.pointer.wrapping_offset(1);
-                (*string).pointer = (*string).pointer.wrapping_offset(1);
+                (*emitter).buffer.pointer =
+                    (*emitter).buffer.pointer.wrapping_offset(1);
+                (*string).pointer =
+                    (*string).pointer.wrapping_offset(1);
             } else if *(*string).pointer & 0xF8 == 0xF0 {
                 *(*emitter).buffer.pointer = *(*string).pointer;
-                (*emitter).buffer.pointer = (*emitter).buffer.pointer.wrapping_offset(1);
-                (*string).pointer = (*string).pointer.wrapping_offset(1);
+                (*emitter).buffer.pointer =
+                    (*emitter).buffer.pointer.wrapping_offset(1);
+                (*string).pointer =
+                    (*string).pointer.wrapping_offset(1);
                 *(*emitter).buffer.pointer = *(*string).pointer;
-                (*emitter).buffer.pointer = (*emitter).buffer.pointer.wrapping_offset(1);
-                (*string).pointer = (*string).pointer.wrapping_offset(1);
+                (*emitter).buffer.pointer =
+                    (*emitter).buffer.pointer.wrapping_offset(1);
+                (*string).pointer =
+                    (*string).pointer.wrapping_offset(1);
                 *(*emitter).buffer.pointer = *(*string).pointer;
-                (*emitter).buffer.pointer = (*emitter).buffer.pointer.wrapping_offset(1);
-                (*string).pointer = (*string).pointer.wrapping_offset(1);
+                (*emitter).buffer.pointer =
+                    (*emitter).buffer.pointer.wrapping_offset(1);
+                (*string).pointer =
+                    (*string).pointer.wrapping_offset(1);
                 *(*emitter).buffer.pointer = *(*string).pointer;
-                (*emitter).buffer.pointer = (*emitter).buffer.pointer.wrapping_offset(1);
-                (*string).pointer = (*string).pointer.wrapping_offset(1);
+                (*emitter).buffer.pointer =
+                    (*emitter).buffer.pointer.wrapping_offset(1);
+                (*string).pointer =
+                    (*string).pointer.wrapping_offset(1);
             }
             (*emitter).column = 0;
             let fresh300 = &raw mut (*emitter).line;
@@ -2438,33 +2822,49 @@ mod emitter {
         {
             if (*emitter).events.tail == (*emitter).events.end {
                 yaml_queue_extend(
-                    &raw mut (*emitter).events.start as *mut *mut libc::c_void,
-                    &raw mut (*emitter).events.head as *mut *mut libc::c_void,
-                    &raw mut (*emitter).events.tail as *mut *mut libc::c_void,
-                    &raw mut (*emitter).events.end as *mut *mut libc::c_void,
+                    &raw mut (*emitter).events.start
+                        as *mut *mut libc::c_void,
+                    &raw mut (*emitter).events.head
+                        as *mut *mut libc::c_void,
+                    &raw mut (*emitter).events.tail
+                        as *mut *mut libc::c_void,
+                    &raw mut (*emitter).events.end
+                        as *mut *mut libc::c_void,
                 );
             }
             ptr::copy_nonoverlapping(event, (*emitter).events.tail, 1);
-            (*emitter).events.tail = (*emitter).events.tail.wrapping_offset(1);
+            (*emitter).events.tail =
+                (*emitter).events.tail.wrapping_offset(1);
         };
         while yaml_emitter_need_more_events(emitter).fail {
-            if yaml_emitter_analyze_event(emitter, (*emitter).events.head).fail {
+            if yaml_emitter_analyze_event(
+                emitter,
+                (*emitter).events.head,
+            )
+            .fail
+            {
                 return FAIL;
             }
-            if yaml_emitter_state_machine(emitter, (*emitter).events.head).fail {
+            if yaml_emitter_state_machine(
+                emitter,
+                (*emitter).events.head,
+            )
+            .fail
+            {
                 return FAIL;
             }
-            yaml_event_delete(
-                &raw mut *{
-                    let head = (*emitter).events.head;
-                    (*emitter).events.head = (*emitter).events.head.wrapping_offset(1);
-                    head
-                },
-            );
+            yaml_event_delete(&raw mut *{
+                let head = (*emitter).events.head;
+                (*emitter).events.head =
+                    (*emitter).events.head.wrapping_offset(1);
+                head
+            });
         }
         OK
     }
-    unsafe fn yaml_emitter_need_more_events(emitter: *mut YamlEmitterT) -> Success {
+    unsafe fn yaml_emitter_need_more_events(
+        emitter: *mut YamlEmitterT,
+    ) -> Success {
         let mut level: libc::c_int = 0;
         let mut event: *mut YamlEventT;
         if (*emitter).events.head == (*emitter).events.tail {
@@ -2476,7 +2876,8 @@ mod emitter {
             YamlMappingStartEvent => 3,
             _ => return FAIL,
         };
-        if (*emitter).events.tail.c_offset_from((*emitter).events.head) as libc::c_long
+        if (*emitter).events.tail.c_offset_from((*emitter).events.head)
+            as libc::c_long
             > accumulate as libc::c_long
         {
             return FAIL;
@@ -2490,10 +2891,8 @@ mod emitter {
                 | YamlMappingStartEvent => {
                     level += 1;
                 }
-                YamlStreamEndEvent
-                | YamlDocumentEndEvent
-                | YamlSequenceEndEvent
-                | YamlMappingEndEvent => {
+                YamlStreamEndEvent | YamlDocumentEndEvent
+                | YamlSequenceEndEvent | YamlMappingEndEvent => {
                     level -= 1;
                 }
                 _ => {}
@@ -2527,7 +2926,8 @@ mod emitter {
                 }
                 return yaml_emitter_set_emitter_error(
                     emitter,
-                    b"duplicate %TAG directive\0" as *const u8 as *const libc::c_char,
+                    b"duplicate %TAG directive\0" as *const u8
+                        as *const libc::c_char,
                 );
             }
             tag_directive = tag_directive.wrapping_offset(1);
@@ -2535,18 +2935,21 @@ mod emitter {
         copy.handle = yaml_strdup(value.handle);
         copy.prefix = yaml_strdup(value.prefix);
         {
-            if (*emitter).tag_directives.top == (*emitter).tag_directives.end {
+            if (*emitter).tag_directives.top
+                == (*emitter).tag_directives.end
+            {
                 yaml_stack_extend(
-                    &raw mut (*emitter).tag_directives.start as *mut *mut libc::c_void,
-                    &raw mut (*emitter).tag_directives.top as *mut *mut libc::c_void,
-                    &raw mut (*emitter).tag_directives.end as *mut *mut libc::c_void,
+                    &raw mut (*emitter).tag_directives.start
+                        as *mut *mut libc::c_void,
+                    &raw mut (*emitter).tag_directives.top
+                        as *mut *mut libc::c_void,
+                    &raw mut (*emitter).tag_directives.end
+                        as *mut *mut libc::c_void,
                 );
             }
             ptr::write((*emitter).tag_directives.top, copy);
-            (*emitter).tag_directives.top = (*emitter)
-                .tag_directives
-                .top
-                .wrapping_offset(1);
+            (*emitter).tag_directives.top =
+                (*emitter).tag_directives.top.wrapping_offset(1);
         };
         OK
     }
@@ -2558,16 +2961,21 @@ mod emitter {
         {
             if (*emitter).indents.top == (*emitter).indents.end {
                 yaml_stack_extend(
-                    &raw mut (*emitter).indents.start as *mut *mut libc::c_void,
-                    &raw mut (*emitter).indents.top as *mut *mut libc::c_void,
-                    &raw mut (*emitter).indents.end as *mut *mut libc::c_void,
+                    &raw mut (*emitter).indents.start
+                        as *mut *mut libc::c_void,
+                    &raw mut (*emitter).indents.top
+                        as *mut *mut libc::c_void,
+                    &raw mut (*emitter).indents.end
+                        as *mut *mut libc::c_void,
                 );
             }
             ptr::write((*emitter).indents.top, (*emitter).indent);
-            (*emitter).indents.top = (*emitter).indents.top.wrapping_offset(1);
+            (*emitter).indents.top =
+                (*emitter).indents.top.wrapping_offset(1);
         };
         if (*emitter).indent < 0 {
-            (*emitter).indent = if flow { (*emitter).best_indent } else { 0 };
+            (*emitter).indent =
+                if flow { (*emitter).best_indent } else { 0 };
         } else if !indentless {
             (*emitter).indent += (*emitter).best_indent;
         }
@@ -2577,7 +2985,9 @@ mod emitter {
         event: *mut YamlEventT,
     ) -> Success {
         match (*emitter).state {
-            YamlEmitStreamStartState => yaml_emitter_emit_stream_start(emitter, event),
+            YamlEmitStreamStartState => {
+                yaml_emitter_emit_stream_start(emitter, event)
+            }
             YamlEmitFirstDocumentStartState => {
                 yaml_emitter_emit_document_start(emitter, event, true)
             }
@@ -2587,50 +2997,72 @@ mod emitter {
             YamlEmitDocumentContentState => {
                 yaml_emitter_emit_document_content(emitter, event)
             }
-            YamlEmitDocumentEndState => yaml_emitter_emit_document_end(emitter, event),
+            YamlEmitDocumentEndState => {
+                yaml_emitter_emit_document_end(emitter, event)
+            }
             YamlEmitFlowSequenceFirstItemState => {
-                yaml_emitter_emit_flow_sequence_item(emitter, event, true)
+                yaml_emitter_emit_flow_sequence_item(
+                    emitter, event, true,
+                )
             }
             YamlEmitFlowSequenceItemState => {
-                yaml_emitter_emit_flow_sequence_item(emitter, event, false)
+                yaml_emitter_emit_flow_sequence_item(
+                    emitter, event, false,
+                )
             }
             YamlEmitFlowMappingFirstKeyState => {
                 yaml_emitter_emit_flow_mapping_key(emitter, event, true)
             }
             YamlEmitFlowMappingKeyState => {
-                yaml_emitter_emit_flow_mapping_key(emitter, event, false)
-            }
-            YamlEmitFlowMappingSimpleValueState => {
-                yaml_emitter_emit_flow_mapping_value(emitter, event, true)
-            }
-            YamlEmitFlowMappingValueState => {
-                yaml_emitter_emit_flow_mapping_value(emitter, event, false)
-            }
-            YamlEmitBlockSequenceFirstItemState => {
-                yaml_emitter_emit_block_sequence_item(emitter, event, true)
-            }
-            YamlEmitBlockSequenceItemState => {
-                yaml_emitter_emit_block_sequence_item(emitter, event, false)
-            }
-            YamlEmitBlockMappingFirstKeyState => {
-                yaml_emitter_emit_block_mapping_key(emitter, event, true)
-            }
-            YamlEmitBlockMappingKeyState => {
-                yaml_emitter_emit_block_mapping_key(emitter, event, false)
-            }
-            YamlEmitBlockMappingSimpleValueState => {
-                yaml_emitter_emit_block_mapping_value(emitter, event, true)
-            }
-            YamlEmitBlockMappingValueState => {
-                yaml_emitter_emit_block_mapping_value(emitter, event, false)
-            }
-            YamlEmitEndState => {
-                yaml_emitter_set_emitter_error(
-                    emitter,
-                    b"expected nothing after STREAM-END\0" as *const u8
-                        as *const libc::c_char,
+                yaml_emitter_emit_flow_mapping_key(
+                    emitter, event, false,
                 )
             }
+            YamlEmitFlowMappingSimpleValueState => {
+                yaml_emitter_emit_flow_mapping_value(
+                    emitter, event, true,
+                )
+            }
+            YamlEmitFlowMappingValueState => {
+                yaml_emitter_emit_flow_mapping_value(
+                    emitter, event, false,
+                )
+            }
+            YamlEmitBlockSequenceFirstItemState => {
+                yaml_emitter_emit_block_sequence_item(
+                    emitter, event, true,
+                )
+            }
+            YamlEmitBlockSequenceItemState => {
+                yaml_emitter_emit_block_sequence_item(
+                    emitter, event, false,
+                )
+            }
+            YamlEmitBlockMappingFirstKeyState => {
+                yaml_emitter_emit_block_mapping_key(
+                    emitter, event, true,
+                )
+            }
+            YamlEmitBlockMappingKeyState => {
+                yaml_emitter_emit_block_mapping_key(
+                    emitter, event, false,
+                )
+            }
+            YamlEmitBlockMappingSimpleValueState => {
+                yaml_emitter_emit_block_mapping_value(
+                    emitter, event, true,
+                )
+            }
+            YamlEmitBlockMappingValueState => {
+                yaml_emitter_emit_block_mapping_value(
+                    emitter, event, false,
+                )
+            }
+            YamlEmitEndState => yaml_emitter_set_emitter_error(
+                emitter,
+                b"expected nothing after STREAM-END\0" as *const u8
+                    as *const libc::c_char,
+            ),
         }
     }
     unsafe fn yaml_emitter_emit_stream_start(
@@ -2640,16 +3072,19 @@ mod emitter {
         (*emitter).open_ended = 0;
         if (*event).type_ == YamlStreamStartEvent {
             if (*emitter).encoding == YamlAnyEncoding {
-                (*emitter).encoding = (*event).data.stream_start.encoding;
+                (*emitter).encoding =
+                    (*event).data.stream_start.encoding;
             }
             if (*emitter).encoding == YamlAnyEncoding {
                 (*emitter).encoding = YamlUtf8Encoding;
             }
-            if (*emitter).best_indent < 2 || (*emitter).best_indent > 9 {
+            if (*emitter).best_indent < 2 || (*emitter).best_indent > 9
+            {
                 (*emitter).best_indent = 2;
             }
             if (*emitter).best_width >= 0
-                && (*emitter).best_width <= (*emitter).best_indent.force_mul(2)
+                && (*emitter).best_width
+                    <= (*emitter).best_indent.force_mul(2)
             {
                 (*emitter).best_width = 80;
             }
@@ -2674,7 +3109,8 @@ mod emitter {
         }
         yaml_emitter_set_emitter_error(
             emitter,
-            b"expected STREAM-START\0" as *const u8 as *const libc::c_char,
+            b"expected STREAM-START\0" as *const u8
+                as *const libc::c_char,
         )
     }
     unsafe fn yaml_emitter_emit_document_start(
@@ -2693,7 +3129,8 @@ mod emitter {
                 YamlTagDirectiveT {
                     handle: b"!!\0" as *const u8 as *const libc::c_char
                         as *mut yaml_char_t,
-                    prefix: b"tag:yaml.org,2002:\0" as *const u8 as *const libc::c_char
+                    prefix: b"tag:yaml.org,2002:\0" as *const u8
+                        as *const libc::c_char
                         as *mut yaml_char_t,
                 },
                 YamlTagDirectiveT {
@@ -2705,19 +3142,32 @@ mod emitter {
             let mut implicit;
             if !(*event).data.document_start.version_directive.is_null()
                 && yaml_emitter_analyze_version_directive(
-                        emitter,
-                        *(*event).data.document_start.version_directive,
-                    )
-                    .fail
+                    emitter,
+                    *(*event).data.document_start.version_directive,
+                )
+                .fail
             {
                 return FAIL;
             }
-            tag_directive = (*event).data.document_start.tag_directives.start;
-            while tag_directive != (*event).data.document_start.tag_directives.end {
-                if yaml_emitter_analyze_tag_directive(emitter, *tag_directive).fail {
+            tag_directive =
+                (*event).data.document_start.tag_directives.start;
+            while tag_directive
+                != (*event).data.document_start.tag_directives.end
+            {
+                if yaml_emitter_analyze_tag_directive(
+                    emitter,
+                    *tag_directive,
+                )
+                .fail
+                {
                     return FAIL;
                 }
-                if yaml_emitter_append_tag_directive(emitter, *tag_directive, false).fail
+                if yaml_emitter_append_tag_directive(
+                    emitter,
+                    *tag_directive,
+                    false,
+                )
+                .fail
                 {
                     return FAIL;
                 }
@@ -2725,7 +3175,12 @@ mod emitter {
             }
             tag_directive = default_tag_directives.as_mut_ptr();
             while !(*tag_directive).handle.is_null() {
-                if yaml_emitter_append_tag_directive(emitter, *tag_directive, true).fail
+                if yaml_emitter_append_tag_directive(
+                    emitter,
+                    *tag_directive,
+                    true,
+                )
+                .fail
                 {
                     return FAIL;
                 }
@@ -2735,19 +3190,23 @@ mod emitter {
             if !first || (*emitter).canonical {
                 implicit = false;
             }
-            if (!(*event).data.document_start.version_directive.is_null()
+            if (!(*event)
+                .data
+                .document_start
+                .version_directive
+                .is_null()
                 || (*event).data.document_start.tag_directives.start
                     != (*event).data.document_start.tag_directives.end)
                 && (*emitter).open_ended != 0
             {
                 if yaml_emitter_write_indicator(
-                        emitter,
-                        b"...\0" as *const u8 as *const libc::c_char,
-                        true,
-                        false,
-                        false,
-                    )
-                    .fail
+                    emitter,
+                    b"...\0" as *const u8 as *const libc::c_char,
+                    true,
+                    false,
+                    false,
+                )
+                .fail
                 {
                     return FAIL;
                 }
@@ -2756,39 +3215,43 @@ mod emitter {
                 }
             }
             (*emitter).open_ended = 0;
-            if !(*event).data.document_start.version_directive.is_null() {
+            if !(*event).data.document_start.version_directive.is_null()
+            {
                 implicit = false;
                 if yaml_emitter_write_indicator(
+                    emitter,
+                    b"%YAML\0" as *const u8 as *const libc::c_char,
+                    true,
+                    false,
+                    false,
+                )
+                .fail
+                {
+                    return FAIL;
+                }
+                if (*(*event).data.document_start.version_directive)
+                    .minor
+                    == 1
+                {
+                    if yaml_emitter_write_indicator(
                         emitter,
-                        b"%YAML\0" as *const u8 as *const libc::c_char,
+                        b"1.1\0" as *const u8 as *const libc::c_char,
                         true,
                         false,
                         false,
                     )
                     .fail
-                {
-                    return FAIL;
-                }
-                if (*(*event).data.document_start.version_directive).minor == 1 {
-                    if yaml_emitter_write_indicator(
-                            emitter,
-                            b"1.1\0" as *const u8 as *const libc::c_char,
-                            true,
-                            false,
-                            false,
-                        )
-                        .fail
                     {
                         return FAIL;
                     }
                 } else if yaml_emitter_write_indicator(
-                        emitter,
-                        b"1.2\0" as *const u8 as *const libc::c_char,
-                        true,
-                        false,
-                        false,
-                    )
-                    .fail
+                    emitter,
+                    b"1.2\0" as *const u8 as *const libc::c_char,
+                    true,
+                    false,
+                    false,
+                )
+                .fail
                 {
                     return FAIL;
                 }
@@ -2800,35 +3263,44 @@ mod emitter {
                 != (*event).data.document_start.tag_directives.end
             {
                 implicit = false;
-                tag_directive = (*event).data.document_start.tag_directives.start;
-                while tag_directive != (*event).data.document_start.tag_directives.end {
+                tag_directive =
+                    (*event).data.document_start.tag_directives.start;
+                while tag_directive
+                    != (*event).data.document_start.tag_directives.end
+                {
                     if yaml_emitter_write_indicator(
-                            emitter,
-                            b"%TAG\0" as *const u8 as *const libc::c_char,
-                            true,
-                            false,
-                            false,
-                        )
-                        .fail
+                        emitter,
+                        b"%TAG\0" as *const u8 as *const libc::c_char,
+                        true,
+                        false,
+                        false,
+                    )
+                    .fail
                     {
                         return FAIL;
                     }
                     if yaml_emitter_write_tag_handle(
-                            emitter,
-                            (*tag_directive).handle,
-                            strlen((*tag_directive).handle as *mut libc::c_char),
-                        )
-                        .fail
+                        emitter,
+                        (*tag_directive).handle,
+                        strlen(
+                            (*tag_directive).handle
+                                as *mut libc::c_char,
+                        ),
+                    )
+                    .fail
                     {
                         return FAIL;
                     }
                     if yaml_emitter_write_tag_content(
-                            emitter,
-                            (*tag_directive).prefix,
-                            strlen((*tag_directive).prefix as *mut libc::c_char),
-                            true,
-                        )
-                        .fail
+                        emitter,
+                        (*tag_directive).prefix,
+                        strlen(
+                            (*tag_directive).prefix
+                                as *mut libc::c_char,
+                        ),
+                        true,
+                    )
+                    .fail
                     {
                         return FAIL;
                     }
@@ -2846,17 +3318,19 @@ mod emitter {
                     return FAIL;
                 }
                 if yaml_emitter_write_indicator(
-                        emitter,
-                        b"---\0" as *const u8 as *const libc::c_char,
-                        true,
-                        false,
-                        false,
-                    )
-                    .fail
+                    emitter,
+                    b"---\0" as *const u8 as *const libc::c_char,
+                    true,
+                    false,
+                    false,
+                )
+                .fail
                 {
                     return FAIL;
                 }
-                if (*emitter).canonical && yaml_emitter_write_indent(emitter).fail {
+                if (*emitter).canonical
+                    && yaml_emitter_write_indent(emitter).fail
+                {
                     return FAIL;
                 }
             }
@@ -2866,13 +3340,13 @@ mod emitter {
         } else if (*event).type_ == YamlStreamEndEvent {
             if (*emitter).open_ended == 2 {
                 if yaml_emitter_write_indicator(
-                        emitter,
-                        b"...\0" as *const u8 as *const libc::c_char,
-                        true,
-                        false,
-                        false,
-                    )
-                    .fail
+                    emitter,
+                    b"...\0" as *const u8 as *const libc::c_char,
+                    true,
+                    false,
+                    false,
+                )
+                .fail
                 {
                     return FAIL;
                 }
@@ -2900,15 +3374,21 @@ mod emitter {
         {
             if (*emitter).states.top == (*emitter).states.end {
                 yaml_stack_extend(
-                    &raw mut (*emitter).states.start as *mut *mut libc::c_void,
-                    &raw mut (*emitter).states.top as *mut *mut libc::c_void,
-                    &raw mut (*emitter).states.end as *mut *mut libc::c_void,
+                    &raw mut (*emitter).states.start
+                        as *mut *mut libc::c_void,
+                    &raw mut (*emitter).states.top
+                        as *mut *mut libc::c_void,
+                    &raw mut (*emitter).states.end
+                        as *mut *mut libc::c_void,
                 );
             }
             ptr::write((*emitter).states.top, YamlEmitDocumentEndState);
-            (*emitter).states.top = (*emitter).states.top.wrapping_offset(1);
+            (*emitter).states.top =
+                (*emitter).states.top.wrapping_offset(1);
         };
-        yaml_emitter_emit_node(emitter, event, true, false, false, false)
+        yaml_emitter_emit_node(
+            emitter, event, true, false, false, false,
+        )
     }
     unsafe fn yaml_emitter_emit_document_end(
         emitter: *mut YamlEmitterT,
@@ -2920,13 +3400,13 @@ mod emitter {
             }
             if !(*event).data.document_end.implicit {
                 if yaml_emitter_write_indicator(
-                        emitter,
-                        b"...\0" as *const u8 as *const libc::c_char,
-                        true,
-                        false,
-                        false,
-                    )
-                    .fail
+                    emitter,
+                    b"...\0" as *const u8 as *const libc::c_char,
+                    true,
+                    false,
+                    false,
+                )
+                .fail
                 {
                     return FAIL;
                 }
@@ -2941,12 +3421,12 @@ mod emitter {
                 return FAIL;
             }
             (*emitter).state = YamlEmitDocumentStartState;
-            while !((*emitter).tag_directives.start == (*emitter).tag_directives.top) {
+            while !((*emitter).tag_directives.start
+                == (*emitter).tag_directives.top)
+            {
                 let tag_directive = *{
-                    (*emitter).tag_directives.top = (*emitter)
-                        .tag_directives
-                        .top
-                        .offset(-1);
+                    (*emitter).tag_directives.top =
+                        (*emitter).tag_directives.top.offset(-1);
                     (*emitter).tag_directives.top
                 };
                 yaml_free(tag_directive.handle as *mut libc::c_void);
@@ -2956,7 +3436,8 @@ mod emitter {
         }
         yaml_emitter_set_emitter_error(
             emitter,
-            b"expected DOCUMENT-END\0" as *const u8 as *const libc::c_char,
+            b"expected DOCUMENT-END\0" as *const u8
+                as *const libc::c_char,
         )
     }
     unsafe fn yaml_emitter_emit_flow_sequence_item(
@@ -2966,13 +3447,13 @@ mod emitter {
     ) -> Success {
         if first {
             if yaml_emitter_write_indicator(
-                    emitter,
-                    b"[\0" as *const u8 as *const libc::c_char,
-                    true,
-                    true,
-                    false,
-                )
-                .fail
+                emitter,
+                b"[\0" as *const u8 as *const libc::c_char,
+                true,
+                true,
+                false,
+            )
+            .fail
             {
                 return FAIL;
             }
@@ -2984,18 +3465,19 @@ mod emitter {
             let fresh13 = &raw mut (*emitter).flow_level;
             *fresh13 -= 1;
             (*emitter).indent = *{
-                (*emitter).indents.top = (*emitter).indents.top.offset(-1);
+                (*emitter).indents.top =
+                    (*emitter).indents.top.offset(-1);
                 (*emitter).indents.top
             };
             if (*emitter).canonical && !first {
                 if yaml_emitter_write_indicator(
-                        emitter,
-                        b",\0" as *const u8 as *const libc::c_char,
-                        false,
-                        false,
-                        false,
-                    )
-                    .fail
+                    emitter,
+                    b",\0" as *const u8 as *const libc::c_char,
+                    false,
+                    false,
+                    false,
+                )
+                .fail
                 {
                     return FAIL;
                 }
@@ -3004,35 +3486,37 @@ mod emitter {
                 }
             }
             if yaml_emitter_write_indicator(
-                    emitter,
-                    b"]\0" as *const u8 as *const libc::c_char,
-                    false,
-                    false,
-                    false,
-                )
-                .fail
+                emitter,
+                b"]\0" as *const u8 as *const libc::c_char,
+                false,
+                false,
+                false,
+            )
+            .fail
             {
                 return FAIL;
             }
             (*emitter).state = *{
-                (*emitter).states.top = (*emitter).states.top.offset(-1);
+                (*emitter).states.top =
+                    (*emitter).states.top.offset(-1);
                 (*emitter).states.top
             };
             return OK;
         }
         if !first
             && yaml_emitter_write_indicator(
-                    emitter,
-                    b",\0" as *const u8 as *const libc::c_char,
-                    false,
-                    false,
-                    false,
-                )
-                .fail
+                emitter,
+                b",\0" as *const u8 as *const libc::c_char,
+                false,
+                false,
+                false,
+            )
+            .fail
         {
             return FAIL;
         }
-        if ((*emitter).canonical || (*emitter).column > (*emitter).best_width)
+        if ((*emitter).canonical
+            || (*emitter).column > (*emitter).best_width)
             && yaml_emitter_write_indent(emitter).fail
         {
             return FAIL;
@@ -3040,15 +3524,24 @@ mod emitter {
         {
             if (*emitter).states.top == (*emitter).states.end {
                 yaml_stack_extend(
-                    &raw mut (*emitter).states.start as *mut *mut libc::c_void,
-                    &raw mut (*emitter).states.top as *mut *mut libc::c_void,
-                    &raw mut (*emitter).states.end as *mut *mut libc::c_void,
+                    &raw mut (*emitter).states.start
+                        as *mut *mut libc::c_void,
+                    &raw mut (*emitter).states.top
+                        as *mut *mut libc::c_void,
+                    &raw mut (*emitter).states.end
+                        as *mut *mut libc::c_void,
                 );
             }
-            ptr::write((*emitter).states.top, YamlEmitFlowSequenceItemState);
-            (*emitter).states.top = (*emitter).states.top.wrapping_offset(1);
+            ptr::write(
+                (*emitter).states.top,
+                YamlEmitFlowSequenceItemState,
+            );
+            (*emitter).states.top =
+                (*emitter).states.top.wrapping_offset(1);
         };
-        yaml_emitter_emit_node(emitter, event, false, true, false, false)
+        yaml_emitter_emit_node(
+            emitter, event, false, true, false, false,
+        )
     }
     unsafe fn yaml_emitter_emit_flow_mapping_key(
         emitter: *mut YamlEmitterT,
@@ -3057,13 +3550,13 @@ mod emitter {
     ) -> Success {
         if first {
             if yaml_emitter_write_indicator(
-                    emitter,
-                    b"{\0" as *const u8 as *const libc::c_char,
-                    true,
-                    true,
-                    false,
-                )
-                .fail
+                emitter,
+                b"{\0" as *const u8 as *const libc::c_char,
+                true,
+                true,
+                false,
+            )
+            .fail
             {
                 return FAIL;
             }
@@ -3078,18 +3571,19 @@ mod emitter {
             let fresh19 = &raw mut (*emitter).flow_level;
             *fresh19 -= 1;
             (*emitter).indent = *{
-                (*emitter).indents.top = (*emitter).indents.top.offset(-1);
+                (*emitter).indents.top =
+                    (*emitter).indents.top.offset(-1);
                 (*emitter).indents.top
             };
             if (*emitter).canonical && !first {
                 if yaml_emitter_write_indicator(
-                        emitter,
-                        b",\0" as *const u8 as *const libc::c_char,
-                        false,
-                        false,
-                        false,
-                    )
-                    .fail
+                    emitter,
+                    b",\0" as *const u8 as *const libc::c_char,
+                    false,
+                    false,
+                    false,
+                )
+                .fail
                 {
                     return FAIL;
                 }
@@ -3098,76 +3592,98 @@ mod emitter {
                 }
             }
             if yaml_emitter_write_indicator(
-                    emitter,
-                    b"}\0" as *const u8 as *const libc::c_char,
-                    false,
-                    false,
-                    false,
-                )
-                .fail
+                emitter,
+                b"}\0" as *const u8 as *const libc::c_char,
+                false,
+                false,
+                false,
+            )
+            .fail
             {
                 return FAIL;
             }
             (*emitter).state = *{
-                (*emitter).states.top = (*emitter).states.top.offset(-1);
+                (*emitter).states.top =
+                    (*emitter).states.top.offset(-1);
                 (*emitter).states.top
             };
             return OK;
         }
         if !first
             && yaml_emitter_write_indicator(
-                    emitter,
-                    b",\0" as *const u8 as *const libc::c_char,
-                    false,
-                    false,
-                    false,
-                )
-                .fail
+                emitter,
+                b",\0" as *const u8 as *const libc::c_char,
+                false,
+                false,
+                false,
+            )
+            .fail
         {
             return FAIL;
         }
-        if ((*emitter).canonical || (*emitter).column > (*emitter).best_width)
+        if ((*emitter).canonical
+            || (*emitter).column > (*emitter).best_width)
             && yaml_emitter_write_indent(emitter).fail
         {
             return FAIL;
         }
-        if !(*emitter).canonical && yaml_emitter_check_simple_key(emitter) {
+        if !(*emitter).canonical
+            && yaml_emitter_check_simple_key(emitter)
+        {
             {
                 if (*emitter).states.top == (*emitter).states.end {
                     yaml_stack_extend(
-                        &raw mut (*emitter).states.start as *mut *mut libc::c_void,
-                        &raw mut (*emitter).states.top as *mut *mut libc::c_void,
-                        &raw mut (*emitter).states.end as *mut *mut libc::c_void,
+                        &raw mut (*emitter).states.start
+                            as *mut *mut libc::c_void,
+                        &raw mut (*emitter).states.top
+                            as *mut *mut libc::c_void,
+                        &raw mut (*emitter).states.end
+                            as *mut *mut libc::c_void,
                     );
                 }
-                ptr::write((*emitter).states.top, YamlEmitFlowMappingSimpleValueState);
-                (*emitter).states.top = (*emitter).states.top.wrapping_offset(1);
+                ptr::write(
+                    (*emitter).states.top,
+                    YamlEmitFlowMappingSimpleValueState,
+                );
+                (*emitter).states.top =
+                    (*emitter).states.top.wrapping_offset(1);
             };
-            yaml_emitter_emit_node(emitter, event, false, false, true, true)
+            yaml_emitter_emit_node(
+                emitter, event, false, false, true, true,
+            )
         } else {
             if yaml_emitter_write_indicator(
-                    emitter,
-                    b"?\0" as *const u8 as *const libc::c_char,
-                    true,
-                    false,
-                    false,
-                )
-                .fail
+                emitter,
+                b"?\0" as *const u8 as *const libc::c_char,
+                true,
+                false,
+                false,
+            )
+            .fail
             {
                 return FAIL;
             }
             {
                 if (*emitter).states.top == (*emitter).states.end {
                     yaml_stack_extend(
-                        &raw mut (*emitter).states.start as *mut *mut libc::c_void,
-                        &raw mut (*emitter).states.top as *mut *mut libc::c_void,
-                        &raw mut (*emitter).states.end as *mut *mut libc::c_void,
+                        &raw mut (*emitter).states.start
+                            as *mut *mut libc::c_void,
+                        &raw mut (*emitter).states.top
+                            as *mut *mut libc::c_void,
+                        &raw mut (*emitter).states.end
+                            as *mut *mut libc::c_void,
                     );
                 }
-                ptr::write((*emitter).states.top, YamlEmitFlowMappingValueState);
-                (*emitter).states.top = (*emitter).states.top.wrapping_offset(1);
+                ptr::write(
+                    (*emitter).states.top,
+                    YamlEmitFlowMappingValueState,
+                );
+                (*emitter).states.top =
+                    (*emitter).states.top.wrapping_offset(1);
             };
-            yaml_emitter_emit_node(emitter, event, false, false, true, false)
+            yaml_emitter_emit_node(
+                emitter, event, false, false, true, false,
+            )
         }
     }
     unsafe fn yaml_emitter_emit_flow_mapping_value(
@@ -3177,30 +3693,31 @@ mod emitter {
     ) -> Success {
         if simple {
             if yaml_emitter_write_indicator(
-                    emitter,
-                    b":\0" as *const u8 as *const libc::c_char,
-                    false,
-                    false,
-                    false,
-                )
-                .fail
+                emitter,
+                b":\0" as *const u8 as *const libc::c_char,
+                false,
+                false,
+                false,
+            )
+            .fail
             {
                 return FAIL;
             }
         } else {
-            if ((*emitter).canonical || (*emitter).column > (*emitter).best_width)
+            if ((*emitter).canonical
+                || (*emitter).column > (*emitter).best_width)
                 && yaml_emitter_write_indent(emitter).fail
             {
                 return FAIL;
             }
             if yaml_emitter_write_indicator(
-                    emitter,
-                    b":\0" as *const u8 as *const libc::c_char,
-                    true,
-                    false,
-                    false,
-                )
-                .fail
+                emitter,
+                b":\0" as *const u8 as *const libc::c_char,
+                true,
+                false,
+                false,
+            )
+            .fail
             {
                 return FAIL;
             }
@@ -3208,15 +3725,24 @@ mod emitter {
         {
             if (*emitter).states.top == (*emitter).states.end {
                 yaml_stack_extend(
-                    &raw mut (*emitter).states.start as *mut *mut libc::c_void,
-                    &raw mut (*emitter).states.top as *mut *mut libc::c_void,
-                    &raw mut (*emitter).states.end as *mut *mut libc::c_void,
+                    &raw mut (*emitter).states.start
+                        as *mut *mut libc::c_void,
+                    &raw mut (*emitter).states.top
+                        as *mut *mut libc::c_void,
+                    &raw mut (*emitter).states.end
+                        as *mut *mut libc::c_void,
                 );
             }
-            ptr::write((*emitter).states.top, YamlEmitFlowMappingKeyState);
-            (*emitter).states.top = (*emitter).states.top.wrapping_offset(1);
+            ptr::write(
+                (*emitter).states.top,
+                YamlEmitFlowMappingKeyState,
+            );
+            (*emitter).states.top =
+                (*emitter).states.top.wrapping_offset(1);
         };
-        yaml_emitter_emit_node(emitter, event, false, false, true, false)
+        yaml_emitter_emit_node(
+            emitter, event, false, false, true, false,
+        )
     }
     unsafe fn yaml_emitter_emit_block_sequence_item(
         emitter: *mut YamlEmitterT,
@@ -3232,11 +3758,13 @@ mod emitter {
         }
         if (*event).type_ == YamlSequenceEndEvent {
             (*emitter).indent = *{
-                (*emitter).indents.top = (*emitter).indents.top.offset(-1);
+                (*emitter).indents.top =
+                    (*emitter).indents.top.offset(-1);
                 (*emitter).indents.top
             };
             (*emitter).state = *{
-                (*emitter).states.top = (*emitter).states.top.offset(-1);
+                (*emitter).states.top =
+                    (*emitter).states.top.offset(-1);
                 (*emitter).states.top
             };
             return OK;
@@ -3245,28 +3773,37 @@ mod emitter {
             return FAIL;
         }
         if yaml_emitter_write_indicator(
-                emitter,
-                b"-\0" as *const u8 as *const libc::c_char,
-                true,
-                false,
-                true,
-            )
-            .fail
+            emitter,
+            b"-\0" as *const u8 as *const libc::c_char,
+            true,
+            false,
+            true,
+        )
+        .fail
         {
             return FAIL;
         }
         {
             if (*emitter).states.top == (*emitter).states.end {
                 yaml_stack_extend(
-                    &raw mut (*emitter).states.start as *mut *mut libc::c_void,
-                    &raw mut (*emitter).states.top as *mut *mut libc::c_void,
-                    &raw mut (*emitter).states.end as *mut *mut libc::c_void,
+                    &raw mut (*emitter).states.start
+                        as *mut *mut libc::c_void,
+                    &raw mut (*emitter).states.top
+                        as *mut *mut libc::c_void,
+                    &raw mut (*emitter).states.end
+                        as *mut *mut libc::c_void,
                 );
             }
-            ptr::write((*emitter).states.top, YamlEmitBlockSequenceItemState);
-            (*emitter).states.top = (*emitter).states.top.wrapping_offset(1);
+            ptr::write(
+                (*emitter).states.top,
+                YamlEmitBlockSequenceItemState,
+            );
+            (*emitter).states.top =
+                (*emitter).states.top.wrapping_offset(1);
         };
-        yaml_emitter_emit_node(emitter, event, false, true, false, false)
+        yaml_emitter_emit_node(
+            emitter, event, false, true, false, false,
+        )
     }
     unsafe fn yaml_emitter_emit_block_mapping_key(
         emitter: *mut YamlEmitterT,
@@ -3278,11 +3815,13 @@ mod emitter {
         }
         if (*event).type_ == YamlMappingEndEvent {
             (*emitter).indent = *{
-                (*emitter).indents.top = (*emitter).indents.top.offset(-1);
+                (*emitter).indents.top =
+                    (*emitter).indents.top.offset(-1);
                 (*emitter).indents.top
             };
             (*emitter).state = *{
-                (*emitter).states.top = (*emitter).states.top.offset(-1);
+                (*emitter).states.top =
+                    (*emitter).states.top.offset(-1);
                 (*emitter).states.top
             };
             return OK;
@@ -3294,39 +3833,57 @@ mod emitter {
             {
                 if (*emitter).states.top == (*emitter).states.end {
                     yaml_stack_extend(
-                        &raw mut (*emitter).states.start as *mut *mut libc::c_void,
-                        &raw mut (*emitter).states.top as *mut *mut libc::c_void,
-                        &raw mut (*emitter).states.end as *mut *mut libc::c_void,
+                        &raw mut (*emitter).states.start
+                            as *mut *mut libc::c_void,
+                        &raw mut (*emitter).states.top
+                            as *mut *mut libc::c_void,
+                        &raw mut (*emitter).states.end
+                            as *mut *mut libc::c_void,
                     );
                 }
-                ptr::write((*emitter).states.top, YamlEmitBlockMappingSimpleValueState);
-                (*emitter).states.top = (*emitter).states.top.wrapping_offset(1);
+                ptr::write(
+                    (*emitter).states.top,
+                    YamlEmitBlockMappingSimpleValueState,
+                );
+                (*emitter).states.top =
+                    (*emitter).states.top.wrapping_offset(1);
             };
-            yaml_emitter_emit_node(emitter, event, false, false, true, true)
+            yaml_emitter_emit_node(
+                emitter, event, false, false, true, true,
+            )
         } else {
             if yaml_emitter_write_indicator(
-                    emitter,
-                    b"?\0" as *const u8 as *const libc::c_char,
-                    true,
-                    false,
-                    true,
-                )
-                .fail
+                emitter,
+                b"?\0" as *const u8 as *const libc::c_char,
+                true,
+                false,
+                true,
+            )
+            .fail
             {
                 return FAIL;
             }
             {
                 if (*emitter).states.top == (*emitter).states.end {
                     yaml_stack_extend(
-                        &raw mut (*emitter).states.start as *mut *mut libc::c_void,
-                        &raw mut (*emitter).states.top as *mut *mut libc::c_void,
-                        &raw mut (*emitter).states.end as *mut *mut libc::c_void,
+                        &raw mut (*emitter).states.start
+                            as *mut *mut libc::c_void,
+                        &raw mut (*emitter).states.top
+                            as *mut *mut libc::c_void,
+                        &raw mut (*emitter).states.end
+                            as *mut *mut libc::c_void,
                     );
                 }
-                ptr::write((*emitter).states.top, YamlEmitBlockMappingValueState);
-                (*emitter).states.top = (*emitter).states.top.wrapping_offset(1);
+                ptr::write(
+                    (*emitter).states.top,
+                    YamlEmitBlockMappingValueState,
+                );
+                (*emitter).states.top =
+                    (*emitter).states.top.wrapping_offset(1);
             };
-            yaml_emitter_emit_node(emitter, event, false, false, true, false)
+            yaml_emitter_emit_node(
+                emitter, event, false, false, true, false,
+            )
         }
     }
     unsafe fn yaml_emitter_emit_block_mapping_value(
@@ -3336,13 +3893,13 @@ mod emitter {
     ) -> Success {
         if simple {
             if yaml_emitter_write_indicator(
-                    emitter,
-                    b":\0" as *const u8 as *const libc::c_char,
-                    false,
-                    false,
-                    false,
-                )
-                .fail
+                emitter,
+                b":\0" as *const u8 as *const libc::c_char,
+                false,
+                false,
+                false,
+            )
+            .fail
             {
                 return FAIL;
             }
@@ -3351,13 +3908,13 @@ mod emitter {
                 return FAIL;
             }
             if yaml_emitter_write_indicator(
-                    emitter,
-                    b":\0" as *const u8 as *const libc::c_char,
-                    true,
-                    false,
-                    true,
-                )
-                .fail
+                emitter,
+                b":\0" as *const u8 as *const libc::c_char,
+                true,
+                false,
+                true,
+            )
+            .fail
             {
                 return FAIL;
             }
@@ -3365,15 +3922,24 @@ mod emitter {
         {
             if (*emitter).states.top == (*emitter).states.end {
                 yaml_stack_extend(
-                    &raw mut (*emitter).states.start as *mut *mut libc::c_void,
-                    &raw mut (*emitter).states.top as *mut *mut libc::c_void,
-                    &raw mut (*emitter).states.end as *mut *mut libc::c_void,
+                    &raw mut (*emitter).states.start
+                        as *mut *mut libc::c_void,
+                    &raw mut (*emitter).states.top
+                        as *mut *mut libc::c_void,
+                    &raw mut (*emitter).states.end
+                        as *mut *mut libc::c_void,
                 );
             }
-            ptr::write((*emitter).states.top, YamlEmitBlockMappingKeyState);
-            (*emitter).states.top = (*emitter).states.top.wrapping_offset(1);
+            ptr::write(
+                (*emitter).states.top,
+                YamlEmitBlockMappingKeyState,
+            );
+            (*emitter).states.top =
+                (*emitter).states.top.wrapping_offset(1);
         };
-        yaml_emitter_emit_node(emitter, event, false, false, true, false)
+        yaml_emitter_emit_node(
+            emitter, event, false, false, true, false,
+        )
     }
     unsafe fn yaml_emitter_emit_node(
         emitter: *mut YamlEmitterT,
@@ -3454,8 +4020,10 @@ mod emitter {
         if yaml_emitter_process_tag(emitter).fail {
             return FAIL;
         }
-        if (*emitter).flow_level != 0 || (*emitter).canonical
-            || (*event).data.sequence_start.style == YamlFlowSequenceStyle
+        if (*emitter).flow_level != 0
+            || (*emitter).canonical
+            || (*event).data.sequence_start.style
+                == YamlFlowSequenceStyle
             || yaml_emitter_check_empty_sequence(emitter)
         {
             (*emitter).state = YamlEmitFlowSequenceFirstItemState;
@@ -3474,7 +4042,8 @@ mod emitter {
         if yaml_emitter_process_tag(emitter).fail {
             return FAIL;
         }
-        if (*emitter).flow_level != 0 || (*emitter).canonical
+        if (*emitter).flow_level != 0
+            || (*emitter).canonical
             || (*event).data.mapping_start.style == YamlFlowMappingStyle
             || yaml_emitter_check_empty_mapping(emitter)
         {
@@ -3484,11 +4053,16 @@ mod emitter {
         }
         OK
     }
-    unsafe fn yaml_emitter_check_empty_document(_emitter: *mut YamlEmitterT) -> bool {
+    unsafe fn yaml_emitter_check_empty_document(
+        _emitter: *mut YamlEmitterT,
+    ) -> bool {
         false
     }
-    unsafe fn yaml_emitter_check_empty_sequence(emitter: *mut YamlEmitterT) -> bool {
-        if ((*emitter).events.tail.c_offset_from((*emitter).events.head) as libc::c_long)
+    unsafe fn yaml_emitter_check_empty_sequence(
+        emitter: *mut YamlEmitterT,
+    ) -> bool {
+        if ((*emitter).events.tail.c_offset_from((*emitter).events.head)
+            as libc::c_long)
             < 2_i64
         {
             return false;
@@ -3497,8 +4071,11 @@ mod emitter {
             && (*(*emitter).events.head.wrapping_offset(1_isize)).type_
                 == YamlSequenceEndEvent
     }
-    unsafe fn yaml_emitter_check_empty_mapping(emitter: *mut YamlEmitterT) -> bool {
-        if ((*emitter).events.tail.c_offset_from((*emitter).events.head) as libc::c_long)
+    unsafe fn yaml_emitter_check_empty_mapping(
+        emitter: *mut YamlEmitterT,
+    ) -> bool {
+        if ((*emitter).events.tail.c_offset_from((*emitter).events.head)
+            as libc::c_long)
             < 2_i64
         {
             return false;
@@ -3507,12 +4084,15 @@ mod emitter {
             && (*(*emitter).events.head.wrapping_offset(1_isize)).type_
                 == YamlMappingEndEvent
     }
-    unsafe fn yaml_emitter_check_simple_key(emitter: *mut YamlEmitterT) -> bool {
+    unsafe fn yaml_emitter_check_simple_key(
+        emitter: *mut YamlEmitterT,
+    ) -> bool {
         let event: *mut YamlEventT = (*emitter).events.head;
         let mut length: size_t = 0_u64;
         match (*event).type_ {
             YamlAliasEvent => {
-                length = length.force_add((*emitter).anchor_data.anchor_length);
+                length = length
+                    .force_add((*emitter).anchor_data.anchor_length);
             }
             YamlScalarEvent => {
                 if (*emitter).scalar_data.multiline {
@@ -3556,13 +4136,14 @@ mod emitter {
         let mut style: YamlScalarStyleT = (*event).data.scalar.style;
         let no_tag = (*emitter).tag_data.handle.is_null()
             && (*emitter).tag_data.suffix.is_null();
-        if no_tag && !(*event).data.scalar.plain_implicit
+        if no_tag
+            && !(*event).data.scalar.plain_implicit
             && !(*event).data.scalar.quoted_implicit
         {
             return yaml_emitter_set_emitter_error(
                 emitter,
-                b"neither tag nor implicit flags are specified\0" as *const u8
-                    as *const libc::c_char,
+                b"neither tag nor implicit flags are specified\0"
+                    as *const u8 as *const libc::c_char,
             );
         }
         if style == YamlAnyScalarStyle {
@@ -3571,18 +4152,22 @@ mod emitter {
         if (*emitter).canonical {
             style = YamlDoubleQuotedScalarStyle;
         }
-        if (*emitter).simple_key_context && (*emitter).scalar_data.multiline {
+        if (*emitter).simple_key_context
+            && (*emitter).scalar_data.multiline
+        {
             style = YamlDoubleQuotedScalarStyle;
         }
         if style == YamlPlainScalarStyle {
-            if (*emitter).flow_level != 0 && !(*emitter).scalar_data.flow_plain_allowed
+            if (*emitter).flow_level != 0
+                && !(*emitter).scalar_data.flow_plain_allowed
                 || (*emitter).flow_level == 0
                     && !(*emitter).scalar_data.block_plain_allowed
             {
                 style = YamlSingleQuotedScalarStyle;
             }
             if (*emitter).scalar_data.length == 0
-                && ((*emitter).flow_level != 0 || (*emitter).simple_key_context)
+                && ((*emitter).flow_level != 0
+                    || (*emitter).simple_key_context)
             {
                 style = YamlSingleQuotedScalarStyle;
             }
@@ -3595,38 +4180,44 @@ mod emitter {
         {
             style = YamlDoubleQuotedScalarStyle;
         }
-        if (style == YamlLiteralScalarStyle || style == YamlFoldedScalarStyle)
-            && (!(*emitter).scalar_data.block_allowed || (*emitter).flow_level != 0
+        if (style == YamlLiteralScalarStyle
+            || style == YamlFoldedScalarStyle)
+            && (!(*emitter).scalar_data.block_allowed
+                || (*emitter).flow_level != 0
                 || (*emitter).simple_key_context)
         {
             style = YamlDoubleQuotedScalarStyle;
         }
-        if no_tag && !(*event).data.scalar.quoted_implicit
+        if no_tag
+            && !(*event).data.scalar.quoted_implicit
             && style != YamlPlainScalarStyle
         {
             let fresh46 = &raw mut (*emitter).tag_data.handle;
-            *fresh46 = b"!\0" as *const u8 as *const libc::c_char as *mut yaml_char_t;
+            *fresh46 = b"!\0" as *const u8 as *const libc::c_char
+                as *mut yaml_char_t;
             (*emitter).tag_data.handle_length = 1_u64;
         }
         (*emitter).scalar_data.style = style;
         OK
     }
-    unsafe fn yaml_emitter_process_anchor(emitter: *mut YamlEmitterT) -> Success {
+    unsafe fn yaml_emitter_process_anchor(
+        emitter: *mut YamlEmitterT,
+    ) -> Success {
         if (*emitter).anchor_data.anchor.is_null() {
             return OK;
         }
         if yaml_emitter_write_indicator(
-                emitter,
-                if (*emitter).anchor_data.alias {
-                    b"*\0" as *const u8 as *const libc::c_char
-                } else {
-                    b"&\0" as *const u8 as *const libc::c_char
-                },
-                true,
-                false,
-                false,
-            )
-            .fail
+            emitter,
+            if (*emitter).anchor_data.alias {
+                b"*\0" as *const u8 as *const libc::c_char
+            } else {
+                b"&\0" as *const u8 as *const libc::c_char
+            },
+            true,
+            false,
+            false,
+        )
+        .fail
         {
             return FAIL;
         }
@@ -3636,44 +4227,26 @@ mod emitter {
             (*emitter).anchor_data.anchor_length,
         )
     }
-    unsafe fn yaml_emitter_process_tag(emitter: *mut YamlEmitterT) -> Success {
-        if (*emitter).tag_data.handle.is_null() && (*emitter).tag_data.suffix.is_null() {
+    unsafe fn yaml_emitter_process_tag(
+        emitter: *mut YamlEmitterT,
+    ) -> Success {
+        if (*emitter).tag_data.handle.is_null()
+            && (*emitter).tag_data.suffix.is_null()
+        {
             return OK;
         }
         if !(*emitter).tag_data.handle.is_null() {
             if yaml_emitter_write_tag_handle(
-                    emitter,
-                    (*emitter).tag_data.handle,
-                    (*emitter).tag_data.handle_length,
-                )
-                .fail
+                emitter,
+                (*emitter).tag_data.handle,
+                (*emitter).tag_data.handle_length,
+            )
+            .fail
             {
                 return FAIL;
             }
             if !(*emitter).tag_data.suffix.is_null()
                 && yaml_emitter_write_tag_content(
-                        emitter,
-                        (*emitter).tag_data.suffix,
-                        (*emitter).tag_data.suffix_length,
-                        false,
-                    )
-                    .fail
-            {
-                return FAIL;
-            }
-        } else {
-            if yaml_emitter_write_indicator(
-                    emitter,
-                    b"!<\0" as *const u8 as *const libc::c_char,
-                    true,
-                    false,
-                    false,
-                )
-                .fail
-            {
-                return FAIL;
-            }
-            if yaml_emitter_write_tag_content(
                     emitter,
                     (*emitter).tag_data.suffix,
                     (*emitter).tag_data.suffix_length,
@@ -3683,21 +4256,45 @@ mod emitter {
             {
                 return FAIL;
             }
+        } else {
             if yaml_emitter_write_indicator(
-                    emitter,
-                    b">\0" as *const u8 as *const libc::c_char,
-                    false,
-                    false,
-                    false,
-                )
-                .fail
+                emitter,
+                b"!<\0" as *const u8 as *const libc::c_char,
+                true,
+                false,
+                false,
+            )
+            .fail
+            {
+                return FAIL;
+            }
+            if yaml_emitter_write_tag_content(
+                emitter,
+                (*emitter).tag_data.suffix,
+                (*emitter).tag_data.suffix_length,
+                false,
+            )
+            .fail
+            {
+                return FAIL;
+            }
+            if yaml_emitter_write_indicator(
+                emitter,
+                b">\0" as *const u8 as *const libc::c_char,
+                false,
+                false,
+                false,
+            )
+            .fail
             {
                 return FAIL;
             }
         }
         OK
     }
-    unsafe fn yaml_emitter_process_scalar(emitter: *mut YamlEmitterT) -> Success {
+    unsafe fn yaml_emitter_process_scalar(
+        emitter: *mut YamlEmitterT,
+    ) -> Success {
         match (*emitter).scalar_data.style {
             YamlPlainScalarStyle => {
                 return yaml_emitter_write_plain_scalar(
@@ -3746,11 +4343,13 @@ mod emitter {
         version_directive: YamlVersionDirectiveT,
     ) -> Success {
         if version_directive.major != 1
-            || version_directive.minor != 1 && version_directive.minor != 2
+            || version_directive.minor != 1
+                && version_directive.minor != 2
         {
             return yaml_emitter_set_emitter_error(
                 emitter,
-                b"incompatible %YAML directive\0" as *const u8 as *const libc::c_char,
+                b"incompatible %YAML directive\0" as *const u8
+                    as *const libc::c_char,
             );
         }
         OK
@@ -3759,34 +4358,43 @@ mod emitter {
         emitter: *mut YamlEmitterT,
         tag_directive: YamlTagDirectiveT,
     ) -> Success {
-        let handle_length: size_t = strlen(tag_directive.handle as *mut libc::c_char);
-        let prefix_length: size_t = strlen(tag_directive.prefix as *mut libc::c_char);
+        let handle_length: size_t =
+            strlen(tag_directive.handle as *mut libc::c_char);
+        let prefix_length: size_t =
+            strlen(tag_directive.prefix as *mut libc::c_char);
         let mut handle = YamlStringT {
             start: tag_directive.handle,
-            end: tag_directive.handle.wrapping_offset(handle_length as isize),
+            end: tag_directive
+                .handle
+                .wrapping_offset(handle_length as isize),
             pointer: tag_directive.handle,
         };
         let prefix = YamlStringT {
             start: tag_directive.prefix,
-            end: tag_directive.prefix.wrapping_offset(prefix_length as isize),
+            end: tag_directive
+                .prefix
+                .wrapping_offset(prefix_length as isize),
             pointer: tag_directive.prefix,
         };
         if handle.start == handle.end {
             return yaml_emitter_set_emitter_error(
                 emitter,
-                b"tag handle must not be empty\0" as *const u8 as *const libc::c_char,
+                b"tag handle must not be empty\0" as *const u8
+                    as *const libc::c_char,
             );
         }
         if *handle.start != b'!' {
             return yaml_emitter_set_emitter_error(
                 emitter,
-                b"tag handle must start with '!'\0" as *const u8 as *const libc::c_char,
+                b"tag handle must start with '!'\0" as *const u8
+                    as *const libc::c_char,
             );
         }
         if *handle.end.wrapping_offset(-1_isize) != b'!' {
             return yaml_emitter_set_emitter_error(
                 emitter,
-                b"tag handle must end with '!'\0" as *const u8 as *const libc::c_char,
+                b"tag handle must end with '!'\0" as *const u8
+                    as *const libc::c_char,
             );
         }
         handle.pointer = handle.pointer.wrapping_offset(1);
@@ -3794,7 +4402,8 @@ mod emitter {
             if !(*handle.pointer >= b'0' && *handle.pointer <= b'9'
                 || *handle.pointer >= b'A' && *handle.pointer <= b'Z'
                 || *handle.pointer >= b'a' && *handle.pointer <= b'z'
-                || *handle.pointer == b'_' || *handle.pointer == b'-')
+                || *handle.pointer == b'_'
+                || *handle.pointer == b'-')
             {
                 return yaml_emitter_set_emitter_error(
                     emitter,
@@ -3802,26 +4411,31 @@ mod emitter {
                         as *const u8 as *const libc::c_char,
                 );
             }
-            handle.pointer = handle
-                .pointer
-                .wrapping_offset(
-                    if *handle.pointer.wrapping_offset(0) & 0x80 == 0x00 {
-                        1
-                    } else if *handle.pointer.wrapping_offset(0) & 0xE0 == 0xC0 {
-                        2
-                    } else if *handle.pointer.wrapping_offset(0) & 0xF0 == 0xE0 {
-                        3
-                    } else if *handle.pointer.wrapping_offset(0) & 0xF8 == 0xF0 {
-                        4
-                    } else {
-                        0
-                    },
-                );
+            handle.pointer = handle.pointer.wrapping_offset(
+                if *handle.pointer.wrapping_offset(0) & 0x80 == 0x00 {
+                    1
+                } else if *handle.pointer.wrapping_offset(0) & 0xE0
+                    == 0xC0
+                {
+                    2
+                } else if *handle.pointer.wrapping_offset(0) & 0xF0
+                    == 0xE0
+                {
+                    3
+                } else if *handle.pointer.wrapping_offset(0) & 0xF8
+                    == 0xF0
+                {
+                    4
+                } else {
+                    0
+                },
+            );
         }
         if prefix.start == prefix.end {
             return yaml_emitter_set_emitter_error(
                 emitter,
-                b"tag prefix must not be empty\0" as *const u8 as *const libc::c_char,
+                b"tag prefix must not be empty\0" as *const u8
+                    as *const libc::c_char,
             );
         }
         OK
@@ -3853,7 +4467,8 @@ mod emitter {
             if !(*string.pointer >= b'0' && *string.pointer <= b'9'
                 || *string.pointer >= b'A' && *string.pointer <= b'Z'
                 || *string.pointer >= b'a' && *string.pointer <= b'z'
-                || *string.pointer == b'_' || *string.pointer == b'-')
+                || *string.pointer == b'_'
+                || *string.pointer == b'-')
             {
                 return yaml_emitter_set_emitter_error(
                     emitter,
@@ -3866,26 +4481,30 @@ mod emitter {
                     },
                 );
             }
-            string.pointer = string
-                .pointer
-                .wrapping_offset(
-                    if *string.pointer.wrapping_offset(0) & 0x80 == 0x00 {
-                        1
-                    } else if *string.pointer.wrapping_offset(0) & 0xE0 == 0xC0 {
-                        2
-                    } else if *string.pointer.wrapping_offset(0) & 0xF0 == 0xE0 {
-                        3
-                    } else if *string.pointer.wrapping_offset(0) & 0xF8 == 0xF0 {
-                        4
-                    } else {
-                        0
-                    },
-                );
+            string.pointer = string.pointer.wrapping_offset(
+                if *string.pointer.wrapping_offset(0) & 0x80 == 0x00 {
+                    1
+                } else if *string.pointer.wrapping_offset(0) & 0xE0
+                    == 0xC0
+                {
+                    2
+                } else if *string.pointer.wrapping_offset(0) & 0xF0
+                    == 0xE0
+                {
+                    3
+                } else if *string.pointer.wrapping_offset(0) & 0xF8
+                    == 0xF0
+                {
+                    4
+                } else {
+                    0
+                },
+            );
         }
         let fresh47 = &raw mut (*emitter).anchor_data.anchor;
         *fresh47 = string.start;
-        (*emitter).anchor_data.anchor_length = string.end.c_offset_from(string.start)
-            as size_t;
+        (*emitter).anchor_data.anchor_length =
+            string.end.c_offset_from(string.start) as size_t;
         (*emitter).anchor_data.alias = alias;
         OK
     }
@@ -3903,15 +4522,16 @@ mod emitter {
         if string.start == string.end {
             return yaml_emitter_set_emitter_error(
                 emitter,
-                b"tag value must not be empty\0" as *const u8 as *const libc::c_char,
+                b"tag value must not be empty\0" as *const u8
+                    as *const libc::c_char,
             );
         }
         tag_directive = (*emitter).tag_directives.start;
         while tag_directive != (*emitter).tag_directives.top {
-            let prefix_length: size_t = strlen(
-                (*tag_directive).prefix as *mut libc::c_char,
-            );
-            if prefix_length < string.end.c_offset_from(string.start) as size_t
+            let prefix_length: size_t =
+                strlen((*tag_directive).prefix as *mut libc::c_char);
+            if prefix_length
+                < string.end.c_offset_from(string.start) as size_t
                 && strncmp(
                     (*tag_directive).prefix as *mut libc::c_char,
                     string.start as *mut libc::c_char,
@@ -3924,19 +4544,21 @@ mod emitter {
                     (*tag_directive).handle as *mut libc::c_char,
                 );
                 let fresh49 = &raw mut (*emitter).tag_data.suffix;
-                *fresh49 = string.start.wrapping_offset(prefix_length as isize);
-                (*emitter).tag_data.suffix_length = (string
-                    .end
-                    .c_offset_from(string.start) as libc::c_ulong)
-                    .wrapping_sub(prefix_length);
+                *fresh49 = string
+                    .start
+                    .wrapping_offset(prefix_length as isize);
+                (*emitter).tag_data.suffix_length =
+                    (string.end.c_offset_from(string.start)
+                        as libc::c_ulong)
+                        .wrapping_sub(prefix_length);
                 return OK;
             }
             tag_directive = tag_directive.wrapping_offset(1);
         }
         let fresh50 = &raw mut (*emitter).tag_data.suffix;
         *fresh50 = string.start;
-        (*emitter).tag_data.suffix_length = string.end.c_offset_from(string.start)
-            as size_t;
+        (*emitter).tag_data.suffix_length =
+            string.end.c_offset_from(string.start) as size_t;
         OK
     }
     unsafe fn yaml_emitter_analyze_scalar(
@@ -3974,230 +4596,319 @@ mod emitter {
             (*emitter).scalar_data.block_allowed = false;
             return OK;
         }
-        if *string.pointer.offset(0) == b'-' && *string.pointer.offset(1) == b'-'
+        if *string.pointer.offset(0) == b'-'
+            && *string.pointer.offset(1) == b'-'
             && *string.pointer.offset(2) == b'-'
-            || *string.pointer.offset(0) == b'.' && *string.pointer.offset(1) == b'.'
+            || *string.pointer.offset(0) == b'.'
+                && *string.pointer.offset(1) == b'.'
                 && *string.pointer.offset(2) == b'.'
         {
             block_indicators = true;
             flow_indicators = true;
         }
         preceded_by_whitespace = true;
-        followed_by_whitespace = *string
-            .pointer
-            .offset(
+        followed_by_whitespace = *string.pointer.offset(
+            if *string.pointer.wrapping_offset(0) & 0x80 == 0x00 {
+                1
+            } else if *string.pointer.wrapping_offset(0) & 0xE0 == 0xC0
+            {
+                2
+            } else if *string.pointer.wrapping_offset(0) & 0xF0 == 0xE0
+            {
+                3
+            } else if *string.pointer.wrapping_offset(0) & 0xF8 == 0xF0
+            {
+                4
+            } else {
+                0
+            },
+        ) == b' '
+            || *string.pointer.offset(
                 if *string.pointer.wrapping_offset(0) & 0x80 == 0x00 {
                     1
-                } else if *string.pointer.wrapping_offset(0) & 0xE0 == 0xC0 {
+                } else if *string.pointer.wrapping_offset(0) & 0xE0
+                    == 0xC0
+                {
                     2
-                } else if *string.pointer.wrapping_offset(0) & 0xF0 == 0xE0 {
+                } else if *string.pointer.wrapping_offset(0) & 0xF0
+                    == 0xE0
+                {
                     3
-                } else if *string.pointer.wrapping_offset(0) & 0xF8 == 0xF0 {
+                } else if *string.pointer.wrapping_offset(0) & 0xF8
+                    == 0xF0
+                {
                     4
                 } else {
                     0
                 },
-            ) == b' '
-            || *string
-                .pointer
-                .offset(
-                    if *string.pointer.wrapping_offset(0) & 0x80 == 0x00 {
+            ) == b'\t'
+            || (*string.pointer.offset(
+                if *string.pointer.wrapping_offset(0) & 0x80 == 0x00 {
+                    1
+                } else if *string.pointer.wrapping_offset(0) & 0xE0
+                    == 0xC0
+                {
+                    2
+                } else if *string.pointer.wrapping_offset(0) & 0xF0
+                    == 0xE0
+                {
+                    3
+                } else if *string.pointer.wrapping_offset(0) & 0xF8
+                    == 0xF0
+                {
+                    4
+                } else {
+                    0
+                },
+            ) == b'\r'
+                || *string.pointer.offset(
+                    if *string.pointer.wrapping_offset(0) & 0x80 == 0x00
+                    {
                         1
-                    } else if *string.pointer.wrapping_offset(0) & 0xE0 == 0xC0 {
+                    } else if *string.pointer.wrapping_offset(0) & 0xE0
+                        == 0xC0
+                    {
                         2
-                    } else if *string.pointer.wrapping_offset(0) & 0xF0 == 0xE0 {
+                    } else if *string.pointer.wrapping_offset(0) & 0xF0
+                        == 0xE0
+                    {
                         3
-                    } else if *string.pointer.wrapping_offset(0) & 0xF8 == 0xF0 {
+                    } else if *string.pointer.wrapping_offset(0) & 0xF8
+                        == 0xF0
+                    {
                         4
                     } else {
                         0
                     },
-                ) == b'\t'
-            || (*string
-                .pointer
-                .offset(
-                    if *string.pointer.wrapping_offset(0) & 0x80 == 0x00 {
+                ) == b'\n'
+                || *string.pointer.offset(
+                    if *string.pointer.wrapping_offset(0) & 0x80 == 0x00
+                    {
                         1
-                    } else if *string.pointer.wrapping_offset(0) & 0xE0 == 0xC0 {
+                    } else if *string.pointer.wrapping_offset(0) & 0xE0
+                        == 0xC0
+                    {
                         2
-                    } else if *string.pointer.wrapping_offset(0) & 0xF0 == 0xE0 {
+                    } else if *string.pointer.wrapping_offset(0) & 0xF0
+                        == 0xE0
+                    {
                         3
-                    } else if *string.pointer.wrapping_offset(0) & 0xF8 == 0xF0 {
+                    } else if *string.pointer.wrapping_offset(0) & 0xF8
+                        == 0xF0
+                    {
                         4
                     } else {
                         0
                     },
-                ) == b'\r'
-                || *string
-                    .pointer
-                    .offset(
-                        if *string.pointer.wrapping_offset(0) & 0x80 == 0x00 {
+                ) == b'\xC2'
+                    && *string.pointer.offset(
+                        (if *string.pointer.wrapping_offset(0) & 0x80
+                            == 0x00
+                        {
                             1
-                        } else if *string.pointer.wrapping_offset(0) & 0xE0 == 0xC0 {
+                        } else if *string.pointer.wrapping_offset(0)
+                            & 0xE0
+                            == 0xC0
+                        {
                             2
-                        } else if *string.pointer.wrapping_offset(0) & 0xF0 == 0xE0 {
+                        } else if *string.pointer.wrapping_offset(0)
+                            & 0xF0
+                            == 0xE0
+                        {
                             3
-                        } else if *string.pointer.wrapping_offset(0) & 0xF8 == 0xF0 {
+                        } else if *string.pointer.wrapping_offset(0)
+                            & 0xF8
+                            == 0xF0
+                        {
                             4
                         } else {
                             0
-                        },
-                    ) == b'\n'
-                || *string
-                    .pointer
-                    .offset(
-                        if *string.pointer.wrapping_offset(0) & 0x80 == 0x00 {
+                        } + 1)
+                            .try_into()
+                            .unwrap(),
+                    ) == b'\x85'
+                || *string.pointer.offset(
+                    if *string.pointer.wrapping_offset(0) & 0x80 == 0x00
+                    {
+                        1
+                    } else if *string.pointer.wrapping_offset(0) & 0xE0
+                        == 0xC0
+                    {
+                        2
+                    } else if *string.pointer.wrapping_offset(0) & 0xF0
+                        == 0xE0
+                    {
+                        3
+                    } else if *string.pointer.wrapping_offset(0) & 0xF8
+                        == 0xF0
+                    {
+                        4
+                    } else {
+                        0
+                    },
+                ) == b'\xE2'
+                    && *string.pointer.offset(
+                        (if *string.pointer.wrapping_offset(0) & 0x80
+                            == 0x00
+                        {
                             1
-                        } else if *string.pointer.wrapping_offset(0) & 0xE0 == 0xC0 {
+                        } else if *string.pointer.wrapping_offset(0)
+                            & 0xE0
+                            == 0xC0
+                        {
                             2
-                        } else if *string.pointer.wrapping_offset(0) & 0xF0 == 0xE0 {
+                        } else if *string.pointer.wrapping_offset(0)
+                            & 0xF0
+                            == 0xE0
+                        {
                             3
-                        } else if *string.pointer.wrapping_offset(0) & 0xF8 == 0xF0 {
+                        } else if *string.pointer.wrapping_offset(0)
+                            & 0xF8
+                            == 0xF0
+                        {
                             4
                         } else {
                             0
-                        },
-                    ) == b'\xC2'
-                    && *string
-                        .pointer
-                        .offset(
-                            (if *string.pointer.wrapping_offset(0) & 0x80 == 0x00 {
-                                1
-                            } else if *string.pointer.wrapping_offset(0) & 0xE0 == 0xC0 {
-                                2
-                            } else if *string.pointer.wrapping_offset(0) & 0xF0 == 0xE0 {
-                                3
-                            } else if *string.pointer.wrapping_offset(0) & 0xF8 == 0xF0 {
-                                4
-                            } else {
-                                0
-                            } + 1)
-                                .try_into()
-                                .unwrap(),
-                        ) == b'\x85'
-                || *string
-                    .pointer
-                    .offset(
-                        if *string.pointer.wrapping_offset(0) & 0x80 == 0x00 {
+                        } + 1)
+                            .try_into()
+                            .unwrap(),
+                    ) == b'\x80'
+                    && *string.pointer.offset(
+                        (if *string.pointer.wrapping_offset(0) & 0x80
+                            == 0x00
+                        {
                             1
-                        } else if *string.pointer.wrapping_offset(0) & 0xE0 == 0xC0 {
+                        } else if *string.pointer.wrapping_offset(0)
+                            & 0xE0
+                            == 0xC0
+                        {
                             2
-                        } else if *string.pointer.wrapping_offset(0) & 0xF0 == 0xE0 {
+                        } else if *string.pointer.wrapping_offset(0)
+                            & 0xF0
+                            == 0xE0
+                        {
                             3
-                        } else if *string.pointer.wrapping_offset(0) & 0xF8 == 0xF0 {
+                        } else if *string.pointer.wrapping_offset(0)
+                            & 0xF8
+                            == 0xF0
+                        {
                             4
                         } else {
                             0
-                        },
-                    ) == b'\xE2'
-                    && *string
-                        .pointer
-                        .offset(
-                            (if *string.pointer.wrapping_offset(0) & 0x80 == 0x00 {
-                                1
-                            } else if *string.pointer.wrapping_offset(0) & 0xE0 == 0xC0 {
-                                2
-                            } else if *string.pointer.wrapping_offset(0) & 0xF0 == 0xE0 {
-                                3
-                            } else if *string.pointer.wrapping_offset(0) & 0xF8 == 0xF0 {
-                                4
-                            } else {
-                                0
-                            } + 1)
-                                .try_into()
-                                .unwrap(),
-                        ) == b'\x80'
-                    && *string
-                        .pointer
-                        .offset(
-                            (if *string.pointer.wrapping_offset(0) & 0x80 == 0x00 {
-                                1
-                            } else if *string.pointer.wrapping_offset(0) & 0xE0 == 0xC0 {
-                                2
-                            } else if *string.pointer.wrapping_offset(0) & 0xF0 == 0xE0 {
-                                3
-                            } else if *string.pointer.wrapping_offset(0) & 0xF8 == 0xF0 {
-                                4
-                            } else {
-                                0
-                            } + 2)
-                                .try_into()
-                                .unwrap(),
-                        ) == b'\xA8'
-                || *string
-                    .pointer
-                    .offset(
-                        if *string.pointer.wrapping_offset(0) & 0x80 == 0x00 {
+                        } + 2)
+                            .try_into()
+                            .unwrap(),
+                    ) == b'\xA8'
+                || *string.pointer.offset(
+                    if *string.pointer.wrapping_offset(0) & 0x80 == 0x00
+                    {
+                        1
+                    } else if *string.pointer.wrapping_offset(0) & 0xE0
+                        == 0xC0
+                    {
+                        2
+                    } else if *string.pointer.wrapping_offset(0) & 0xF0
+                        == 0xE0
+                    {
+                        3
+                    } else if *string.pointer.wrapping_offset(0) & 0xF8
+                        == 0xF0
+                    {
+                        4
+                    } else {
+                        0
+                    },
+                ) == b'\xE2'
+                    && *string.pointer.offset(
+                        (if *string.pointer.wrapping_offset(0) & 0x80
+                            == 0x00
+                        {
                             1
-                        } else if *string.pointer.wrapping_offset(0) & 0xE0 == 0xC0 {
+                        } else if *string.pointer.wrapping_offset(0)
+                            & 0xE0
+                            == 0xC0
+                        {
                             2
-                        } else if *string.pointer.wrapping_offset(0) & 0xF0 == 0xE0 {
+                        } else if *string.pointer.wrapping_offset(0)
+                            & 0xF0
+                            == 0xE0
+                        {
                             3
-                        } else if *string.pointer.wrapping_offset(0) & 0xF8 == 0xF0 {
+                        } else if *string.pointer.wrapping_offset(0)
+                            & 0xF8
+                            == 0xF0
+                        {
                             4
                         } else {
                             0
-                        },
-                    ) == b'\xE2'
-                    && *string
-                        .pointer
-                        .offset(
-                            (if *string.pointer.wrapping_offset(0) & 0x80 == 0x00 {
-                                1
-                            } else if *string.pointer.wrapping_offset(0) & 0xE0 == 0xC0 {
-                                2
-                            } else if *string.pointer.wrapping_offset(0) & 0xF0 == 0xE0 {
-                                3
-                            } else if *string.pointer.wrapping_offset(0) & 0xF8 == 0xF0 {
-                                4
-                            } else {
-                                0
-                            } + 1)
-                                .try_into()
-                                .unwrap(),
-                        ) == b'\x80'
-                    && *string
-                        .pointer
-                        .offset(
-                            (if *string.pointer.wrapping_offset(0) & 0x80 == 0x00 {
-                                1
-                            } else if *string.pointer.wrapping_offset(0) & 0xE0 == 0xC0 {
-                                2
-                            } else if *string.pointer.wrapping_offset(0) & 0xF0 == 0xE0 {
-                                3
-                            } else if *string.pointer.wrapping_offset(0) & 0xF8 == 0xF0 {
-                                4
-                            } else {
-                                0
-                            } + 2)
-                                .try_into()
-                                .unwrap(),
-                        ) == b'\xA9'
-                || *string
-                    .pointer
-                    .offset(
-                        if *string.pointer.wrapping_offset(0) & 0x80 == 0x00 {
+                        } + 1)
+                            .try_into()
+                            .unwrap(),
+                    ) == b'\x80'
+                    && *string.pointer.offset(
+                        (if *string.pointer.wrapping_offset(0) & 0x80
+                            == 0x00
+                        {
                             1
-                        } else if *string.pointer.wrapping_offset(0) & 0xE0 == 0xC0 {
+                        } else if *string.pointer.wrapping_offset(0)
+                            & 0xE0
+                            == 0xC0
+                        {
                             2
-                        } else if *string.pointer.wrapping_offset(0) & 0xF0 == 0xE0 {
+                        } else if *string.pointer.wrapping_offset(0)
+                            & 0xF0
+                            == 0xE0
+                        {
                             3
-                        } else if *string.pointer.wrapping_offset(0) & 0xF8 == 0xF0 {
+                        } else if *string.pointer.wrapping_offset(0)
+                            & 0xF8
+                            == 0xF0
+                        {
                             4
                         } else {
                             0
-                        },
-                    ) == b'\0');
+                        } + 2)
+                            .try_into()
+                            .unwrap(),
+                    ) == b'\xA9'
+                || *string.pointer.offset(
+                    if *string.pointer.wrapping_offset(0) & 0x80 == 0x00
+                    {
+                        1
+                    } else if *string.pointer.wrapping_offset(0) & 0xE0
+                        == 0xC0
+                    {
+                        2
+                    } else if *string.pointer.wrapping_offset(0) & 0xF0
+                        == 0xE0
+                    {
+                        3
+                    } else if *string.pointer.wrapping_offset(0) & 0xF8
+                        == 0xF0
+                    {
+                        4
+                    } else {
+                        0
+                    },
+                ) == b'\0');
         while string.pointer != string.end {
             if string.start == string.pointer {
-                if *string.pointer == b'#' || *string.pointer == b','
-                    || *string.pointer == b'[' || *string.pointer == b']'
-                    || *string.pointer == b'{' || *string.pointer == b'}'
-                    || *string.pointer == b'&' || *string.pointer == b'*'
-                    || *string.pointer == b'!' || *string.pointer == b'|'
-                    || *string.pointer == b'>' || *string.pointer == b'\''
-                    || *string.pointer == b'"' || *string.pointer == b'%'
-                    || *string.pointer == b'@' || *string.pointer == b'`'
+                if *string.pointer == b'#'
+                    || *string.pointer == b','
+                    || *string.pointer == b'['
+                    || *string.pointer == b']'
+                    || *string.pointer == b'{'
+                    || *string.pointer == b'}'
+                    || *string.pointer == b'&'
+                    || *string.pointer == b'*'
+                    || *string.pointer == b'!'
+                    || *string.pointer == b'|'
+                    || *string.pointer == b'>'
+                    || *string.pointer == b'\''
+                    || *string.pointer == b'"'
+                    || *string.pointer == b'%'
+                    || *string.pointer == b'@'
+                    || *string.pointer == b'`'
                 {
                     flow_indicators = true;
                     block_indicators = true;
@@ -4213,9 +4924,12 @@ mod emitter {
                     block_indicators = true;
                 }
             } else {
-                if *string.pointer == b',' || *string.pointer == b'?'
-                    || *string.pointer == b'[' || *string.pointer == b']'
-                    || *string.pointer == b'{' || *string.pointer == b'}'
+                if *string.pointer == b','
+                    || *string.pointer == b'?'
+                    || *string.pointer == b'['
+                    || *string.pointer == b']'
+                    || *string.pointer == b'{'
+                    || *string.pointer == b'}'
                 {
                     flow_indicators = true;
                 }
@@ -4232,52 +4946,58 @@ mod emitter {
             }
             if !match *string.pointer {
                 0x0A | 0x20..=0x7E => true,
-                0xC2 => {
-                    match *string.pointer.wrapping_offset(1) {
-                        0xA0..=0xBF => true,
-                        _ => false,
-                    }
-                }
+                0xC2 => match *string.pointer.wrapping_offset(1) {
+                    0xA0..=0xBF => true,
+                    _ => false,
+                },
                 0xC3..=0xEC => true,
-                0xED => {
-                    match *string.pointer.wrapping_offset(1) {
-                        0x00..=0x9F => true,
-                        _ => false,
-                    }
-                }
+                0xED => match *string.pointer.wrapping_offset(1) {
+                    0x00..=0x9F => true,
+                    _ => false,
+                },
                 0xEE => true,
-                0xEF => {
-                    match *string.pointer.wrapping_offset(1) {
-                        0xBB => {
-                            match *string.pointer.wrapping_offset(2) {
-                                0xBF => false,
-                                _ => true,
-                            }
-                        }
-                        0xBF => {
-                            match *string.pointer.wrapping_offset(2) {
-                                0xBE | 0xBF => false,
-                                _ => true,
-                            }
-                        }
+                0xEF => match *string.pointer.wrapping_offset(1) {
+                    0xBB => match *string.pointer.wrapping_offset(2) {
+                        0xBF => false,
                         _ => true,
-                    }
-                }
+                    },
+                    0xBF => match *string.pointer.wrapping_offset(2) {
+                        0xBE | 0xBF => false,
+                        _ => true,
+                    },
+                    _ => true,
+                },
                 0xF0..=0xF4 => true,
                 _ => false,
             } || !(*string.pointer <= b'\x7F') && !(*emitter).unicode
             {
                 special_characters = true;
             }
-            if *string.pointer.offset(0) == b'\r' || *string.pointer.offset(0) == b'\n'
+            if *string.pointer.offset(0) == b'\r'
+                || *string.pointer.offset(0) == b'\n'
                 || *string.pointer.offset(0) == b'\xC2'
-                    && *string.pointer.offset((0 + 1).try_into().unwrap()) == b'\x85'
+                    && *string
+                        .pointer
+                        .offset((0 + 1).try_into().unwrap())
+                        == b'\x85'
                 || *string.pointer.offset(0) == b'\xE2'
-                    && *string.pointer.offset((0 + 1).try_into().unwrap()) == b'\x80'
-                    && *string.pointer.offset((0 + 2).try_into().unwrap()) == b'\xA8'
+                    && *string
+                        .pointer
+                        .offset((0 + 1).try_into().unwrap())
+                        == b'\x80'
+                    && *string
+                        .pointer
+                        .offset((0 + 2).try_into().unwrap())
+                        == b'\xA8'
                 || *string.pointer.offset(0) == b'\xE2'
-                    && *string.pointer.offset((0 + 1).try_into().unwrap()) == b'\x80'
-                    && *string.pointer.offset((0 + 2).try_into().unwrap()) == b'\xA9'
+                    && *string
+                        .pointer
+                        .offset((0 + 1).try_into().unwrap())
+                        == b'\x80'
+                    && *string
+                        .pointer
+                        .offset((0 + 2).try_into().unwrap())
+                        == b'\xA9'
             {
                 line_breaks = true;
             }
@@ -4285,21 +5005,30 @@ mod emitter {
                 if string.start == string.pointer {
                     leading_space = true;
                 }
-                if string
+                if string.pointer.wrapping_offset(if *string
                     .pointer
-                    .wrapping_offset(
-                        if *string.pointer.wrapping_offset(0) & 0x80 == 0x00 {
-                            1
-                        } else if *string.pointer.wrapping_offset(0) & 0xE0 == 0xC0 {
-                            2
-                        } else if *string.pointer.wrapping_offset(0) & 0xF0 == 0xE0 {
-                            3
-                        } else if *string.pointer.wrapping_offset(0) & 0xF8 == 0xF0 {
-                            4
-                        } else {
-                            0
-                        } as isize,
-                    ) == string.end
+                    .wrapping_offset(0)
+                    & 0x80
+                    == 0x00
+                {
+                    1
+                } else if *string.pointer.wrapping_offset(0) & 0xE0
+                    == 0xC0
+                {
+                    2
+                } else if *string.pointer.wrapping_offset(0) & 0xF0
+                    == 0xE0
+                {
+                    3
+                } else if *string.pointer.wrapping_offset(0) & 0xF8
+                    == 0xF0
+                {
+                    4
+                } else {
+                    0
+                }
+                    as isize)
+                    == string.end
                 {
                     trailing_space = true;
                 }
@@ -4311,32 +5040,56 @@ mod emitter {
             } else if *string.pointer.offset(0) == b'\r'
                 || *string.pointer.offset(0) == b'\n'
                 || *string.pointer.offset(0) == b'\xC2'
-                    && *string.pointer.offset((0 + 1).try_into().unwrap()) == b'\x85'
+                    && *string
+                        .pointer
+                        .offset((0 + 1).try_into().unwrap())
+                        == b'\x85'
                 || *string.pointer.offset(0) == b'\xE2'
-                    && *string.pointer.offset((0 + 1).try_into().unwrap()) == b'\x80'
-                    && *string.pointer.offset((0 + 2).try_into().unwrap()) == b'\xA8'
+                    && *string
+                        .pointer
+                        .offset((0 + 1).try_into().unwrap())
+                        == b'\x80'
+                    && *string
+                        .pointer
+                        .offset((0 + 2).try_into().unwrap())
+                        == b'\xA8'
                 || *string.pointer.offset(0) == b'\xE2'
-                    && *string.pointer.offset((0 + 1).try_into().unwrap()) == b'\x80'
-                    && *string.pointer.offset((0 + 2).try_into().unwrap()) == b'\xA9'
+                    && *string
+                        .pointer
+                        .offset((0 + 1).try_into().unwrap())
+                        == b'\x80'
+                    && *string
+                        .pointer
+                        .offset((0 + 2).try_into().unwrap())
+                        == b'\xA9'
             {
                 if string.start == string.pointer {
                     leading_break = true;
                 }
-                if string
+                if string.pointer.wrapping_offset(if *string
                     .pointer
-                    .wrapping_offset(
-                        if *string.pointer.wrapping_offset(0) & 0x80 == 0x00 {
-                            1
-                        } else if *string.pointer.wrapping_offset(0) & 0xE0 == 0xC0 {
-                            2
-                        } else if *string.pointer.wrapping_offset(0) & 0xF0 == 0xE0 {
-                            3
-                        } else if *string.pointer.wrapping_offset(0) & 0xF8 == 0xF0 {
-                            4
-                        } else {
-                            0
-                        } as isize,
-                    ) == string.end
+                    .wrapping_offset(0)
+                    & 0x80
+                    == 0x00
+                {
+                    1
+                } else if *string.pointer.wrapping_offset(0) & 0xE0
+                    == 0xC0
+                {
+                    2
+                } else if *string.pointer.wrapping_offset(0) & 0xF0
+                    == 0xE0
+                {
+                    3
+                } else if *string.pointer.wrapping_offset(0) & 0xF8
+                    == 0xF0
+                {
+                    4
+                } else {
+                    0
+                }
+                    as isize)
+                    == string.end
                 {
                     trailing_break = true;
                 }
@@ -4354,265 +5107,402 @@ mod emitter {
                 || (*string.pointer.offset(0) == b'\r'
                     || *string.pointer.offset(0) == b'\n'
                     || *string.pointer.offset(0) == b'\xC2'
-                        && *string.pointer.offset((0 + 1).try_into().unwrap()) == b'\x85'
+                        && *string
+                            .pointer
+                            .offset((0 + 1).try_into().unwrap())
+                            == b'\x85'
                     || *string.pointer.offset(0) == b'\xE2'
-                        && *string.pointer.offset((0 + 1).try_into().unwrap()) == b'\x80'
-                        && *string.pointer.offset((0 + 2).try_into().unwrap()) == b'\xA8'
+                        && *string
+                            .pointer
+                            .offset((0 + 1).try_into().unwrap())
+                            == b'\x80'
+                        && *string
+                            .pointer
+                            .offset((0 + 2).try_into().unwrap())
+                            == b'\xA8'
                     || *string.pointer.offset(0) == b'\xE2'
-                        && *string.pointer.offset((0 + 1).try_into().unwrap()) == b'\x80'
-                        && *string.pointer.offset((0 + 2).try_into().unwrap()) == b'\xA9'
+                        && *string
+                            .pointer
+                            .offset((0 + 1).try_into().unwrap())
+                            == b'\x80'
+                        && *string
+                            .pointer
+                            .offset((0 + 2).try_into().unwrap())
+                            == b'\xA9'
                     || *string.pointer.offset(0) == b'\0');
-            string.pointer = string
-                .pointer
-                .wrapping_offset(
-                    if *string.pointer.wrapping_offset(0) & 0x80 == 0x00 {
+            string.pointer = string.pointer.wrapping_offset(
+                if *string.pointer.wrapping_offset(0) & 0x80 == 0x00 {
+                    1
+                } else if *string.pointer.wrapping_offset(0) & 0xE0
+                    == 0xC0
+                {
+                    2
+                } else if *string.pointer.wrapping_offset(0) & 0xF0
+                    == 0xE0
+                {
+                    3
+                } else if *string.pointer.wrapping_offset(0) & 0xF8
+                    == 0xF0
+                {
+                    4
+                } else {
+                    0
+                },
+            );
+            if string.pointer != string.end {
+                followed_by_whitespace = *string.pointer.offset(
+                    if *string.pointer.wrapping_offset(0) & 0x80 == 0x00
+                    {
                         1
-                    } else if *string.pointer.wrapping_offset(0) & 0xE0 == 0xC0 {
+                    } else if *string.pointer.wrapping_offset(0) & 0xE0
+                        == 0xC0
+                    {
                         2
-                    } else if *string.pointer.wrapping_offset(0) & 0xF0 == 0xE0 {
+                    } else if *string.pointer.wrapping_offset(0) & 0xF0
+                        == 0xE0
+                    {
                         3
-                    } else if *string.pointer.wrapping_offset(0) & 0xF8 == 0xF0 {
+                    } else if *string.pointer.wrapping_offset(0) & 0xF8
+                        == 0xF0
+                    {
                         4
                     } else {
                         0
                     },
-                );
-            if string.pointer != string.end {
-                followed_by_whitespace = *string
-                    .pointer
-                    .offset(
-                        if *string.pointer.wrapping_offset(0) & 0x80 == 0x00 {
+                ) == b' '
+                    || *string.pointer.offset(
+                        if *string.pointer.wrapping_offset(0) & 0x80
+                            == 0x00
+                        {
                             1
-                        } else if *string.pointer.wrapping_offset(0) & 0xE0 == 0xC0 {
+                        } else if *string.pointer.wrapping_offset(0)
+                            & 0xE0
+                            == 0xC0
+                        {
                             2
-                        } else if *string.pointer.wrapping_offset(0) & 0xF0 == 0xE0 {
+                        } else if *string.pointer.wrapping_offset(0)
+                            & 0xF0
+                            == 0xE0
+                        {
                             3
-                        } else if *string.pointer.wrapping_offset(0) & 0xF8 == 0xF0 {
+                        } else if *string.pointer.wrapping_offset(0)
+                            & 0xF8
+                            == 0xF0
+                        {
                             4
                         } else {
                             0
                         },
-                    ) == b' '
-                    || *string
-                        .pointer
-                        .offset(
-                            if *string.pointer.wrapping_offset(0) & 0x80 == 0x00 {
+                    ) == b'\t'
+                    || (*string.pointer.offset(
+                        if *string.pointer.wrapping_offset(0) & 0x80
+                            == 0x00
+                        {
+                            1
+                        } else if *string.pointer.wrapping_offset(0)
+                            & 0xE0
+                            == 0xC0
+                        {
+                            2
+                        } else if *string.pointer.wrapping_offset(0)
+                            & 0xF0
+                            == 0xE0
+                        {
+                            3
+                        } else if *string.pointer.wrapping_offset(0)
+                            & 0xF8
+                            == 0xF0
+                        {
+                            4
+                        } else {
+                            0
+                        },
+                    ) == b'\r'
+                        || *string.pointer.offset(
+                            if *string.pointer.wrapping_offset(0) & 0x80
+                                == 0x00
+                            {
                                 1
-                            } else if *string.pointer.wrapping_offset(0) & 0xE0 == 0xC0 {
+                            } else if *string.pointer.wrapping_offset(0)
+                                & 0xE0
+                                == 0xC0
+                            {
                                 2
-                            } else if *string.pointer.wrapping_offset(0) & 0xF0 == 0xE0 {
+                            } else if *string.pointer.wrapping_offset(0)
+                                & 0xF0
+                                == 0xE0
+                            {
                                 3
-                            } else if *string.pointer.wrapping_offset(0) & 0xF8 == 0xF0 {
+                            } else if *string.pointer.wrapping_offset(0)
+                                & 0xF8
+                                == 0xF0
+                            {
                                 4
                             } else {
                                 0
                             },
-                        ) == b'\t'
-                    || (*string
-                        .pointer
-                        .offset(
-                            if *string.pointer.wrapping_offset(0) & 0x80 == 0x00 {
+                        ) == b'\n'
+                        || *string.pointer.offset(
+                            if *string.pointer.wrapping_offset(0) & 0x80
+                                == 0x00
+                            {
                                 1
-                            } else if *string.pointer.wrapping_offset(0) & 0xE0 == 0xC0 {
+                            } else if *string.pointer.wrapping_offset(0)
+                                & 0xE0
+                                == 0xC0
+                            {
                                 2
-                            } else if *string.pointer.wrapping_offset(0) & 0xF0 == 0xE0 {
+                            } else if *string.pointer.wrapping_offset(0)
+                                & 0xF0
+                                == 0xE0
+                            {
                                 3
-                            } else if *string.pointer.wrapping_offset(0) & 0xF8 == 0xF0 {
+                            } else if *string.pointer.wrapping_offset(0)
+                                & 0xF8
+                                == 0xF0
+                            {
                                 4
                             } else {
                                 0
                             },
-                        ) == b'\r'
-                        || *string
-                            .pointer
-                            .offset(
-                                if *string.pointer.wrapping_offset(0) & 0x80 == 0x00 {
+                        ) == b'\xC2'
+                            && *string.pointer.offset(
+                                (if *string.pointer.wrapping_offset(0)
+                                    & 0x80
+                                    == 0x00
+                                {
                                     1
-                                } else if *string.pointer.wrapping_offset(0) & 0xE0 == 0xC0
+                                } else if *string
+                                    .pointer
+                                    .wrapping_offset(0)
+                                    & 0xE0
+                                    == 0xC0
                                 {
                                     2
-                                } else if *string.pointer.wrapping_offset(0) & 0xF0 == 0xE0
+                                } else if *string
+                                    .pointer
+                                    .wrapping_offset(0)
+                                    & 0xF0
+                                    == 0xE0
                                 {
                                     3
-                                } else if *string.pointer.wrapping_offset(0) & 0xF8 == 0xF0
+                                } else if *string
+                                    .pointer
+                                    .wrapping_offset(0)
+                                    & 0xF8
+                                    == 0xF0
                                 {
                                     4
                                 } else {
                                     0
-                                },
-                            ) == b'\n'
-                        || *string
-                            .pointer
-                            .offset(
-                                if *string.pointer.wrapping_offset(0) & 0x80 == 0x00 {
+                                } + 1)
+                                    .try_into()
+                                    .unwrap(),
+                            ) == b'\x85'
+                        || *string.pointer.offset(
+                            if *string.pointer.wrapping_offset(0) & 0x80
+                                == 0x00
+                            {
+                                1
+                            } else if *string.pointer.wrapping_offset(0)
+                                & 0xE0
+                                == 0xC0
+                            {
+                                2
+                            } else if *string.pointer.wrapping_offset(0)
+                                & 0xF0
+                                == 0xE0
+                            {
+                                3
+                            } else if *string.pointer.wrapping_offset(0)
+                                & 0xF8
+                                == 0xF0
+                            {
+                                4
+                            } else {
+                                0
+                            },
+                        ) == b'\xE2'
+                            && *string.pointer.offset(
+                                (if *string.pointer.wrapping_offset(0)
+                                    & 0x80
+                                    == 0x00
+                                {
                                     1
-                                } else if *string.pointer.wrapping_offset(0) & 0xE0 == 0xC0
+                                } else if *string
+                                    .pointer
+                                    .wrapping_offset(0)
+                                    & 0xE0
+                                    == 0xC0
                                 {
                                     2
-                                } else if *string.pointer.wrapping_offset(0) & 0xF0 == 0xE0
+                                } else if *string
+                                    .pointer
+                                    .wrapping_offset(0)
+                                    & 0xF0
+                                    == 0xE0
                                 {
                                     3
-                                } else if *string.pointer.wrapping_offset(0) & 0xF8 == 0xF0
+                                } else if *string
+                                    .pointer
+                                    .wrapping_offset(0)
+                                    & 0xF8
+                                    == 0xF0
                                 {
                                     4
                                 } else {
                                     0
-                                },
-                            ) == b'\xC2'
-                            && *string
-                                .pointer
-                                .offset(
-                                    (if *string.pointer.wrapping_offset(0) & 0x80 == 0x00 {
-                                        1
-                                    } else if *string.pointer.wrapping_offset(0) & 0xE0 == 0xC0
-                                    {
-                                        2
-                                    } else if *string.pointer.wrapping_offset(0) & 0xF0 == 0xE0
-                                    {
-                                        3
-                                    } else if *string.pointer.wrapping_offset(0) & 0xF8 == 0xF0
-                                    {
-                                        4
-                                    } else {
-                                        0
-                                    } + 1)
-                                        .try_into()
-                                        .unwrap(),
-                                ) == b'\x85'
-                        || *string
-                            .pointer
-                            .offset(
-                                if *string.pointer.wrapping_offset(0) & 0x80 == 0x00 {
+                                } + 1)
+                                    .try_into()
+                                    .unwrap(),
+                            ) == b'\x80'
+                            && *string.pointer.offset(
+                                (if *string.pointer.wrapping_offset(0)
+                                    & 0x80
+                                    == 0x00
+                                {
                                     1
-                                } else if *string.pointer.wrapping_offset(0) & 0xE0 == 0xC0
+                                } else if *string
+                                    .pointer
+                                    .wrapping_offset(0)
+                                    & 0xE0
+                                    == 0xC0
                                 {
                                     2
-                                } else if *string.pointer.wrapping_offset(0) & 0xF0 == 0xE0
+                                } else if *string
+                                    .pointer
+                                    .wrapping_offset(0)
+                                    & 0xF0
+                                    == 0xE0
                                 {
                                     3
-                                } else if *string.pointer.wrapping_offset(0) & 0xF8 == 0xF0
+                                } else if *string
+                                    .pointer
+                                    .wrapping_offset(0)
+                                    & 0xF8
+                                    == 0xF0
                                 {
                                     4
                                 } else {
                                     0
-                                },
-                            ) == b'\xE2'
-                            && *string
-                                .pointer
-                                .offset(
-                                    (if *string.pointer.wrapping_offset(0) & 0x80 == 0x00 {
-                                        1
-                                    } else if *string.pointer.wrapping_offset(0) & 0xE0 == 0xC0
-                                    {
-                                        2
-                                    } else if *string.pointer.wrapping_offset(0) & 0xF0 == 0xE0
-                                    {
-                                        3
-                                    } else if *string.pointer.wrapping_offset(0) & 0xF8 == 0xF0
-                                    {
-                                        4
-                                    } else {
-                                        0
-                                    } + 1)
-                                        .try_into()
-                                        .unwrap(),
-                                ) == b'\x80'
-                            && *string
-                                .pointer
-                                .offset(
-                                    (if *string.pointer.wrapping_offset(0) & 0x80 == 0x00 {
-                                        1
-                                    } else if *string.pointer.wrapping_offset(0) & 0xE0 == 0xC0
-                                    {
-                                        2
-                                    } else if *string.pointer.wrapping_offset(0) & 0xF0 == 0xE0
-                                    {
-                                        3
-                                    } else if *string.pointer.wrapping_offset(0) & 0xF8 == 0xF0
-                                    {
-                                        4
-                                    } else {
-                                        0
-                                    } + 2)
-                                        .try_into()
-                                        .unwrap(),
-                                ) == b'\xA8'
-                        || *string
-                            .pointer
-                            .offset(
-                                if *string.pointer.wrapping_offset(0) & 0x80 == 0x00 {
+                                } + 2)
+                                    .try_into()
+                                    .unwrap(),
+                            ) == b'\xA8'
+                        || *string.pointer.offset(
+                            if *string.pointer.wrapping_offset(0) & 0x80
+                                == 0x00
+                            {
+                                1
+                            } else if *string.pointer.wrapping_offset(0)
+                                & 0xE0
+                                == 0xC0
+                            {
+                                2
+                            } else if *string.pointer.wrapping_offset(0)
+                                & 0xF0
+                                == 0xE0
+                            {
+                                3
+                            } else if *string.pointer.wrapping_offset(0)
+                                & 0xF8
+                                == 0xF0
+                            {
+                                4
+                            } else {
+                                0
+                            },
+                        ) == b'\xE2'
+                            && *string.pointer.offset(
+                                (if *string.pointer.wrapping_offset(0)
+                                    & 0x80
+                                    == 0x00
+                                {
                                     1
-                                } else if *string.pointer.wrapping_offset(0) & 0xE0 == 0xC0
+                                } else if *string
+                                    .pointer
+                                    .wrapping_offset(0)
+                                    & 0xE0
+                                    == 0xC0
                                 {
                                     2
-                                } else if *string.pointer.wrapping_offset(0) & 0xF0 == 0xE0
+                                } else if *string
+                                    .pointer
+                                    .wrapping_offset(0)
+                                    & 0xF0
+                                    == 0xE0
                                 {
                                     3
-                                } else if *string.pointer.wrapping_offset(0) & 0xF8 == 0xF0
+                                } else if *string
+                                    .pointer
+                                    .wrapping_offset(0)
+                                    & 0xF8
+                                    == 0xF0
                                 {
                                     4
                                 } else {
                                     0
-                                },
-                            ) == b'\xE2'
-                            && *string
-                                .pointer
-                                .offset(
-                                    (if *string.pointer.wrapping_offset(0) & 0x80 == 0x00 {
-                                        1
-                                    } else if *string.pointer.wrapping_offset(0) & 0xE0 == 0xC0
-                                    {
-                                        2
-                                    } else if *string.pointer.wrapping_offset(0) & 0xF0 == 0xE0
-                                    {
-                                        3
-                                    } else if *string.pointer.wrapping_offset(0) & 0xF8 == 0xF0
-                                    {
-                                        4
-                                    } else {
-                                        0
-                                    } + 1)
-                                        .try_into()
-                                        .unwrap(),
-                                ) == b'\x80'
-                            && *string
-                                .pointer
-                                .offset(
-                                    (if *string.pointer.wrapping_offset(0) & 0x80 == 0x00 {
-                                        1
-                                    } else if *string.pointer.wrapping_offset(0) & 0xE0 == 0xC0
-                                    {
-                                        2
-                                    } else if *string.pointer.wrapping_offset(0) & 0xF0 == 0xE0
-                                    {
-                                        3
-                                    } else if *string.pointer.wrapping_offset(0) & 0xF8 == 0xF0
-                                    {
-                                        4
-                                    } else {
-                                        0
-                                    } + 2)
-                                        .try_into()
-                                        .unwrap(),
-                                ) == b'\xA9'
-                        || *string
-                            .pointer
-                            .offset(
-                                if *string.pointer.wrapping_offset(0) & 0x80 == 0x00 {
+                                } + 1)
+                                    .try_into()
+                                    .unwrap(),
+                            ) == b'\x80'
+                            && *string.pointer.offset(
+                                (if *string.pointer.wrapping_offset(0)
+                                    & 0x80
+                                    == 0x00
+                                {
                                     1
-                                } else if *string.pointer.wrapping_offset(0) & 0xE0 == 0xC0
+                                } else if *string
+                                    .pointer
+                                    .wrapping_offset(0)
+                                    & 0xE0
+                                    == 0xC0
                                 {
                                     2
-                                } else if *string.pointer.wrapping_offset(0) & 0xF0 == 0xE0
+                                } else if *string
+                                    .pointer
+                                    .wrapping_offset(0)
+                                    & 0xF0
+                                    == 0xE0
                                 {
                                     3
-                                } else if *string.pointer.wrapping_offset(0) & 0xF8 == 0xF0
+                                } else if *string
+                                    .pointer
+                                    .wrapping_offset(0)
+                                    & 0xF8
+                                    == 0xF0
                                 {
                                     4
                                 } else {
                                     0
-                                },
-                            ) == b'\0');
+                                } + 2)
+                                    .try_into()
+                                    .unwrap(),
+                            ) == b'\xA9'
+                        || *string.pointer.offset(
+                            if *string.pointer.wrapping_offset(0) & 0x80
+                                == 0x00
+                            {
+                                1
+                            } else if *string.pointer.wrapping_offset(0)
+                                & 0xE0
+                                == 0xC0
+                            {
+                                2
+                            } else if *string.pointer.wrapping_offset(0)
+                                & 0xF0
+                                == 0xE0
+                            {
+                                3
+                            } else if *string.pointer.wrapping_offset(0)
+                                & 0xF8
+                                == 0xF0
+                            {
+                                4
+                            } else {
+                                0
+                            },
+                        ) == b'\0');
             }
         }
         (*emitter).scalar_data.multiline = line_breaks;
@@ -4620,7 +5510,11 @@ mod emitter {
         (*emitter).scalar_data.block_plain_allowed = true;
         (*emitter).scalar_data.single_quoted_allowed = true;
         (*emitter).scalar_data.block_allowed = true;
-        if leading_space || leading_break || trailing_space || trailing_break {
+        if leading_space
+            || leading_break
+            || trailing_space
+            || trailing_break
+        {
             (*emitter).scalar_data.flow_plain_allowed = false;
             (*emitter).scalar_data.block_plain_allowed = false;
         }
@@ -4667,17 +5561,19 @@ mod emitter {
         *fresh55 = ptr::null_mut::<yaml_char_t>();
         (*emitter).scalar_data.length = 0_u64;
         match (*event).type_ {
-            YamlAliasEvent => {
-                yaml_emitter_analyze_anchor(emitter, (*event).data.alias.anchor, true)
-            }
+            YamlAliasEvent => yaml_emitter_analyze_anchor(
+                emitter,
+                (*event).data.alias.anchor,
+                true,
+            ),
             YamlScalarEvent => {
                 if !(*event).data.scalar.anchor.is_null()
                     && yaml_emitter_analyze_anchor(
-                            emitter,
-                            (*event).data.scalar.anchor,
-                            false,
-                        )
-                        .fail
+                        emitter,
+                        (*event).data.scalar.anchor,
+                        false,
+                    )
+                    .fail
                 {
                     return FAIL;
                 }
@@ -4685,7 +5581,11 @@ mod emitter {
                     && ((*emitter).canonical
                         || !(*event).data.scalar.plain_implicit
                             && !(*event).data.scalar.quoted_implicit)
-                    && yaml_emitter_analyze_tag(emitter, (*event).data.scalar.tag).fail
+                    && yaml_emitter_analyze_tag(
+                        emitter,
+                        (*event).data.scalar.tag,
+                    )
+                    .fail
                 {
                     return FAIL;
                 }
@@ -4698,21 +5598,22 @@ mod emitter {
             YamlSequenceStartEvent => {
                 if !(*event).data.sequence_start.anchor.is_null()
                     && yaml_emitter_analyze_anchor(
-                            emitter,
-                            (*event).data.sequence_start.anchor,
-                            false,
-                        )
-                        .fail
+                        emitter,
+                        (*event).data.sequence_start.anchor,
+                        false,
+                    )
+                    .fail
                 {
                     return FAIL;
                 }
                 if !(*event).data.sequence_start.tag.is_null()
-                    && ((*emitter).canonical || !(*event).data.sequence_start.implicit)
+                    && ((*emitter).canonical
+                        || !(*event).data.sequence_start.implicit)
                     && yaml_emitter_analyze_tag(
-                            emitter,
-                            (*event).data.sequence_start.tag,
-                        )
-                        .fail
+                        emitter,
+                        (*event).data.sequence_start.tag,
+                    )
+                    .fail
                 {
                     return FAIL;
                 }
@@ -4721,18 +5622,22 @@ mod emitter {
             YamlMappingStartEvent => {
                 if !(*event).data.mapping_start.anchor.is_null()
                     && yaml_emitter_analyze_anchor(
-                            emitter,
-                            (*event).data.mapping_start.anchor,
-                            false,
-                        )
-                        .fail
+                        emitter,
+                        (*event).data.mapping_start.anchor,
+                        false,
+                    )
+                    .fail
                 {
                     return FAIL;
                 }
                 if !(*event).data.mapping_start.tag.is_null()
-                    && ((*emitter).canonical || !(*event).data.mapping_start.implicit)
-                    && yaml_emitter_analyze_tag(emitter, (*event).data.mapping_start.tag)
-                        .fail
+                    && ((*emitter).canonical
+                        || !(*event).data.mapping_start.implicit)
+                    && yaml_emitter_analyze_tag(
+                        emitter,
+                        (*event).data.mapping_start.tag,
+                    )
+                    .fail
                 {
                     return FAIL;
                 }
@@ -4741,7 +5646,9 @@ mod emitter {
             _ => OK,
         }
     }
-    unsafe fn yaml_emitter_write_bom(emitter: *mut YamlEmitterT) -> Success {
+    unsafe fn yaml_emitter_write_bom(
+        emitter: *mut YamlEmitterT,
+    ) -> Success {
         if flush(emitter).fail {
             return FAIL;
         }
@@ -4759,13 +5666,16 @@ mod emitter {
         *fresh61 = b'\xBF';
         OK
     }
-    unsafe fn yaml_emitter_write_indent(emitter: *mut YamlEmitterT) -> Success {
+    unsafe fn yaml_emitter_write_indent(
+        emitter: *mut YamlEmitterT,
+    ) -> Success {
         let indent: libc::c_int = if (*emitter).indent >= 0 {
             (*emitter).indent
         } else {
             0
         };
-        if (!(*emitter).indention || (*emitter).column > indent
+        if (!(*emitter).indention
+            || (*emitter).column > indent
             || (*emitter).column == indent && !(*emitter).whitespace)
             && put_break(emitter).fail
         {
@@ -4799,7 +5709,10 @@ mod emitter {
                 .wrapping_offset(indicator_length as isize),
             pointer: indicator as *mut yaml_char_t,
         };
-        if need_whitespace && !(*emitter).whitespace && put(emitter, b' ').fail {
+        if need_whitespace
+            && !(*emitter).whitespace
+            && put(emitter, b' ').fail
+        {
             return FAIL;
         }
         while string.pointer != string.end {
@@ -4863,36 +5776,58 @@ mod emitter {
             end: value.wrapping_offset(length as isize),
             pointer: value,
         };
-        if need_whitespace && !(*emitter).whitespace && put(emitter, b' ').fail {
+        if need_whitespace
+            && !(*emitter).whitespace
+            && put(emitter, b' ').fail
+        {
             return FAIL;
         }
         while string.pointer != string.end {
             if *string.pointer >= b'0' && *string.pointer <= b'9'
                 || *string.pointer >= b'A' && *string.pointer <= b'Z'
                 || *string.pointer >= b'a' && *string.pointer <= b'z'
-                || *string.pointer == b'_' || *string.pointer == b'-'
-                || *string.pointer == b';' || *string.pointer == b'/'
-                || *string.pointer == b'?' || *string.pointer == b':'
-                || *string.pointer == b'@' || *string.pointer == b'&'
-                || *string.pointer == b'=' || *string.pointer == b'+'
-                || *string.pointer == b'$' || *string.pointer == b','
-                || *string.pointer == b'_' || *string.pointer == b'.'
-                || *string.pointer == b'~' || *string.pointer == b'*'
-                || *string.pointer == b'\'' || *string.pointer == b'('
-                || *string.pointer == b')' || *string.pointer == b'['
+                || *string.pointer == b'_'
+                || *string.pointer == b'-'
+                || *string.pointer == b';'
+                || *string.pointer == b'/'
+                || *string.pointer == b'?'
+                || *string.pointer == b':'
+                || *string.pointer == b'@'
+                || *string.pointer == b'&'
+                || *string.pointer == b'='
+                || *string.pointer == b'+'
+                || *string.pointer == b'$'
+                || *string.pointer == b','
+                || *string.pointer == b'_'
+                || *string.pointer == b'.'
+                || *string.pointer == b'~'
+                || *string.pointer == b'*'
+                || *string.pointer == b'\''
+                || *string.pointer == b'('
+                || *string.pointer == b')'
+                || *string.pointer == b'['
                 || *string.pointer == b']'
             {
                 if write(emitter, &raw mut string).fail {
                     return FAIL;
                 }
             } else {
-                let mut width = if *string.pointer.wrapping_offset(0) & 0x80 == 0x00 {
+                let mut width = if *string.pointer.wrapping_offset(0)
+                    & 0x80
+                    == 0x00
+                {
                     1
-                } else if *string.pointer.wrapping_offset(0) & 0xE0 == 0xC0 {
+                } else if *string.pointer.wrapping_offset(0) & 0xE0
+                    == 0xC0
+                {
                     2
-                } else if *string.pointer.wrapping_offset(0) & 0xF0 == 0xE0 {
+                } else if *string.pointer.wrapping_offset(0) & 0xF0
+                    == 0xE0
+                {
                     3
-                } else if *string.pointer.wrapping_offset(0) & 0xF8 == 0xF0 {
+                } else if *string.pointer.wrapping_offset(0) & 0xF8
+                    == 0xF0
+                {
                     4
                 } else {
                     0
@@ -4910,22 +5845,28 @@ mod emitter {
                         return FAIL;
                     }
                     if put(
-                            emitter,
-                            (value >> 4)
-                                .force_add(if (value >> 4) < 10 { b'0' } else { b'A' - 10 }),
-                        )
-                        .fail
+                        emitter,
+                        (value >> 4).force_add(if (value >> 4) < 10 {
+                            b'0'
+                        } else {
+                            b'A' - 10
+                        }),
+                    )
+                    .fail
                     {
                         return FAIL;
                     }
                     if put(
-                            emitter,
-                            (value & 0x0F)
-                                .force_add(
-                                    if (value & 0x0F) < 10 { b'0' } else { b'A' - 10 },
-                                ),
-                        )
-                        .fail
+                        emitter,
+                        (value & 0x0F).force_add(
+                            if (value & 0x0F) < 10 {
+                                b'0'
+                            } else {
+                                b'A' - 10
+                            },
+                        ),
+                    )
+                    .fail
                     {
                         return FAIL;
                     }
@@ -4949,34 +5890,46 @@ mod emitter {
             end: value.wrapping_offset(length as isize),
             pointer: value,
         };
-        if !(*emitter).whitespace && (length != 0 || (*emitter).flow_level != 0)
+        if !(*emitter).whitespace
+            && (length != 0 || (*emitter).flow_level != 0)
             && put(emitter, b' ').fail
         {
             return FAIL;
         }
         while string.pointer != string.end {
             if *string.pointer.offset(0) == b' ' {
-                if allow_breaks && !spaces && (*emitter).column > (*emitter).best_width
+                if allow_breaks
+                    && !spaces
+                    && (*emitter).column > (*emitter).best_width
                     && !(*string.pointer.offset(1) == b' ')
                 {
                     if yaml_emitter_write_indent(emitter).fail {
                         return FAIL;
                     }
-                    string.pointer = string
-                        .pointer
-                        .wrapping_offset(
-                            if *string.pointer.wrapping_offset(0) & 0x80 == 0x00 {
-                                1
-                            } else if *string.pointer.wrapping_offset(0) & 0xE0 == 0xC0 {
-                                2
-                            } else if *string.pointer.wrapping_offset(0) & 0xF0 == 0xE0 {
-                                3
-                            } else if *string.pointer.wrapping_offset(0) & 0xF8 == 0xF0 {
-                                4
-                            } else {
-                                0
-                            },
-                        );
+                    string.pointer = string.pointer.wrapping_offset(
+                        if *string.pointer.wrapping_offset(0) & 0x80
+                            == 0x00
+                        {
+                            1
+                        } else if *string.pointer.wrapping_offset(0)
+                            & 0xE0
+                            == 0xC0
+                        {
+                            2
+                        } else if *string.pointer.wrapping_offset(0)
+                            & 0xF0
+                            == 0xE0
+                        {
+                            3
+                        } else if *string.pointer.wrapping_offset(0)
+                            & 0xF8
+                            == 0xF0
+                        {
+                            4
+                        } else {
+                            0
+                        },
+                    );
                 } else if write(emitter, &raw mut string).fail {
                     return FAIL;
                 }
@@ -4984,15 +5937,33 @@ mod emitter {
             } else if *string.pointer.offset(0) == b'\r'
                 || *string.pointer.offset(0) == b'\n'
                 || *string.pointer.offset(0) == b'\xC2'
-                    && *string.pointer.offset((0 + 1).try_into().unwrap()) == b'\x85'
+                    && *string
+                        .pointer
+                        .offset((0 + 1).try_into().unwrap())
+                        == b'\x85'
                 || *string.pointer.offset(0) == b'\xE2'
-                    && *string.pointer.offset((0 + 1).try_into().unwrap()) == b'\x80'
-                    && *string.pointer.offset((0 + 2).try_into().unwrap()) == b'\xA8'
+                    && *string
+                        .pointer
+                        .offset((0 + 1).try_into().unwrap())
+                        == b'\x80'
+                    && *string
+                        .pointer
+                        .offset((0 + 2).try_into().unwrap())
+                        == b'\xA8'
                 || *string.pointer.offset(0) == b'\xE2'
-                    && *string.pointer.offset((0 + 1).try_into().unwrap()) == b'\x80'
-                    && *string.pointer.offset((0 + 2).try_into().unwrap()) == b'\xA9'
+                    && *string
+                        .pointer
+                        .offset((0 + 1).try_into().unwrap())
+                        == b'\x80'
+                    && *string
+                        .pointer
+                        .offset((0 + 2).try_into().unwrap())
+                        == b'\xA9'
             {
-                if !breaks && *string.pointer == b'\n' && put_break(emitter).fail {
+                if !breaks
+                    && *string.pointer == b'\n'
+                    && put_break(emitter).fail
+                {
                     return FAIL;
                 }
                 if write_break(emitter, &raw mut string).fail {
@@ -5030,41 +6001,53 @@ mod emitter {
             pointer: value,
         };
         if yaml_emitter_write_indicator(
-                emitter,
-                b"'\0" as *const u8 as *const libc::c_char,
-                true,
-                false,
-                false,
-            )
-            .fail
+            emitter,
+            b"'\0" as *const u8 as *const libc::c_char,
+            true,
+            false,
+            false,
+        )
+        .fail
         {
             return FAIL;
         }
         while string.pointer != string.end {
             if *string.pointer.offset(0) == b' ' {
-                if allow_breaks && !spaces && (*emitter).column > (*emitter).best_width
+                if allow_breaks
+                    && !spaces
+                    && (*emitter).column > (*emitter).best_width
                     && string.pointer != string.start
-                    && string.pointer != string.end.wrapping_offset(-1_isize)
+                    && string.pointer
+                        != string.end.wrapping_offset(-1_isize)
                     && !(*string.pointer.offset(1) == b' ')
                 {
                     if yaml_emitter_write_indent(emitter).fail {
                         return FAIL;
                     }
-                    string.pointer = string
-                        .pointer
-                        .wrapping_offset(
-                            if *string.pointer.wrapping_offset(0) & 0x80 == 0x00 {
-                                1
-                            } else if *string.pointer.wrapping_offset(0) & 0xE0 == 0xC0 {
-                                2
-                            } else if *string.pointer.wrapping_offset(0) & 0xF0 == 0xE0 {
-                                3
-                            } else if *string.pointer.wrapping_offset(0) & 0xF8 == 0xF0 {
-                                4
-                            } else {
-                                0
-                            },
-                        );
+                    string.pointer = string.pointer.wrapping_offset(
+                        if *string.pointer.wrapping_offset(0) & 0x80
+                            == 0x00
+                        {
+                            1
+                        } else if *string.pointer.wrapping_offset(0)
+                            & 0xE0
+                            == 0xC0
+                        {
+                            2
+                        } else if *string.pointer.wrapping_offset(0)
+                            & 0xF0
+                            == 0xE0
+                        {
+                            3
+                        } else if *string.pointer.wrapping_offset(0)
+                            & 0xF8
+                            == 0xF0
+                        {
+                            4
+                        } else {
+                            0
+                        },
+                    );
                 } else if write(emitter, &raw mut string).fail {
                     return FAIL;
                 }
@@ -5072,15 +6055,33 @@ mod emitter {
             } else if *string.pointer.offset(0) == b'\r'
                 || *string.pointer.offset(0) == b'\n'
                 || *string.pointer.offset(0) == b'\xC2'
-                    && *string.pointer.offset((0 + 1).try_into().unwrap()) == b'\x85'
+                    && *string
+                        .pointer
+                        .offset((0 + 1).try_into().unwrap())
+                        == b'\x85'
                 || *string.pointer.offset(0) == b'\xE2'
-                    && *string.pointer.offset((0 + 1).try_into().unwrap()) == b'\x80'
-                    && *string.pointer.offset((0 + 2).try_into().unwrap()) == b'\xA8'
+                    && *string
+                        .pointer
+                        .offset((0 + 1).try_into().unwrap())
+                        == b'\x80'
+                    && *string
+                        .pointer
+                        .offset((0 + 2).try_into().unwrap())
+                        == b'\xA8'
                 || *string.pointer.offset(0) == b'\xE2'
-                    && *string.pointer.offset((0 + 1).try_into().unwrap()) == b'\x80'
-                    && *string.pointer.offset((0 + 2).try_into().unwrap()) == b'\xA9'
+                    && *string
+                        .pointer
+                        .offset((0 + 1).try_into().unwrap())
+                        == b'\x80'
+                    && *string
+                        .pointer
+                        .offset((0 + 2).try_into().unwrap())
+                        == b'\xA9'
             {
-                if !breaks && *string.pointer == b'\n' && put_break(emitter).fail {
+                if !breaks
+                    && *string.pointer == b'\n'
+                    && put_break(emitter).fail
+                {
                     return FAIL;
                 }
                 if write_break(emitter, &raw mut string).fail {
@@ -5092,7 +6093,8 @@ mod emitter {
                 if breaks && yaml_emitter_write_indent(emitter).fail {
                     return FAIL;
                 }
-                if *string.pointer == b'\'' && put(emitter, b'\'').fail {
+                if *string.pointer == b'\'' && put(emitter, b'\'').fail
+                {
                     return FAIL;
                 }
                 if write(emitter, &raw mut string).fail {
@@ -5107,13 +6109,13 @@ mod emitter {
             return FAIL;
         }
         if yaml_emitter_write_indicator(
-                emitter,
-                b"'\0" as *const u8 as *const libc::c_char,
-                false,
-                false,
-                false,
-            )
-            .fail
+            emitter,
+            b"'\0" as *const u8 as *const libc::c_char,
+            false,
+            false,
+            false,
+        )
+        .fail
         {
             return FAIL;
         }
@@ -5134,50 +6136,40 @@ mod emitter {
             pointer: value,
         };
         if yaml_emitter_write_indicator(
-                emitter,
-                b"\"\0" as *const u8 as *const libc::c_char,
-                true,
-                false,
-                false,
-            )
-            .fail
+            emitter,
+            b"\"\0" as *const u8 as *const libc::c_char,
+            true,
+            false,
+            false,
+        )
+        .fail
         {
             return FAIL;
         }
         while string.pointer != string.end {
             if !match *string.pointer {
                 0x0A | 0x20..=0x7E => true,
-                0xC2 => {
-                    match *string.pointer.wrapping_offset(1) {
-                        0xA0..=0xBF => true,
-                        _ => false,
-                    }
-                }
+                0xC2 => match *string.pointer.wrapping_offset(1) {
+                    0xA0..=0xBF => true,
+                    _ => false,
+                },
                 0xC3..=0xEC => true,
-                0xED => {
-                    match *string.pointer.wrapping_offset(1) {
-                        0x00..=0x9F => true,
-                        _ => false,
-                    }
-                }
+                0xED => match *string.pointer.wrapping_offset(1) {
+                    0x00..=0x9F => true,
+                    _ => false,
+                },
                 0xEE => true,
-                0xEF => {
-                    match *string.pointer.wrapping_offset(1) {
-                        0xBB => {
-                            match *string.pointer.wrapping_offset(2) {
-                                0xBF => false,
-                                _ => true,
-                            }
-                        }
-                        0xBF => {
-                            match *string.pointer.wrapping_offset(2) {
-                                0xBE | 0xBF => false,
-                                _ => true,
-                            }
-                        }
+                0xEF => match *string.pointer.wrapping_offset(1) {
+                    0xBB => match *string.pointer.wrapping_offset(2) {
+                        0xBF => false,
                         _ => true,
-                    }
-                }
+                    },
+                    0xBF => match *string.pointer.wrapping_offset(2) {
+                        0xBE | 0xBF => false,
+                        _ => true,
+                    },
+                    _ => true,
+                },
                 0xF0..=0xF4 => true,
                 _ => false,
             } || !(*emitter).unicode && !(*string.pointer <= b'\x7F')
@@ -5187,14 +6179,29 @@ mod emitter {
                 || (*string.pointer.offset(0) == b'\r'
                     || *string.pointer.offset(0) == b'\n'
                     || *string.pointer.offset(0) == b'\xC2'
-                        && *string.pointer.offset((0 + 1).try_into().unwrap()) == b'\x85'
+                        && *string
+                            .pointer
+                            .offset((0 + 1).try_into().unwrap())
+                            == b'\x85'
                     || *string.pointer.offset(0) == b'\xE2'
-                        && *string.pointer.offset((0 + 1).try_into().unwrap()) == b'\x80'
-                        && *string.pointer.offset((0 + 2).try_into().unwrap()) == b'\xA8'
+                        && *string
+                            .pointer
+                            .offset((0 + 1).try_into().unwrap())
+                            == b'\x80'
+                        && *string
+                            .pointer
+                            .offset((0 + 2).try_into().unwrap())
+                            == b'\xA8'
                     || *string.pointer.offset(0) == b'\xE2'
-                        && *string.pointer.offset((0 + 1).try_into().unwrap()) == b'\x80'
-                        && *string.pointer.offset((0 + 2).try_into().unwrap())
-                            == b'\xA9') || *string.pointer == b'"'
+                        && *string
+                            .pointer
+                            .offset((0 + 1).try_into().unwrap())
+                            == b'\x80'
+                        && *string
+                            .pointer
+                            .offset((0 + 2).try_into().unwrap())
+                            == b'\xA9')
+                || *string.pointer == b'"'
                 || *string.pointer == b'\\'
             {
                 let mut octet: libc::c_uchar;
@@ -5227,10 +6234,12 @@ mod emitter {
                 k = 1;
                 while k < width as libc::c_int {
                     octet = *string.pointer.wrapping_offset(k as isize);
-                    value_0 = (value_0 << 6).force_add((octet & 0x3F) as libc::c_uint);
+                    value_0 = (value_0 << 6)
+                        .force_add((octet & 0x3F) as libc::c_uint);
                     k += 1;
                 }
-                string.pointer = string.pointer.wrapping_offset(width as isize);
+                string.pointer =
+                    string.pointer.wrapping_offset(width as isize);
                 if put(emitter, b'\\').fail {
                     return FAIL;
                 }
@@ -5327,16 +6336,23 @@ mod emitter {
                             }
                             width = 8;
                         }
-                        k = width.wrapping_sub(1).wrapping_mul(4) as libc::c_int;
+                        k = width.wrapping_sub(1).wrapping_mul(4)
+                            as libc::c_int;
                         while k >= 0 {
-                            let digit: libc::c_int = (value_0 >> k & 0x0F)
-                                as libc::c_int;
+                            let digit: libc::c_int =
+                                (value_0 >> k & 0x0F) as libc::c_int;
                             if put(
-                                    emitter,
-                                    (digit + if digit < 10 { b'0' } else { b'A' - 10 } as i32)
-                                        as u8,
-                                )
-                                .fail
+                                emitter,
+                                (digit
+                                    + if digit < 10 {
+                                        b'0'
+                                    } else {
+                                        b'A' - 10
+                                    }
+                                        as i32)
+                                    as u8,
+                            )
+                            .fail
                             {
                                 return FAIL;
                             }
@@ -5346,31 +6362,45 @@ mod emitter {
                 }
                 spaces = false;
             } else if *string.pointer.offset(0) == b' ' {
-                if allow_breaks && !spaces && (*emitter).column > (*emitter).best_width
+                if allow_breaks
+                    && !spaces
+                    && (*emitter).column > (*emitter).best_width
                     && string.pointer != string.start
-                    && string.pointer != string.end.wrapping_offset(-1_isize)
+                    && string.pointer
+                        != string.end.wrapping_offset(-1_isize)
                 {
                     if yaml_emitter_write_indent(emitter).fail {
                         return FAIL;
                     }
-                    if *string.pointer.offset(1) == b' ' && put(emitter, b'\\').fail {
+                    if *string.pointer.offset(1) == b' '
+                        && put(emitter, b'\\').fail
+                    {
                         return FAIL;
                     }
-                    string.pointer = string
-                        .pointer
-                        .wrapping_offset(
-                            if *string.pointer.wrapping_offset(0) & 0x80 == 0x00 {
-                                1
-                            } else if *string.pointer.wrapping_offset(0) & 0xE0 == 0xC0 {
-                                2
-                            } else if *string.pointer.wrapping_offset(0) & 0xF0 == 0xE0 {
-                                3
-                            } else if *string.pointer.wrapping_offset(0) & 0xF8 == 0xF0 {
-                                4
-                            } else {
-                                0
-                            },
-                        );
+                    string.pointer = string.pointer.wrapping_offset(
+                        if *string.pointer.wrapping_offset(0) & 0x80
+                            == 0x00
+                        {
+                            1
+                        } else if *string.pointer.wrapping_offset(0)
+                            & 0xE0
+                            == 0xC0
+                        {
+                            2
+                        } else if *string.pointer.wrapping_offset(0)
+                            & 0xF0
+                            == 0xE0
+                        {
+                            3
+                        } else if *string.pointer.wrapping_offset(0)
+                            & 0xF8
+                            == 0xF0
+                        {
+                            4
+                        } else {
+                            0
+                        },
+                    );
                 } else if write(emitter, &raw mut string).fail {
                     return FAIL;
                 }
@@ -5383,13 +6413,13 @@ mod emitter {
             }
         }
         if yaml_emitter_write_indicator(
-                emitter,
-                b"\"\0" as *const u8 as *const libc::c_char,
-                false,
-                false,
-                false,
-            )
-            .fail
+            emitter,
+            b"\"\0" as *const u8 as *const libc::c_char,
+            false,
+            false,
+            false,
+        )
+        .fail
         {
             return FAIL;
         }
@@ -5402,29 +6432,47 @@ mod emitter {
         mut string: YamlStringT,
     ) -> Success {
         let mut indent_hint: [libc::c_char; 2] = [0; 2];
-        let mut chomp_hint: *const libc::c_char = ptr::null::<libc::c_char>();
+        let mut chomp_hint: *const libc::c_char =
+            ptr::null::<libc::c_char>();
         if *string.pointer.offset(0) == b' '
-            || (*string.pointer.offset(0) == b'\r' || *string.pointer.offset(0) == b'\n'
+            || (*string.pointer.offset(0) == b'\r'
+                || *string.pointer.offset(0) == b'\n'
                 || *string.pointer.offset(0) == b'\xC2'
-                    && *string.pointer.offset((0 + 1).try_into().unwrap()) == b'\x85'
+                    && *string
+                        .pointer
+                        .offset((0 + 1).try_into().unwrap())
+                        == b'\x85'
                 || *string.pointer.offset(0) == b'\xE2'
-                    && *string.pointer.offset((0 + 1).try_into().unwrap()) == b'\x80'
-                    && *string.pointer.offset((0 + 2).try_into().unwrap()) == b'\xA8'
+                    && *string
+                        .pointer
+                        .offset((0 + 1).try_into().unwrap())
+                        == b'\x80'
+                    && *string
+                        .pointer
+                        .offset((0 + 2).try_into().unwrap())
+                        == b'\xA8'
                 || *string.pointer.offset(0) == b'\xE2'
-                    && *string.pointer.offset((0 + 1).try_into().unwrap()) == b'\x80'
-                    && *string.pointer.offset((0 + 2).try_into().unwrap()) == b'\xA9')
+                    && *string
+                        .pointer
+                        .offset((0 + 1).try_into().unwrap())
+                        == b'\x80'
+                    && *string
+                        .pointer
+                        .offset((0 + 2).try_into().unwrap())
+                        == b'\xA9')
         {
-            indent_hint[0] = (b'0' as libc::c_int + (*emitter).best_indent)
+            indent_hint[0] = (b'0' as libc::c_int
+                + (*emitter).best_indent)
                 as libc::c_char;
             indent_hint[1] = '\0' as libc::c_char;
             if yaml_emitter_write_indicator(
-                    emitter,
-                    indent_hint.as_mut_ptr(),
-                    false,
-                    false,
-                    false,
-                )
-                .fail
+                emitter,
+                indent_hint.as_mut_ptr(),
+                false,
+                false,
+                false,
+            )
+            .fail
             {
                 return FAIL;
             }
@@ -5440,15 +6488,31 @@ mod emitter {
                     break;
                 }
             }
-            if !(*string.pointer.offset(0) == b'\r' || *string.pointer.offset(0) == b'\n'
+            if !(*string.pointer.offset(0) == b'\r'
+                || *string.pointer.offset(0) == b'\n'
                 || *string.pointer.offset(0) == b'\xC2'
-                    && *string.pointer.offset((0 + 1).try_into().unwrap()) == b'\x85'
+                    && *string
+                        .pointer
+                        .offset((0 + 1).try_into().unwrap())
+                        == b'\x85'
                 || *string.pointer.offset(0) == b'\xE2'
-                    && *string.pointer.offset((0 + 1).try_into().unwrap()) == b'\x80'
-                    && *string.pointer.offset((0 + 2).try_into().unwrap()) == b'\xA8'
+                    && *string
+                        .pointer
+                        .offset((0 + 1).try_into().unwrap())
+                        == b'\x80'
+                    && *string
+                        .pointer
+                        .offset((0 + 2).try_into().unwrap())
+                        == b'\xA8'
                 || *string.pointer.offset(0) == b'\xE2'
-                    && *string.pointer.offset((0 + 1).try_into().unwrap()) == b'\x80'
-                    && *string.pointer.offset((0 + 2).try_into().unwrap()) == b'\xA9')
+                    && *string
+                        .pointer
+                        .offset((0 + 1).try_into().unwrap())
+                        == b'\x80'
+                    && *string
+                        .pointer
+                        .offset((0 + 2).try_into().unwrap())
+                        == b'\xA9')
             {
                 chomp_hint = b"-\0" as *const u8 as *const libc::c_char;
             } else if string.start == string.pointer {
@@ -5464,22 +6528,40 @@ mod emitter {
                 if *string.pointer.offset(0) == b'\r'
                     || *string.pointer.offset(0) == b'\n'
                     || *string.pointer.offset(0) == b'\xC2'
-                        && *string.pointer.offset((0 + 1).try_into().unwrap()) == b'\x85'
+                        && *string
+                            .pointer
+                            .offset((0 + 1).try_into().unwrap())
+                            == b'\x85'
                     || *string.pointer.offset(0) == b'\xE2'
-                        && *string.pointer.offset((0 + 1).try_into().unwrap()) == b'\x80'
-                        && *string.pointer.offset((0 + 2).try_into().unwrap()) == b'\xA8'
+                        && *string
+                            .pointer
+                            .offset((0 + 1).try_into().unwrap())
+                            == b'\x80'
+                        && *string
+                            .pointer
+                            .offset((0 + 2).try_into().unwrap())
+                            == b'\xA8'
                     || *string.pointer.offset(0) == b'\xE2'
-                        && *string.pointer.offset((0 + 1).try_into().unwrap()) == b'\x80'
-                        && *string.pointer.offset((0 + 2).try_into().unwrap()) == b'\xA9'
+                        && *string
+                            .pointer
+                            .offset((0 + 1).try_into().unwrap())
+                            == b'\x80'
+                        && *string
+                            .pointer
+                            .offset((0 + 2).try_into().unwrap())
+                            == b'\xA9'
                 {
-                    chomp_hint = b"+\0" as *const u8 as *const libc::c_char;
+                    chomp_hint =
+                        b"+\0" as *const u8 as *const libc::c_char;
                     (*emitter).open_ended = 2;
                 }
             }
         }
         if !chomp_hint.is_null()
-            && yaml_emitter_write_indicator(emitter, chomp_hint, false, false, false)
-                .fail
+            && yaml_emitter_write_indicator(
+                emitter, chomp_hint, false, false, false,
+            )
+            .fail
         {
             return FAIL;
         }
@@ -5497,13 +6579,13 @@ mod emitter {
             pointer: value,
         };
         if yaml_emitter_write_indicator(
-                emitter,
-                b"|\0" as *const u8 as *const libc::c_char,
-                true,
-                false,
-                false,
-            )
-            .fail
+            emitter,
+            b"|\0" as *const u8 as *const libc::c_char,
+            true,
+            false,
+            false,
+        )
+        .fail
         {
             return FAIL;
         }
@@ -5516,15 +6598,31 @@ mod emitter {
         (*emitter).indention = true;
         (*emitter).whitespace = true;
         while string.pointer != string.end {
-            if *string.pointer.offset(0) == b'\r' || *string.pointer.offset(0) == b'\n'
+            if *string.pointer.offset(0) == b'\r'
+                || *string.pointer.offset(0) == b'\n'
                 || *string.pointer.offset(0) == b'\xC2'
-                    && *string.pointer.offset((0 + 1).try_into().unwrap()) == b'\x85'
+                    && *string
+                        .pointer
+                        .offset((0 + 1).try_into().unwrap())
+                        == b'\x85'
                 || *string.pointer.offset(0) == b'\xE2'
-                    && *string.pointer.offset((0 + 1).try_into().unwrap()) == b'\x80'
-                    && *string.pointer.offset((0 + 2).try_into().unwrap()) == b'\xA8'
+                    && *string
+                        .pointer
+                        .offset((0 + 1).try_into().unwrap())
+                        == b'\x80'
+                    && *string
+                        .pointer
+                        .offset((0 + 2).try_into().unwrap())
+                        == b'\xA8'
                 || *string.pointer.offset(0) == b'\xE2'
-                    && *string.pointer.offset((0 + 1).try_into().unwrap()) == b'\x80'
-                    && *string.pointer.offset((0 + 2).try_into().unwrap()) == b'\xA9'
+                    && *string
+                        .pointer
+                        .offset((0 + 1).try_into().unwrap())
+                        == b'\x80'
+                    && *string
+                        .pointer
+                        .offset((0 + 2).try_into().unwrap())
+                        == b'\xA9'
             {
                 if write_break(emitter, &raw mut string).fail {
                     return FAIL;
@@ -5557,13 +6655,13 @@ mod emitter {
             pointer: value,
         };
         if yaml_emitter_write_indicator(
-                emitter,
-                b">\0" as *const u8 as *const libc::c_char,
-                true,
-                false,
-                false,
-            )
-            .fail
+            emitter,
+            b">\0" as *const u8 as *const libc::c_char,
+            true,
+            false,
+            false,
+        )
+        .fail
         {
             return FAIL;
         }
@@ -5576,83 +6674,129 @@ mod emitter {
         (*emitter).indention = true;
         (*emitter).whitespace = true;
         while string.pointer != string.end {
-            if *string.pointer.offset(0) == b'\r' || *string.pointer.offset(0) == b'\n'
+            if *string.pointer.offset(0) == b'\r'
+                || *string.pointer.offset(0) == b'\n'
                 || *string.pointer.offset(0) == b'\xC2'
-                    && *string.pointer.offset((0 + 1).try_into().unwrap()) == b'\x85'
+                    && *string
+                        .pointer
+                        .offset((0 + 1).try_into().unwrap())
+                        == b'\x85'
                 || *string.pointer.offset(0) == b'\xE2'
-                    && *string.pointer.offset((0 + 1).try_into().unwrap()) == b'\x80'
-                    && *string.pointer.offset((0 + 2).try_into().unwrap()) == b'\xA8'
+                    && *string
+                        .pointer
+                        .offset((0 + 1).try_into().unwrap())
+                        == b'\x80'
+                    && *string
+                        .pointer
+                        .offset((0 + 2).try_into().unwrap())
+                        == b'\xA8'
                 || *string.pointer.offset(0) == b'\xE2'
-                    && *string.pointer.offset((0 + 1).try_into().unwrap()) == b'\x80'
-                    && *string.pointer.offset((0 + 2).try_into().unwrap()) == b'\xA9'
+                    && *string
+                        .pointer
+                        .offset((0 + 1).try_into().unwrap())
+                        == b'\x80'
+                    && *string
+                        .pointer
+                        .offset((0 + 2).try_into().unwrap())
+                        == b'\xA9'
             {
-                if !breaks && !leading_spaces && *string.pointer == b'\n' {
+                if !breaks
+                    && !leading_spaces
+                    && *string.pointer == b'\n'
+                {
                     let mut k: libc::c_int = 0;
                     while *string.pointer.offset(k as isize) == b'\r'
                         || *string.pointer.offset(k as isize) == b'\n'
                         || *string.pointer.offset(k as isize) == b'\xC2'
-                            && *string
-                                .pointer
-                                .offset((k as isize + 1).try_into().unwrap()) == b'\x85'
+                            && *string.pointer.offset(
+                                (k as isize + 1).try_into().unwrap(),
+                            ) == b'\x85'
                         || *string.pointer.offset(k as isize) == b'\xE2'
-                            && *string
-                                .pointer
-                                .offset((k as isize + 1).try_into().unwrap()) == b'\x80'
-                            && *string
-                                .pointer
-                                .offset((k as isize + 2).try_into().unwrap()) == b'\xA8'
+                            && *string.pointer.offset(
+                                (k as isize + 1).try_into().unwrap(),
+                            ) == b'\x80'
+                            && *string.pointer.offset(
+                                (k as isize + 2).try_into().unwrap(),
+                            ) == b'\xA8'
                         || *string.pointer.offset(k as isize) == b'\xE2'
-                            && *string
-                                .pointer
-                                .offset((k as isize + 1).try_into().unwrap()) == b'\x80'
-                            && *string
-                                .pointer
-                                .offset((k as isize + 2).try_into().unwrap()) == b'\xA9'
+                            && *string.pointer.offset(
+                                (k as isize + 1).try_into().unwrap(),
+                            ) == b'\x80'
+                            && *string.pointer.offset(
+                                (k as isize + 2).try_into().unwrap(),
+                            ) == b'\xA9'
                     {
-                        k
-                            += if *string.pointer.wrapping_offset(k as isize) & 0x80
-                                == 0x00
-                            {
-                                1
-                            } else if *string.pointer.wrapping_offset(k as isize) & 0xE0
-                                == 0xC0
-                            {
-                                2
-                            } else if *string.pointer.wrapping_offset(k as isize) & 0xF0
-                                == 0xE0
-                            {
-                                3
-                            } else if *string.pointer.wrapping_offset(k as isize) & 0xF8
-                                == 0xF0
-                            {
-                                4
-                            } else {
-                                0
-                            };
+                        k += if *string
+                            .pointer
+                            .wrapping_offset(k as isize)
+                            & 0x80
+                            == 0x00
+                        {
+                            1
+                        } else if *string
+                            .pointer
+                            .wrapping_offset(k as isize)
+                            & 0xE0
+                            == 0xC0
+                        {
+                            2
+                        } else if *string
+                            .pointer
+                            .wrapping_offset(k as isize)
+                            & 0xF0
+                            == 0xE0
+                        {
+                            3
+                        } else if *string
+                            .pointer
+                            .wrapping_offset(k as isize)
+                            & 0xF8
+                            == 0xF0
+                        {
+                            4
+                        } else {
+                            0
+                        };
                     }
                     if !(*string.pointer.offset(k as isize) == b' '
                         || *string.pointer.offset(k as isize) == b'\t'
-                        || (*string.pointer.offset(k as isize) == b'\r'
-                            || *string.pointer.offset(k as isize) == b'\n'
-                            || *string.pointer.offset(k as isize) == b'\xC2'
-                                && *string
-                                    .pointer
-                                    .offset((k as isize + 1).try_into().unwrap()) == b'\x85'
-                            || *string.pointer.offset(k as isize) == b'\xE2'
-                                && *string
-                                    .pointer
-                                    .offset((k as isize + 1).try_into().unwrap()) == b'\x80'
-                                && *string
-                                    .pointer
-                                    .offset((k as isize + 2).try_into().unwrap()) == b'\xA8'
-                            || *string.pointer.offset(k as isize) == b'\xE2'
-                                && *string
-                                    .pointer
-                                    .offset((k as isize + 1).try_into().unwrap()) == b'\x80'
-                                && *string
-                                    .pointer
-                                    .offset((k as isize + 2).try_into().unwrap()) == b'\xA9'
-                            || *string.pointer.offset(k as isize) == b'\0'))
+                        || (*string.pointer.offset(k as isize)
+                            == b'\r'
+                            || *string.pointer.offset(k as isize)
+                                == b'\n'
+                            || *string.pointer.offset(k as isize)
+                                == b'\xC2'
+                                && *string.pointer.offset(
+                                    (k as isize + 1)
+                                        .try_into()
+                                        .unwrap(),
+                                ) == b'\x85'
+                            || *string.pointer.offset(k as isize)
+                                == b'\xE2'
+                                && *string.pointer.offset(
+                                    (k as isize + 1)
+                                        .try_into()
+                                        .unwrap(),
+                                ) == b'\x80'
+                                && *string.pointer.offset(
+                                    (k as isize + 2)
+                                        .try_into()
+                                        .unwrap(),
+                                ) == b'\xA8'
+                            || *string.pointer.offset(k as isize)
+                                == b'\xE2'
+                                && *string.pointer.offset(
+                                    (k as isize + 1)
+                                        .try_into()
+                                        .unwrap(),
+                                ) == b'\x80'
+                                && *string.pointer.offset(
+                                    (k as isize + 2)
+                                        .try_into()
+                                        .unwrap(),
+                                ) == b'\xA9'
+                            || *string.pointer.offset(k as isize)
+                                == b'\0'))
                         && put_break(emitter).fail
                     {
                         return FAIL;
@@ -5671,28 +6815,38 @@ mod emitter {
                     leading_spaces = *string.pointer.offset(0) == b' '
                         || *string.pointer.offset(0) == b'\t';
                 }
-                if !breaks && *string.pointer.offset(0) == b' '
+                if !breaks
+                    && *string.pointer.offset(0) == b' '
                     && !(*string.pointer.offset(1) == b' ')
                     && (*emitter).column > (*emitter).best_width
                 {
                     if yaml_emitter_write_indent(emitter).fail {
                         return FAIL;
                     }
-                    string.pointer = string
-                        .pointer
-                        .wrapping_offset(
-                            if *string.pointer.wrapping_offset(0) & 0x80 == 0x00 {
-                                1
-                            } else if *string.pointer.wrapping_offset(0) & 0xE0 == 0xC0 {
-                                2
-                            } else if *string.pointer.wrapping_offset(0) & 0xF0 == 0xE0 {
-                                3
-                            } else if *string.pointer.wrapping_offset(0) & 0xF8 == 0xF0 {
-                                4
-                            } else {
-                                0
-                            },
-                        );
+                    string.pointer = string.pointer.wrapping_offset(
+                        if *string.pointer.wrapping_offset(0) & 0x80
+                            == 0x00
+                        {
+                            1
+                        } else if *string.pointer.wrapping_offset(0)
+                            & 0xE0
+                            == 0xC0
+                        {
+                            2
+                        } else if *string.pointer.wrapping_offset(0)
+                            & 0xF0
+                            == 0xE0
+                        {
+                            3
+                        } else if *string.pointer.wrapping_offset(0)
+                            & 0xF8
+                            == 0xF0
+                        {
+                            4
+                        } else {
+                            0
+                        },
+                    );
                 } else if write(emitter, &raw mut string).fail {
                     return FAIL;
                 }
@@ -5713,11 +6867,13 @@ pub mod loader {
     use crate::success::{Success, FAIL, OK};
     use crate::yaml::yaml_char_t;
     use crate::{
-        libc, yaml_document_delete, yaml_parser_parse, PointerExt, YamlAliasDataT,
-        YamlAliasEvent, YamlComposerError, YamlDocumentEndEvent, YamlDocumentStartEvent,
-        YamlDocumentT, YamlEventT, YamlMappingEndEvent, YamlMappingNode,
-        YamlMappingStartEvent, YamlMarkT, YamlMemoryError, YamlNodeItemT, YamlNodePairT,
-        YamlNodeT, YamlParserT, YamlScalarEvent, YamlScalarNode, YamlSequenceEndEvent,
+        libc, yaml_document_delete, yaml_parser_parse, PointerExt,
+        YamlAliasDataT, YamlAliasEvent, YamlComposerError,
+        YamlDocumentEndEvent, YamlDocumentStartEvent, YamlDocumentT,
+        YamlEventT, YamlMappingEndEvent, YamlMappingNode,
+        YamlMappingStartEvent, YamlMarkT, YamlMemoryError,
+        YamlNodeItemT, YamlNodePairT, YamlNodeT, YamlParserT,
+        YamlScalarEvent, YamlScalarNode, YamlSequenceEndEvent,
         YamlSequenceNode, YamlSequenceStartEvent, YamlStreamEndEvent,
         YamlStreamStartEvent,
     };
@@ -5759,10 +6915,18 @@ pub mod loader {
         let mut event = MaybeUninit::<YamlEventT>::uninit();
         let event = event.as_mut_ptr();
         if !!parser.is_null() {
-            crate::externs::__assert_fail("!parser.is_null()", "src/loader.rs", 55u32);
+            crate::externs::__assert_fail(
+                "!parser.is_null()",
+                "src/loader.rs",
+                55u32,
+            );
         }
         if !!document.is_null() {
-            crate::externs::__assert_fail("!document.is_null()", "src/loader.rs", 56u32);
+            crate::externs::__assert_fail(
+                "!document.is_null()",
+                "src/loader.rs",
+                56u32,
+            );
         }
         let _ = memset(
             document as *mut libc::c_void,
@@ -5774,7 +6938,8 @@ pub mod loader {
                 16 * size_of::<YamlNodeT>() as libc::c_ulong,
             ) as *mut YamlNodeT;
             (*document).nodes.top = (*document).nodes.start;
-            (*document).nodes.end = (*document).nodes.start.offset(16_isize);
+            (*document).nodes.end =
+                (*document).nodes.start.offset(16_isize);
         };
         if !(*parser).stream_start_produced {
             if yaml_parser_parse(parser, event).fail {
@@ -5802,10 +6967,13 @@ pub mod loader {
                 }
                 {
                     (*parser).aliases.start = yaml_malloc(
-                        16 * size_of::<YamlAliasDataT>() as libc::c_ulong,
-                    ) as *mut YamlAliasDataT;
+                        16 * size_of::<YamlAliasDataT>()
+                            as libc::c_ulong,
+                    )
+                        as *mut YamlAliasDataT;
                     (*parser).aliases.top = (*parser).aliases.start;
-                    (*parser).aliases.end = (*parser).aliases.start.offset(16_isize);
+                    (*parser).aliases.end =
+                        (*parser).aliases.start.offset(16_isize);
                 };
                 let fresh6 = &raw mut (*parser).document;
                 *fresh6 = document;
@@ -5876,10 +7044,11 @@ pub mod loader {
         while !((*parser).aliases.start == (*parser).aliases.top) {
             yaml_free(
                 (*{
-                    (*parser).aliases.top = (*parser).aliases.top.offset(-1);
+                    (*parser).aliases.top =
+                        (*parser).aliases.top.offset(-1);
                     (*parser).aliases.top
                 })
-                    .anchor as *mut libc::c_void,
+                .anchor as *mut libc::c_void,
             );
         }
         yaml_free((*parser).aliases.start as *mut libc::c_void);
@@ -5905,15 +7074,18 @@ pub mod loader {
         }
         let fresh16 = &raw mut (*(*parser).document).version_directive;
         *fresh16 = (*event).data.document_start.version_directive;
-        let fresh17 = &raw mut (*(*parser).document).tag_directives.start;
+        let fresh17 =
+            &raw mut (*(*parser).document).tag_directives.start;
         *fresh17 = (*event).data.document_start.tag_directives.start;
         let fresh18 = &raw mut (*(*parser).document).tag_directives.end;
         *fresh18 = (*event).data.document_start.tag_directives.end;
-        (*(*parser).document).start_implicit = (*event).data.document_start.implicit;
+        (*(*parser).document).start_implicit =
+            (*event).data.document_start.implicit;
         (*(*parser).document).start_mark = (*event).start_mark;
         {
-            ctx.start = yaml_malloc(16 * size_of::<libc::c_int>() as libc::c_ulong)
-                as *mut libc::c_int;
+            ctx.start = yaml_malloc(
+                16 * size_of::<libc::c_int>() as libc::c_ulong,
+            ) as *mut libc::c_int;
             ctx.top = ctx.start;
             ctx.end = ctx.start.offset(16_isize);
         };
@@ -5947,40 +7119,53 @@ pub mod loader {
                     }
                 }
                 YamlScalarEvent => {
-                    if yaml_parser_load_scalar(parser, event, ctx).fail {
+                    if yaml_parser_load_scalar(parser, event, ctx).fail
+                    {
                         return FAIL;
                     }
                 }
                 YamlSequenceStartEvent => {
-                    if yaml_parser_load_sequence(parser, event, ctx).fail {
+                    if yaml_parser_load_sequence(parser, event, ctx)
+                        .fail
+                    {
                         return FAIL;
                     }
                 }
                 YamlSequenceEndEvent => {
-                    if yaml_parser_load_sequence_end(parser, event, ctx).fail {
+                    if yaml_parser_load_sequence_end(parser, event, ctx)
+                        .fail
+                    {
                         return FAIL;
                     }
                 }
                 YamlMappingStartEvent => {
-                    if yaml_parser_load_mapping(parser, event, ctx).fail {
+                    if yaml_parser_load_mapping(parser, event, ctx).fail
+                    {
                         return FAIL;
                     }
                 }
                 YamlMappingEndEvent => {
-                    if yaml_parser_load_mapping_end(parser, event, ctx).fail {
+                    if yaml_parser_load_mapping_end(parser, event, ctx)
+                        .fail
+                    {
                         return FAIL;
                     }
                 }
                 YamlDocumentEndEvent => {}
                 _ => {
-                    crate::externs::__assert_fail("false", "src/loader.rs", 233u32);
+                    crate::externs::__assert_fail(
+                        "false",
+                        "src/loader.rs",
+                        233u32,
+                    );
                 }
             }
             if (*event).type_ == YamlDocumentEndEvent {
                 break;
             }
         }
-        (*(*parser).document).end_implicit = (*event).data.document_end.implicit;
+        (*(*parser).document).end_implicit =
+            (*event).data.document_end.implicit;
         (*(*parser).document).end_mark = (*event).end_mark;
         OK
     }
@@ -6001,7 +7186,7 @@ pub mod loader {
             .nodes
             .start
             .wrapping_offset((index - 1) as isize))
-            .start_mark;
+        .start_mark;
         alias_data = (*parser).aliases.start;
         while alias_data != (*parser).aliases.top {
             if strcmp(
@@ -6012,10 +7197,12 @@ pub mod loader {
                 yaml_free(anchor as *mut libc::c_void);
                 return yaml_parser_set_composer_error_context(
                     parser,
-                    b"found duplicate anchor; first occurrence\0" as *const u8
+                    b"found duplicate anchor; first occurrence\0"
+                        as *const u8
                         as *const libc::c_char,
                     (*alias_data).mark,
-                    b"second occurrence\0" as *const u8 as *const libc::c_char,
+                    b"second occurrence\0" as *const u8
+                        as *const libc::c_char,
                     (*data).mark,
                 );
             }
@@ -6024,13 +7211,17 @@ pub mod loader {
         {
             if (*parser).aliases.top == (*parser).aliases.end {
                 yaml_stack_extend(
-                    &raw mut (*parser).aliases.start as *mut *mut libc::c_void,
-                    &raw mut (*parser).aliases.top as *mut *mut libc::c_void,
-                    &raw mut (*parser).aliases.end as *mut *mut libc::c_void,
+                    &raw mut (*parser).aliases.start
+                        as *mut *mut libc::c_void,
+                    &raw mut (*parser).aliases.top
+                        as *mut *mut libc::c_void,
+                    &raw mut (*parser).aliases.end
+                        as *mut *mut libc::c_void,
                 );
             }
             ptr::copy_nonoverlapping(data, (*parser).aliases.top, 1);
-            (*parser).aliases.top = (*parser).aliases.top.wrapping_offset(1);
+            (*parser).aliases.top =
+                (*parser).aliases.top.wrapping_offset(1);
         };
         OK
     }
@@ -6042,9 +7233,11 @@ pub mod loader {
         if (*ctx).start == (*ctx).top {
             return OK;
         }
-        let parent_index: libc::c_int = *(*ctx).top.wrapping_offset(-1_isize);
-        let parent: *mut YamlNodeT = &raw mut *((*(*parser).document).nodes.start)
-            .wrapping_offset((parent_index - 1) as isize);
+        let parent_index: libc::c_int =
+            *(*ctx).top.wrapping_offset(-1_isize);
+        let parent: *mut YamlNodeT =
+            &raw mut *((*(*parser).document).nodes.start)
+                .wrapping_offset((parent_index - 1) as isize);
         let current_block_17: u64;
         match (*parent).type_ {
             YamlSequenceNode => {
@@ -6061,7 +7254,7 @@ pub mod loader {
                     (*parser).error = YamlMemoryError;
                     FAIL
                 }
-                    .fail
+                .fail
                 {
                     return FAIL;
                 }
@@ -6078,7 +7271,10 @@ pub mod loader {
                                 as *mut *mut libc::c_void,
                         );
                     }
-                    ptr::write((*parent).data.sequence.items.top, index);
+                    ptr::write(
+                        (*parent).data.sequence.items.top,
+                        index,
+                    );
                     (*parent).data.sequence.items.top = (*parent)
                         .data
                         .sequence
@@ -6118,7 +7314,9 @@ pub mod loader {
                             .mapping
                             .pairs
                             .top
-                            .c_offset_from((*parent).data.mapping.pairs.start)
+                            .c_offset_from(
+                                (*parent).data.mapping.pairs.start,
+                            )
                             < libc::c_int::MAX as isize - 1
                         {
                             OK
@@ -6126,7 +7324,7 @@ pub mod loader {
                             (*parser).error = YamlMemoryError;
                             FAIL
                         }
-                            .fail
+                        .fail
                         {
                             return FAIL;
                         }
@@ -6135,11 +7333,23 @@ pub mod loader {
                                 == (*parent).data.mapping.pairs.end
                             {
                                 yaml_stack_extend(
-                                    &raw mut (*parent).data.mapping.pairs.start
+                                    &raw mut (*parent)
+                                        .data
+                                        .mapping
+                                        .pairs
+                                        .start
                                         as *mut *mut libc::c_void,
-                                    &raw mut (*parent).data.mapping.pairs.top
+                                    &raw mut (*parent)
+                                        .data
+                                        .mapping
+                                        .pairs
+                                        .top
                                         as *mut *mut libc::c_void,
-                                    &raw mut (*parent).data.mapping.pairs.end
+                                    &raw mut (*parent)
+                                        .data
+                                        .mapping
+                                        .pairs
+                                        .end
                                         as *mut *mut libc::c_void,
                                 );
                             }
@@ -6148,18 +7358,23 @@ pub mod loader {
                                 (*parent).data.mapping.pairs.top,
                                 1,
                             );
-                            (*parent).data.mapping.pairs.top = (*parent)
-                                .data
-                                .mapping
-                                .pairs
-                                .top
-                                .wrapping_offset(1);
+                            (*parent).data.mapping.pairs.top =
+                                (*parent)
+                                    .data
+                                    .mapping
+                                    .pairs
+                                    .top
+                                    .wrapping_offset(1);
                         };
                     }
                 }
             }
             _ => {
-                crate::externs::__assert_fail("false", "src/loader.rs", 347u32);
+                crate::externs::__assert_fail(
+                    "false",
+                    "src/loader.rs",
+                    347u32,
+                );
             }
         }
         OK
@@ -6179,14 +7394,19 @@ pub mod loader {
             ) == 0
             {
                 yaml_free(anchor as *mut libc::c_void);
-                return yaml_parser_load_node_add(parser, ctx, (*alias_data).index);
+                return yaml_parser_load_node_add(
+                    parser,
+                    ctx,
+                    (*alias_data).index,
+                );
             }
             alias_data = alias_data.wrapping_offset(1);
         }
         yaml_free(anchor as *mut libc::c_void);
         yaml_parser_set_composer_error(
             parser,
-            b"found undefined alias\0" as *const u8 as *const libc::c_char,
+            b"found undefined alias\0" as *const u8
+                as *const libc::c_char,
             (*event).start_mark,
         )
     }
@@ -6211,7 +7431,7 @@ pub mod loader {
             (*parser).error = YamlMemoryError;
             FAIL
         }
-            .ok
+        .ok
         {
             if tag.is_null()
                 || strcmp(
@@ -6221,7 +7441,8 @@ pub mod loader {
             {
                 yaml_free(tag as *mut libc::c_void);
                 tag = yaml_strdup(
-                    b"tag:yaml.org,2002:str\0" as *const u8 as *const libc::c_char
+                    b"tag:yaml.org,2002:str\0" as *const u8
+                        as *const libc::c_char
                         as *mut yaml_char_t,
                 );
                 if tag.is_null() {
@@ -6243,10 +7464,12 @@ pub mod loader {
                 (*node).start_mark = (*event).start_mark;
                 (*node).end_mark = (*event).end_mark;
                 (*node).data.scalar.value = (*event).data.scalar.value;
-                (*node).data.scalar.length = (*event).data.scalar.length;
+                (*node).data.scalar.length =
+                    (*event).data.scalar.length;
                 (*node).data.scalar.style = (*event).data.scalar.style;
                 {
-                    if (*(*parser).document).nodes.top == (*(*parser).document).nodes.end
+                    if (*(*parser).document).nodes.top
+                        == (*(*parser).document).nodes.end
                     {
                         yaml_stack_extend(
                             &raw mut (*(*parser).document).nodes.start
@@ -6257,22 +7480,27 @@ pub mod loader {
                                 as *mut *mut libc::c_void,
                         );
                     }
-                    ptr::copy_nonoverlapping(node, (*(*parser).document).nodes.top, 1);
-                    (*(*parser).document).nodes.top = (*(*parser).document)
+                    ptr::copy_nonoverlapping(
+                        node,
+                        (*(*parser).document).nodes.top,
+                        1,
+                    );
+                    (*(*parser).document).nodes.top = (*(*parser)
+                        .document)
                         .nodes
                         .top
                         .wrapping_offset(1);
                 };
-                index = (*(*parser).document)
-                    .nodes
-                    .top
-                    .c_offset_from((*(*parser).document).nodes.start) as libc::c_int;
+                index =
+                    (*(*parser).document).nodes.top.c_offset_from(
+                        (*(*parser).document).nodes.start,
+                    ) as libc::c_int;
                 if yaml_parser_register_anchor(
-                        parser,
-                        index,
-                        (*event).data.scalar.anchor,
-                    )
-                    .fail
+                    parser,
+                    index,
+                    (*event).data.scalar.anchor,
+                )
+                .fail
                 {
                     return FAIL;
                 }
@@ -6303,7 +7531,8 @@ pub mod loader {
             top: ptr::null_mut::<YamlNodeItemT>(),
         };
         let index: libc::c_int;
-        let mut tag: *mut yaml_char_t = (*event).data.sequence_start.tag;
+        let mut tag: *mut yaml_char_t =
+            (*event).data.sequence_start.tag;
         if if (*(*parser).document)
             .nodes
             .top
@@ -6315,7 +7544,7 @@ pub mod loader {
             (*parser).error = YamlMemoryError;
             FAIL
         }
-            .ok
+        .ok
         {
             if tag.is_null()
                 || strcmp(
@@ -6325,7 +7554,8 @@ pub mod loader {
             {
                 yaml_free(tag as *mut libc::c_void);
                 tag = yaml_strdup(
-                    b"tag:yaml.org,2002:seq\0" as *const u8 as *const libc::c_char
+                    b"tag:yaml.org,2002:seq\0" as *const u8
+                        as *const libc::c_char
                         as *mut yaml_char_t,
                 );
                 if tag.is_null() {
@@ -6339,8 +7569,10 @@ pub mod loader {
             if current_block != 13474536459355229096 {
                 {
                     items.start = yaml_malloc(
-                        16 * size_of::<YamlNodeItemT>() as libc::c_ulong,
-                    ) as *mut YamlNodeItemT;
+                        16 * size_of::<YamlNodeItemT>()
+                            as libc::c_ulong,
+                    )
+                        as *mut YamlNodeItemT;
                     items.top = items.start;
                     items.end = items.start.offset(16_isize);
                 };
@@ -6356,9 +7588,11 @@ pub mod loader {
                 (*node).data.sequence.items.start = items.start;
                 (*node).data.sequence.items.end = items.end;
                 (*node).data.sequence.items.top = items.start;
-                (*node).data.sequence.style = (*event).data.sequence_start.style;
+                (*node).data.sequence.style =
+                    (*event).data.sequence_start.style;
                 {
-                    if (*(*parser).document).nodes.top == (*(*parser).document).nodes.end
+                    if (*(*parser).document).nodes.top
+                        == (*(*parser).document).nodes.end
                     {
                         yaml_stack_extend(
                             &raw mut (*(*parser).document).nodes.start
@@ -6369,22 +7603,27 @@ pub mod loader {
                                 as *mut *mut libc::c_void,
                         );
                     }
-                    ptr::copy_nonoverlapping(node, (*(*parser).document).nodes.top, 1);
-                    (*(*parser).document).nodes.top = (*(*parser).document)
+                    ptr::copy_nonoverlapping(
+                        node,
+                        (*(*parser).document).nodes.top,
+                        1,
+                    );
+                    (*(*parser).document).nodes.top = (*(*parser)
+                        .document)
                         .nodes
                         .top
                         .wrapping_offset(1);
                 };
-                index = (*(*parser).document)
-                    .nodes
-                    .top
-                    .c_offset_from((*(*parser).document).nodes.start) as libc::c_int;
+                index =
+                    (*(*parser).document).nodes.top.c_offset_from(
+                        (*(*parser).document).nodes.start,
+                    ) as libc::c_int;
                 if yaml_parser_register_anchor(
-                        parser,
-                        index,
-                        (*event).data.sequence_start.anchor,
-                    )
-                    .fail
+                    parser,
+                    index,
+                    (*event).data.sequence_start.anchor,
+                )
+                .fail
                 {
                     return FAIL;
                 }
@@ -6399,16 +7638,19 @@ pub mod loader {
                     (*parser).error = YamlMemoryError;
                     FAIL
                 }
-                    .fail
+                .fail
                 {
                     return FAIL;
                 }
                 {
                     if (*ctx).top == (*ctx).end {
                         yaml_stack_extend(
-                            &raw mut (*ctx).start as *mut *mut libc::c_void,
-                            &raw mut (*ctx).top as *mut *mut libc::c_void,
-                            &raw mut (*ctx).end as *mut *mut libc::c_void,
+                            &raw mut (*ctx).start
+                                as *mut *mut libc::c_void,
+                            &raw mut (*ctx).top
+                                as *mut *mut libc::c_void,
+                            &raw mut (*ctx).end
+                                as *mut *mut libc::c_void,
                         );
                     }
                     ptr::write((*ctx).top, index);
@@ -6418,7 +7660,9 @@ pub mod loader {
             }
         }
         yaml_free(tag as *mut libc::c_void);
-        yaml_free((*event).data.sequence_start.anchor as *mut libc::c_void);
+        yaml_free(
+            (*event).data.sequence_start.anchor as *mut libc::c_void,
+        );
         FAIL
     }
     unsafe fn yaml_parser_load_sequence_end(
@@ -6426,7 +7670,9 @@ pub mod loader {
         event: *mut YamlEventT,
         ctx: *mut LoaderCtx,
     ) -> Success {
-        if !(((*ctx).top).c_offset_from((*ctx).start) as libc::c_long > 0_i64) {
+        if !(((*ctx).top).c_offset_from((*ctx).start) as libc::c_long
+            > 0_i64)
+        {
             crate::externs::__assert_fail(
                 "((*ctx).top).c_offset_from((*ctx).start) as libc::c_long > 0_i64",
                 "src/loader.rs",
@@ -6434,8 +7680,10 @@ pub mod loader {
             );
         }
         let index: libc::c_int = *(*ctx).top.wrapping_offset(-1_isize);
-        if !((*((*(*parser).document).nodes.start).wrapping_offset((index - 1) as isize))
-            .type_ == YamlSequenceNode)
+        if !((*((*(*parser).document).nodes.start)
+            .wrapping_offset((index - 1) as isize))
+        .type_
+            == YamlSequenceNode)
         {
             crate::externs::__assert_fail(
                 "(*((*(*parser).document).nodes.start).wrapping_offset((index - 1) as\nisize)).type_ == YamlSequenceNode",
@@ -6443,8 +7691,11 @@ pub mod loader {
                 549u32,
             );
         }
-        (*(*(*parser).document).nodes.start.wrapping_offset((index - 1) as isize))
-            .end_mark = (*event).end_mark;
+        (*(*(*parser).document)
+            .nodes
+            .start
+            .wrapping_offset((index - 1) as isize))
+        .end_mark = (*event).end_mark;
         let _ = *{
             (*ctx).top = (*ctx).top.offset(-1);
             (*ctx).top
@@ -6482,7 +7733,7 @@ pub mod loader {
             (*parser).error = YamlMemoryError;
             FAIL
         }
-            .ok
+        .ok
         {
             if tag.is_null()
                 || strcmp(
@@ -6492,7 +7743,8 @@ pub mod loader {
             {
                 yaml_free(tag as *mut libc::c_void);
                 tag = yaml_strdup(
-                    b"tag:yaml.org,2002:map\0" as *const u8 as *const libc::c_char
+                    b"tag:yaml.org,2002:map\0" as *const u8
+                        as *const libc::c_char
                         as *mut yaml_char_t,
                 );
                 if tag.is_null() {
@@ -6506,8 +7758,10 @@ pub mod loader {
             if current_block != 13635467803606088781 {
                 {
                     pairs.start = yaml_malloc(
-                        16 * size_of::<YamlNodePairT>() as libc::c_ulong,
-                    ) as *mut YamlNodePairT;
+                        16 * size_of::<YamlNodePairT>()
+                            as libc::c_ulong,
+                    )
+                        as *mut YamlNodePairT;
                     pairs.top = pairs.start;
                     pairs.end = pairs.start.offset(16_isize);
                 };
@@ -6523,9 +7777,11 @@ pub mod loader {
                 (*node).data.mapping.pairs.start = pairs.start;
                 (*node).data.mapping.pairs.end = pairs.end;
                 (*node).data.mapping.pairs.top = pairs.start;
-                (*node).data.mapping.style = (*event).data.mapping_start.style;
+                (*node).data.mapping.style =
+                    (*event).data.mapping_start.style;
                 {
-                    if (*(*parser).document).nodes.top == (*(*parser).document).nodes.end
+                    if (*(*parser).document).nodes.top
+                        == (*(*parser).document).nodes.end
                     {
                         yaml_stack_extend(
                             &raw mut (*(*parser).document).nodes.start
@@ -6536,22 +7792,27 @@ pub mod loader {
                                 as *mut *mut libc::c_void,
                         );
                     }
-                    ptr::copy_nonoverlapping(node, (*(*parser).document).nodes.top, 1);
-                    (*(*parser).document).nodes.top = (*(*parser).document)
+                    ptr::copy_nonoverlapping(
+                        node,
+                        (*(*parser).document).nodes.top,
+                        1,
+                    );
+                    (*(*parser).document).nodes.top = (*(*parser)
+                        .document)
                         .nodes
                         .top
                         .wrapping_offset(1);
                 };
-                index = (*(*parser).document)
-                    .nodes
-                    .top
-                    .c_offset_from((*(*parser).document).nodes.start) as libc::c_int;
+                index =
+                    (*(*parser).document).nodes.top.c_offset_from(
+                        (*(*parser).document).nodes.start,
+                    ) as libc::c_int;
                 if yaml_parser_register_anchor(
-                        parser,
-                        index,
-                        (*event).data.mapping_start.anchor,
-                    )
-                    .fail
+                    parser,
+                    index,
+                    (*event).data.mapping_start.anchor,
+                )
+                .fail
                 {
                     return FAIL;
                 }
@@ -6566,16 +7827,19 @@ pub mod loader {
                     (*parser).error = YamlMemoryError;
                     FAIL
                 }
-                    .fail
+                .fail
                 {
                     return FAIL;
                 }
                 {
                     if (*ctx).top == (*ctx).end {
                         yaml_stack_extend(
-                            &raw mut (*ctx).start as *mut *mut libc::c_void,
-                            &raw mut (*ctx).top as *mut *mut libc::c_void,
-                            &raw mut (*ctx).end as *mut *mut libc::c_void,
+                            &raw mut (*ctx).start
+                                as *mut *mut libc::c_void,
+                            &raw mut (*ctx).top
+                                as *mut *mut libc::c_void,
+                            &raw mut (*ctx).end
+                                as *mut *mut libc::c_void,
                         );
                     }
                     ptr::write((*ctx).top, index);
@@ -6585,7 +7849,9 @@ pub mod loader {
             }
         }
         yaml_free(tag as *mut libc::c_void);
-        yaml_free((*event).data.mapping_start.anchor as *mut libc::c_void);
+        yaml_free(
+            (*event).data.mapping_start.anchor as *mut libc::c_void,
+        );
         FAIL
     }
     unsafe fn yaml_parser_load_mapping_end(
@@ -6593,7 +7859,9 @@ pub mod loader {
         event: *mut YamlEventT,
         ctx: *mut LoaderCtx,
     ) -> Success {
-        if !(((*ctx).top).c_offset_from((*ctx).start) as libc::c_long > 0_i64) {
+        if !(((*ctx).top).c_offset_from((*ctx).start) as libc::c_long
+            > 0_i64)
+        {
             crate::externs::__assert_fail(
                 "((*ctx).top).c_offset_from((*ctx).start) as libc::c_long > 0_i64",
                 "src/loader.rs",
@@ -6601,8 +7869,10 @@ pub mod loader {
             );
         }
         let index: libc::c_int = *(*ctx).top.wrapping_offset(-1_isize);
-        if !((*((*(*parser).document).nodes.start).wrapping_offset((index - 1) as isize))
-            .type_ == YamlMappingNode)
+        if !((*((*(*parser).document).nodes.start)
+            .wrapping_offset((index - 1) as isize))
+        .type_
+            == YamlMappingNode)
         {
             crate::externs::__assert_fail(
                 "(*((*(*parser).document).nodes.start).wrapping_offset((index - 1) as\nisize)).type_ == YamlMappingNode",
@@ -6610,8 +7880,11 @@ pub mod loader {
                 661u32,
             );
         }
-        (*(*(*parser).document).nodes.start.wrapping_offset((index - 1) as isize))
-            .end_mark = (*event).end_mark;
+        (*(*(*parser).document)
+            .nodes
+            .start
+            .wrapping_offset((index - 1) as isize))
+        .end_mark = (*event).end_mark;
         let _ = *{
             (*ctx).top = (*ctx).top.offset(-1);
             (*ctx).top
@@ -6623,15 +7896,19 @@ pub mod loader {
 ///
 /// This module contains functions for decoding YAML data.
 pub mod decode {
+    use crate::externs::memset;
     use crate::{
-        libc, memory::{yaml_free, yaml_malloc},
+        libc,
+        memory::{yaml_free, yaml_malloc},
         success::{Success, OK},
         yaml::{size_t, yaml_char_t},
-        yaml_token_delete, YamlMarkT, YamlParserStateT, YamlParserT, YamlSimpleKeyT,
-        YamlTagDirectiveT, YamlTokenT,
+        yaml_token_delete, YamlMarkT, YamlParserStateT, YamlParserT,
+        YamlSimpleKeyT, YamlTagDirectiveT, YamlTokenT,
     };
-    use crate::externs::memset;
-    use core::{mem::size_of, ptr::{self, addr_of_mut}};
+    use core::{
+        mem::size_of,
+        ptr::{self, addr_of_mut},
+    };
     const INPUT_RAW_BUFFER_SIZE: usize = 16384;
     const INPUT_BUFFER_SIZE: usize = INPUT_RAW_BUFFER_SIZE * 3;
     /// Initialize a parser.
@@ -6645,9 +7922,15 @@ pub mod decode {
     /// - The `YamlParserT` struct must be properly aligned and have the expected memory layout.
     /// - The caller is responsible for properly destroying the parser object using `yaml_parser_delete`.
     ///
-    pub unsafe fn yaml_parser_initialize(parser: *mut YamlParserT) -> Success {
+    pub unsafe fn yaml_parser_initialize(
+        parser: *mut YamlParserT,
+    ) -> Success {
         if !!parser.is_null() {
-            crate::externs::__assert_fail("!parser.is_null()", "src/decode.rs", 38u32);
+            crate::externs::__assert_fail(
+                "!parser.is_null()",
+                "src/decode.rs",
+                38u32,
+            );
         }
         let _ = memset(
             parser as *mut libc::c_void,
@@ -6656,7 +7939,8 @@ pub mod decode {
         );
         {
             let start = &raw mut (*parser).raw_buffer.start;
-            *start = yaml_malloc(INPUT_RAW_BUFFER_SIZE as size_t) as *mut yaml_char_t;
+            *start = yaml_malloc(INPUT_RAW_BUFFER_SIZE as size_t)
+                as *mut yaml_char_t;
             if !start.is_null() {
                 let _ = memset(
                     *start as *mut libc::c_void,
@@ -6665,9 +7949,9 @@ pub mod decode {
                 );
             } else {
                 {
-                    ::core::panicking::panic_fmt(
-                        format_args!("Failed to allocate memory for buffer"),
-                    );
+                    ::core::panicking::panic_fmt(format_args!(
+                        "Failed to allocate memory for buffer"
+                    ));
                 };
             }
             let pointer = &raw mut (*parser).raw_buffer.pointer;
@@ -6679,14 +7963,19 @@ pub mod decode {
         };
         {
             let start = &raw mut (*parser).buffer.start;
-            *start = yaml_malloc(INPUT_BUFFER_SIZE as size_t) as *mut yaml_char_t;
+            *start = yaml_malloc(INPUT_BUFFER_SIZE as size_t)
+                as *mut yaml_char_t;
             if !start.is_null() {
-                let _ = memset(*start as *mut libc::c_void, 0, INPUT_BUFFER_SIZE as u64);
+                let _ = memset(
+                    *start as *mut libc::c_void,
+                    0,
+                    INPUT_BUFFER_SIZE as u64,
+                );
             } else {
                 {
-                    ::core::panicking::panic_fmt(
-                        format_args!("Failed to allocate memory for buffer"),
-                    );
+                    ::core::panicking::panic_fmt(format_args!(
+                        "Failed to allocate memory for buffer"
+                    ));
                 };
             }
             let pointer = &raw mut (*parser).buffer.pointer;
@@ -6702,45 +7991,52 @@ pub mod decode {
             ) as *mut YamlTokenT;
             (*parser).tokens.tail = (*parser).tokens.start;
             (*parser).tokens.head = (*parser).tokens.tail;
-            (*parser).tokens.end = (*parser).tokens.start.offset(16_isize);
+            (*parser).tokens.end =
+                (*parser).tokens.start.offset(16_isize);
         };
         {
             (*parser).indents.start = yaml_malloc(
                 16 * size_of::<libc::c_int>() as libc::c_ulong,
             ) as *mut libc::c_int;
             (*parser).indents.top = (*parser).indents.start;
-            (*parser).indents.end = (*parser).indents.start.offset(16_isize);
+            (*parser).indents.end =
+                (*parser).indents.start.offset(16_isize);
         };
         {
             (*parser).simple_keys.start = yaml_malloc(
                 16 * size_of::<YamlSimpleKeyT>() as libc::c_ulong,
-            ) as *mut YamlSimpleKeyT;
+            )
+                as *mut YamlSimpleKeyT;
             (*parser).simple_keys.top = (*parser).simple_keys.start;
-            (*parser).simple_keys.end = (*parser).simple_keys.start.offset(16_isize);
+            (*parser).simple_keys.end =
+                (*parser).simple_keys.start.offset(16_isize);
         };
         {
             (*parser).states.start = yaml_malloc(
                 16 * size_of::<YamlParserStateT>() as libc::c_ulong,
-            ) as *mut YamlParserStateT;
+            )
+                as *mut YamlParserStateT;
             (*parser).states.top = (*parser).states.start;
-            (*parser).states.end = (*parser).states.start.offset(16_isize);
+            (*parser).states.end =
+                (*parser).states.start.offset(16_isize);
         };
         {
             (*parser).marks.start = yaml_malloc(
                 16 * size_of::<YamlMarkT>() as libc::c_ulong,
             ) as *mut YamlMarkT;
             (*parser).marks.top = (*parser).marks.start;
-            (*parser).marks.end = (*parser).marks.start.offset(16_isize);
+            (*parser).marks.end =
+                (*parser).marks.start.offset(16_isize);
         };
         {
             (*parser).tag_directives.start = yaml_malloc(
                 16 * size_of::<YamlTagDirectiveT>() as libc::c_ulong,
-            ) as *mut YamlTagDirectiveT;
-            (*parser).tag_directives.top = (*parser).tag_directives.start;
-            (*parser).tag_directives.end = (*parser)
-                .tag_directives
-                .start
-                .offset(16_isize);
+            )
+                as *mut YamlTagDirectiveT;
+            (*parser).tag_directives.top =
+                (*parser).tag_directives.start;
+            (*parser).tag_directives.end =
+                (*parser).tag_directives.start.offset(16_isize);
         };
         OK
     }
@@ -6768,12 +8064,17 @@ pub mod decode {
     ///
     pub unsafe fn yaml_parser_delete(parser: *mut YamlParserT) {
         if !!parser.is_null() {
-            crate::externs::__assert_fail("!parser.is_null()", "src/decode.rs", 78u32);
+            crate::externs::__assert_fail(
+                "!parser.is_null()",
+                "src/decode.rs",
+                78u32,
+            );
         }
         {
             yaml_free((*parser).raw_buffer.start as *mut libc::c_void);
             (*parser).raw_buffer.start = ptr::null_mut::<yaml_char_t>();
-            (*parser).raw_buffer.pointer = ptr::null_mut::<yaml_char_t>();
+            (*parser).raw_buffer.pointer =
+                ptr::null_mut::<yaml_char_t>();
             (*parser).raw_buffer.last = ptr::null_mut::<yaml_char_t>();
             (*parser).raw_buffer.end = ptr::null_mut::<yaml_char_t>();
         };
@@ -6785,13 +8086,12 @@ pub mod decode {
             (*parser).buffer.end = ptr::null_mut::<yaml_char_t>();
         };
         while !((*parser).tokens.head == (*parser).tokens.tail) {
-            yaml_token_delete(
-                &raw mut *{
-                    let head = (*parser).tokens.head;
-                    (*parser).tokens.head = (*parser).tokens.head.wrapping_offset(1);
-                    head
-                },
-            );
+            yaml_token_delete(&raw mut *{
+                let head = (*parser).tokens.head;
+                (*parser).tokens.head =
+                    (*parser).tokens.head.wrapping_offset(1);
+                head
+            });
         }
         yaml_free((*parser).tokens.start as *mut libc::c_void);
         (*parser).tokens.end = ptr::null_mut();
@@ -6814,9 +8114,12 @@ pub mod decode {
         (*parser).marks.end = ptr::null_mut();
         (*parser).marks.top = ptr::null_mut();
         (*parser).marks.start = ptr::null_mut();
-        while !((*parser).tag_directives.start == (*parser).tag_directives.top) {
+        while !((*parser).tag_directives.start
+            == (*parser).tag_directives.top)
+        {
             let tag_directive = *{
-                (*parser).tag_directives.top = (*parser).tag_directives.top.offset(-1);
+                (*parser).tag_directives.top =
+                    (*parser).tag_directives.top.offset(-1);
                 (*parser).tag_directives.top
             };
             yaml_free(tag_directive.handle as *mut libc::c_void);
@@ -6848,9 +8151,10 @@ pub mod document {
     use crate::YamlEventTypeT::YamlDocumentEndEvent;
     use crate::YamlEventTypeT::YamlDocumentStartEvent;
     use crate::{
-        libc, PointerExt, YamlDocumentT, YamlMappingNode, YamlMappingStyleT, YamlMarkT,
-        YamlNodeItemT, YamlNodePairT, YamlNodeT, YamlScalarNode, YamlScalarStyleT,
-        YamlSequenceNode, YamlSequenceStyleT, YamlTagDirectiveT, YamlVersionDirectiveT,
+        libc, PointerExt, YamlDocumentT, YamlMappingNode,
+        YamlMappingStyleT, YamlMarkT, YamlNodeItemT, YamlNodePairT,
+        YamlNodeT, YamlScalarNode, YamlScalarStyleT, YamlSequenceNode,
+        YamlSequenceStyleT, YamlTagDirectiveT, YamlVersionDirectiveT,
     };
     use core::mem::{size_of, MaybeUninit};
     use core::ptr::{self, addr_of_mut};
@@ -6888,9 +8192,8 @@ pub mod document {
             end: ptr::null_mut::<YamlNodeT>(),
             top: ptr::null_mut::<YamlNodeT>(),
         };
-        let mut version_directive_copy: *mut YamlVersionDirectiveT = ptr::null_mut::<
-            YamlVersionDirectiveT,
-        >();
+        let mut version_directive_copy: *mut YamlVersionDirectiveT =
+            ptr::null_mut::<YamlVersionDirectiveT>();
         struct TagDirectivesCopy {
             start: *mut YamlTagDirectiveT,
             end: *mut YamlTagDirectiveT,
@@ -6917,7 +8220,8 @@ pub mod document {
                 74u32,
             );
         }
-        if !(!tag_directives_start.is_null() && !tag_directives_end.is_null()
+        if !(!tag_directives_start.is_null()
+            && !tag_directives_end.is_null()
             || tag_directives_start == tag_directives_end)
         {
             crate::externs::__assert_fail(
@@ -6927,26 +8231,33 @@ pub mod document {
             );
         }
         {
-            nodes.start = yaml_malloc(16 * size_of::<YamlNodeT>() as libc::c_ulong)
-                as *mut YamlNodeT;
+            nodes.start = yaml_malloc(
+                16 * size_of::<YamlNodeT>() as libc::c_ulong,
+            ) as *mut YamlNodeT;
             nodes.top = nodes.start;
             nodes.end = nodes.start.offset(16_isize);
         };
         if !version_directive.is_null() {
-            version_directive_copy = yaml_malloc(
-                size_of::<YamlVersionDirectiveT>() as libc::c_ulong,
-            ) as *mut YamlVersionDirectiveT;
-            (*version_directive_copy).major = (*version_directive).major;
-            (*version_directive_copy).minor = (*version_directive).minor;
+            version_directive_copy =
+                yaml_malloc(
+                    size_of::<YamlVersionDirectiveT>() as libc::c_ulong
+                ) as *mut YamlVersionDirectiveT;
+            (*version_directive_copy).major =
+                (*version_directive).major;
+            (*version_directive_copy).minor =
+                (*version_directive).minor;
         }
         if tag_directives_start != tag_directives_end {
             let mut tag_directive: *mut YamlTagDirectiveT;
             {
                 tag_directives_copy.start = yaml_malloc(
-                    16 * size_of::<YamlTagDirectiveT>() as libc::c_ulong,
-                ) as *mut YamlTagDirectiveT;
+                    16 * size_of::<YamlTagDirectiveT>()
+                        as libc::c_ulong,
+                )
+                    as *mut YamlTagDirectiveT;
                 tag_directives_copy.top = tag_directives_copy.start;
-                tag_directives_copy.end = tag_directives_copy.start.offset(16_isize);
+                tag_directives_copy.end =
+                    tag_directives_copy.start.offset(16_isize);
             };
             tag_directive = tag_directives_start;
             loop {
@@ -6969,19 +8280,23 @@ pub mod document {
                     );
                 }
                 if yaml_check_utf8(
-                        (*tag_directive).handle,
-                        strlen((*tag_directive).handle as *mut libc::c_char),
-                    )
-                    .fail
+                    (*tag_directive).handle,
+                    strlen(
+                        (*tag_directive).handle as *mut libc::c_char,
+                    ),
+                )
+                .fail
                 {
                     current_block = 8142820162064489797;
                     break;
                 }
                 if yaml_check_utf8(
-                        (*tag_directive).prefix,
-                        strlen((*tag_directive).prefix as *mut libc::c_char),
-                    )
-                    .fail
+                    (*tag_directive).prefix,
+                    strlen(
+                        (*tag_directive).prefix as *mut libc::c_char,
+                    ),
+                )
+                .fail
                 {
                     current_block = 8142820162064489797;
                     break;
@@ -6993,15 +8308,21 @@ pub mod document {
                     break;
                 }
                 {
-                    if tag_directives_copy.top == tag_directives_copy.end {
+                    if tag_directives_copy.top
+                        == tag_directives_copy.end
+                    {
                         yaml_stack_extend(
-                            &raw mut tag_directives_copy.start as *mut *mut libc::c_void,
-                            &raw mut tag_directives_copy.top as *mut *mut libc::c_void,
-                            &raw mut tag_directives_copy.end as *mut *mut libc::c_void,
+                            &raw mut tag_directives_copy.start
+                                as *mut *mut libc::c_void,
+                            &raw mut tag_directives_copy.top
+                                as *mut *mut libc::c_void,
+                            &raw mut tag_directives_copy.end
+                                as *mut *mut libc::c_void,
                         );
                     }
                     ptr::write(tag_directives_copy.top, value);
-                    tag_directives_copy.top = tag_directives_copy.top.wrapping_offset(1);
+                    tag_directives_copy.top =
+                        tag_directives_copy.top.wrapping_offset(1);
                 };
                 value.handle = ptr::null_mut::<yaml_char_t>();
                 value.prefix = ptr::null_mut::<yaml_char_t>();
@@ -7041,7 +8362,8 @@ pub mod document {
         yaml_free(version_directive_copy as *mut libc::c_void);
         while !(tag_directives_copy.start == tag_directives_copy.top) {
             let value = *{
-                tag_directives_copy.top = tag_directives_copy.top.offset(-1);
+                tag_directives_copy.top =
+                    tag_directives_copy.top.offset(-1);
                 tag_directives_copy.top
             };
             yaml_free(value.handle as *mut libc::c_void);
@@ -7073,28 +8395,41 @@ pub mod document {
         let mut tag_directive: *mut YamlTagDirectiveT;
         while !((*document).nodes.start == (*document).nodes.top) {
             let mut node = *{
-                (*document).nodes.top = (*document).nodes.top.offset(-1);
+                (*document).nodes.top =
+                    (*document).nodes.top.offset(-1);
                 (*document).nodes.top
             };
             yaml_free(node.tag as *mut libc::c_void);
             match node.type_ {
                 YamlScalarNode => {
-                    yaml_free(node.data.scalar.value as *mut libc::c_void);
+                    yaml_free(
+                        node.data.scalar.value as *mut libc::c_void,
+                    );
                 }
                 YamlSequenceNode => {
-                    yaml_free(node.data.sequence.items.start as *mut libc::c_void);
+                    yaml_free(
+                        node.data.sequence.items.start
+                            as *mut libc::c_void,
+                    );
                     node.data.sequence.items.end = ptr::null_mut();
                     node.data.sequence.items.top = ptr::null_mut();
                     node.data.sequence.items.start = ptr::null_mut();
                 }
                 YamlMappingNode => {
-                    yaml_free(node.data.mapping.pairs.start as *mut libc::c_void);
+                    yaml_free(
+                        node.data.mapping.pairs.start
+                            as *mut libc::c_void,
+                    );
                     node.data.mapping.pairs.end = ptr::null_mut();
                     node.data.mapping.pairs.top = ptr::null_mut();
                     node.data.mapping.pairs.start = ptr::null_mut();
                 }
                 _ => {
-                    crate::externs::__assert_fail("false", "src/document.rs", 203u32);
+                    crate::externs::__assert_fail(
+                        "false",
+                        "src/document.rs",
+                        203u32,
+                    );
                 }
             }
         }
@@ -7109,7 +8444,9 @@ pub mod document {
             yaml_free((*tag_directive).prefix as *mut libc::c_void);
             tag_directive = tag_directive.wrapping_offset(1);
         }
-        yaml_free((*document).tag_directives.start as *mut libc::c_void);
+        yaml_free(
+            (*document).tag_directives.start as *mut libc::c_void,
+        );
         let _ = memset(
             document as *mut libc::c_void,
             0,
@@ -7220,8 +8557,10 @@ pub mod document {
             line: 0_u64,
             column: 0_u64,
         };
-        let mut tag_copy: *mut yaml_char_t = ptr::null_mut::<yaml_char_t>();
-        let mut value_copy: *mut yaml_char_t = ptr::null_mut::<yaml_char_t>();
+        let mut tag_copy: *mut yaml_char_t =
+            ptr::null_mut::<yaml_char_t>();
+        let mut value_copy: *mut yaml_char_t =
+            ptr::null_mut::<yaml_char_t>();
         let mut node = MaybeUninit::<YamlNodeT>::uninit();
         let node = node.as_mut_ptr();
         if !!document.is_null() {
@@ -7232,27 +8571,35 @@ pub mod document {
             );
         }
         if !!value.is_null() {
-            crate::externs::__assert_fail("!value.is_null()", "src/document.rs", 327u32);
+            crate::externs::__assert_fail(
+                "!value.is_null()",
+                "src/document.rs",
+                327u32,
+            );
         }
         if tag.is_null() {
-            tag = b"tag:yaml.org,2002:str\0" as *const u8 as *const libc::c_char
+            tag = b"tag:yaml.org,2002:str\0" as *const u8
+                as *const libc::c_char
                 as *mut yaml_char_t;
         }
         if yaml_check_utf8(tag, strlen(tag as *mut libc::c_char)).ok {
             tag_copy = yaml_strdup(tag);
             if !tag_copy.is_null() {
                 if length < 0 {
-                    length = strlen(value as *mut libc::c_char) as libc::c_int;
+                    length = strlen(value as *mut libc::c_char)
+                        as libc::c_int;
                 }
                 if yaml_check_utf8(value, length as size_t).ok {
-                    value_copy = yaml_malloc(length.force_add(1) as size_t)
-                        as *mut yaml_char_t;
+                    value_copy =
+                        yaml_malloc(length.force_add(1) as size_t)
+                            as *mut yaml_char_t;
                     let _ = memcpy(
                         value_copy as *mut libc::c_void,
                         value as *const libc::c_void,
                         length as libc::c_ulong,
                     );
-                    *value_copy.wrapping_offset(length as isize) = b'\0';
+                    *value_copy.wrapping_offset(length as isize) =
+                        b'\0';
                     let _ = memset(
                         node as *mut libc::c_void,
                         0,
@@ -7266,17 +8613,30 @@ pub mod document {
                     (*node).data.scalar.length = length as size_t;
                     (*node).data.scalar.style = style;
                     {
-                        if (*document).nodes.top == (*document).nodes.end {
+                        if (*document).nodes.top
+                            == (*document).nodes.end
+                        {
                             yaml_stack_extend(
-                                &raw mut (*document).nodes.start as *mut *mut libc::c_void,
-                                &raw mut (*document).nodes.top as *mut *mut libc::c_void,
-                                &raw mut (*document).nodes.end as *mut *mut libc::c_void,
+                                &raw mut (*document).nodes.start
+                                    as *mut *mut libc::c_void,
+                                &raw mut (*document).nodes.top
+                                    as *mut *mut libc::c_void,
+                                &raw mut (*document).nodes.end
+                                    as *mut *mut libc::c_void,
                             );
                         }
-                        ptr::copy_nonoverlapping(node, (*document).nodes.top, 1);
-                        (*document).nodes.top = (*document).nodes.top.wrapping_offset(1);
+                        ptr::copy_nonoverlapping(
+                            node,
+                            (*document).nodes.top,
+                            1,
+                        );
+                        (*document).nodes.top =
+                            (*document).nodes.top.wrapping_offset(1);
                     };
-                    return (*document).nodes.top.c_offset_from((*document).nodes.start)
+                    return (*document)
+                        .nodes
+                        .top
+                        .c_offset_from((*document).nodes.start)
                         as libc::c_int;
                 }
             }
@@ -7313,7 +8673,8 @@ pub mod document {
             line: 0_u64,
             column: 0_u64,
         };
-        let mut tag_copy: *mut yaml_char_t = ptr::null_mut::<yaml_char_t>();
+        let mut tag_copy: *mut yaml_char_t =
+            ptr::null_mut::<yaml_char_t>();
         struct Items {
             start: *mut YamlNodeItemT,
             end: *mut YamlNodeItemT,
@@ -7334,7 +8695,8 @@ pub mod document {
             );
         }
         if tag.is_null() {
-            tag = b"tag:yaml.org,2002:seq\0" as *const u8 as *const libc::c_char
+            tag = b"tag:yaml.org,2002:seq\0" as *const u8
+                as *const libc::c_char
                 as *mut yaml_char_t;
         }
         if yaml_check_utf8(tag, strlen(tag as *mut libc::c_char)).ok {
@@ -7342,8 +8704,10 @@ pub mod document {
             if !tag_copy.is_null() {
                 {
                     items.start = yaml_malloc(
-                        16 * size_of::<YamlNodeItemT>() as libc::c_ulong,
-                    ) as *mut YamlNodeItemT;
+                        16 * size_of::<YamlNodeItemT>()
+                            as libc::c_ulong,
+                    )
+                        as *mut YamlNodeItemT;
                     items.top = items.start;
                     items.end = items.start.offset(16_isize);
                 };
@@ -7363,15 +8727,26 @@ pub mod document {
                 {
                     if (*document).nodes.top == (*document).nodes.end {
                         yaml_stack_extend(
-                            &raw mut (*document).nodes.start as *mut *mut libc::c_void,
-                            &raw mut (*document).nodes.top as *mut *mut libc::c_void,
-                            &raw mut (*document).nodes.end as *mut *mut libc::c_void,
+                            &raw mut (*document).nodes.start
+                                as *mut *mut libc::c_void,
+                            &raw mut (*document).nodes.top
+                                as *mut *mut libc::c_void,
+                            &raw mut (*document).nodes.end
+                                as *mut *mut libc::c_void,
                         );
                     }
-                    ptr::copy_nonoverlapping(node, (*document).nodes.top, 1);
-                    (*document).nodes.top = (*document).nodes.top.wrapping_offset(1);
+                    ptr::copy_nonoverlapping(
+                        node,
+                        (*document).nodes.top,
+                        1,
+                    );
+                    (*document).nodes.top =
+                        (*document).nodes.top.wrapping_offset(1);
                 };
-                return (*document).nodes.top.c_offset_from((*document).nodes.start)
+                return (*document)
+                    .nodes
+                    .top
+                    .c_offset_from((*document).nodes.start)
                     as libc::c_int;
             }
         }
@@ -7410,7 +8785,8 @@ pub mod document {
             line: 0_u64,
             column: 0_u64,
         };
-        let mut tag_copy: *mut yaml_char_t = ptr::null_mut::<yaml_char_t>();
+        let mut tag_copy: *mut yaml_char_t =
+            ptr::null_mut::<yaml_char_t>();
         struct Pairs {
             start: *mut YamlNodePairT,
             end: *mut YamlNodePairT,
@@ -7431,7 +8807,8 @@ pub mod document {
             );
         }
         if tag.is_null() {
-            tag = b"tag:yaml.org,2002:map\0" as *const u8 as *const libc::c_char
+            tag = b"tag:yaml.org,2002:map\0" as *const u8
+                as *const libc::c_char
                 as *mut yaml_char_t;
         }
         if yaml_check_utf8(tag, strlen(tag as *mut libc::c_char)).ok {
@@ -7439,8 +8816,10 @@ pub mod document {
             if !tag_copy.is_null() {
                 {
                     pairs.start = yaml_malloc(
-                        16 * size_of::<YamlNodePairT>() as libc::c_ulong,
-                    ) as *mut YamlNodePairT;
+                        16 * size_of::<YamlNodePairT>()
+                            as libc::c_ulong,
+                    )
+                        as *mut YamlNodePairT;
                     pairs.top = pairs.start;
                     pairs.end = pairs.start.offset(16_isize);
                 };
@@ -7460,15 +8839,26 @@ pub mod document {
                 {
                     if (*document).nodes.top == (*document).nodes.end {
                         yaml_stack_extend(
-                            &raw mut (*document).nodes.start as *mut *mut libc::c_void,
-                            &raw mut (*document).nodes.top as *mut *mut libc::c_void,
-                            &raw mut (*document).nodes.end as *mut *mut libc::c_void,
+                            &raw mut (*document).nodes.start
+                                as *mut *mut libc::c_void,
+                            &raw mut (*document).nodes.top
+                                as *mut *mut libc::c_void,
+                            &raw mut (*document).nodes.end
+                                as *mut *mut libc::c_void,
                         );
                     }
-                    ptr::copy_nonoverlapping(node, (*document).nodes.top, 1);
-                    (*document).nodes.top = (*document).nodes.top.wrapping_offset(1);
+                    ptr::copy_nonoverlapping(
+                        node,
+                        (*document).nodes.top,
+                        1,
+                    );
+                    (*document).nodes.top =
+                        (*document).nodes.top.wrapping_offset(1);
                 };
-                return (*document).nodes.top.c_offset_from((*document).nodes.start)
+                return (*document)
+                    .nodes
+                    .top
+                    .c_offset_from((*document).nodes.start)
                     as libc::c_int;
             }
         }
@@ -7505,7 +8895,8 @@ pub mod document {
             );
         }
         if !(sequence > 0
-            && ((*document).nodes.start).wrapping_offset(sequence as isize)
+            && ((*document).nodes.start)
+                .wrapping_offset(sequence as isize)
                 <= (*document).nodes.top)
         {
             crate::externs::__assert_fail(
@@ -7514,7 +8905,9 @@ pub mod document {
                 545u32,
             );
         }
-        if !((*((*document).nodes.start).wrapping_offset((sequence - 1) as isize)).type_
+        if !((*((*document).nodes.start)
+            .wrapping_offset((sequence - 1) as isize))
+        .type_
             == YamlSequenceNode)
         {
             crate::externs::__assert_fail(
@@ -7534,57 +8927,61 @@ pub mod document {
             );
         }
         {
-            if (*((*document).nodes.start).wrapping_offset((sequence - 1) as isize))
-                .data
-                .sequence
-                .items
-                .top
-                == (*((*document).nodes.start).wrapping_offset((sequence - 1) as isize))
-                    .data
-                    .sequence
-                    .items
-                    .end
+            if (*((*document).nodes.start)
+                .wrapping_offset((sequence - 1) as isize))
+            .data
+            .sequence
+            .items
+            .top == (*((*document).nodes.start)
+                .wrapping_offset((sequence - 1) as isize))
+            .data
+            .sequence
+            .items
+            .end
             {
                 yaml_stack_extend(
                     &raw mut (*((*document).nodes.start)
                         .wrapping_offset((sequence - 1) as isize))
-                        .data
-                        .sequence
-                        .items
-                        .start as *mut *mut libc::c_void,
-                    &raw mut (*((*document).nodes.start)
-                        .wrapping_offset((sequence - 1) as isize))
-                        .data
-                        .sequence
-                        .items
-                        .top as *mut *mut libc::c_void,
-                    &raw mut (*((*document).nodes.start)
-                        .wrapping_offset((sequence - 1) as isize))
-                        .data
-                        .sequence
-                        .items
-                        .end as *mut *mut libc::c_void,
-                );
-            }
-            ptr::write(
-                (*((*document).nodes.start).wrapping_offset((sequence - 1) as isize))
                     .data
                     .sequence
                     .items
-                    .top,
+                    .start
+                        as *mut *mut libc::c_void,
+                    &raw mut (*((*document).nodes.start)
+                        .wrapping_offset((sequence - 1) as isize))
+                    .data
+                    .sequence
+                    .items
+                    .top as *mut *mut libc::c_void,
+                    &raw mut (*((*document).nodes.start)
+                        .wrapping_offset((sequence - 1) as isize))
+                    .data
+                    .sequence
+                    .items
+                    .end as *mut *mut libc::c_void,
+                );
+            }
+            ptr::write(
+                (*((*document).nodes.start)
+                    .wrapping_offset((sequence - 1) as isize))
+                .data
+                .sequence
+                .items
+                .top,
                 item,
             );
-            (*((*document).nodes.start).wrapping_offset((sequence - 1) as isize))
-                .data
-                .sequence
-                .items
-                .top = (*((*document).nodes.start)
+            (*((*document).nodes.start)
                 .wrapping_offset((sequence - 1) as isize))
-                .data
-                .sequence
-                .items
-                .top
-                .wrapping_offset(1);
+            .data
+            .sequence
+            .items
+            .top = (*((*document).nodes.start)
+                .wrapping_offset((sequence - 1) as isize))
+            .data
+            .sequence
+            .items
+            .top
+            .wrapping_offset(1);
         };
         OK
     }
@@ -7616,7 +9013,8 @@ pub mod document {
             );
         }
         if !(mapping > 0
-            && ((*document).nodes.start).wrapping_offset(mapping as isize)
+            && ((*document).nodes.start)
+                .wrapping_offset(mapping as isize)
                 <= (*document).nodes.top)
         {
             crate::externs::__assert_fail(
@@ -7625,7 +9023,9 @@ pub mod document {
                 594u32,
             );
         }
-        if !((*((*document).nodes.start).wrapping_offset((mapping - 1) as isize)).type_
+        if !((*((*document).nodes.start)
+            .wrapping_offset((mapping - 1) as isize))
+        .type_
             == YamlMappingNode)
         {
             crate::externs::__assert_fail(
@@ -7645,7 +9045,8 @@ pub mod document {
             );
         }
         if !(value > 0
-            && ((*document).nodes.start).wrapping_offset(value as isize)
+            && ((*document).nodes.start)
+                .wrapping_offset(value as isize)
                 <= (*document).nodes.top)
         {
             crate::externs::__assert_fail(
@@ -7656,57 +9057,61 @@ pub mod document {
         }
         let pair = YamlNodePairT { key, value };
         {
-            if (*((*document).nodes.start).wrapping_offset((mapping - 1) as isize))
-                .data
-                .mapping
-                .pairs
-                .top
-                == (*((*document).nodes.start).wrapping_offset((mapping - 1) as isize))
-                    .data
-                    .mapping
-                    .pairs
-                    .end
+            if (*((*document).nodes.start)
+                .wrapping_offset((mapping - 1) as isize))
+            .data
+            .mapping
+            .pairs
+            .top == (*((*document).nodes.start)
+                .wrapping_offset((mapping - 1) as isize))
+            .data
+            .mapping
+            .pairs
+            .end
             {
                 yaml_stack_extend(
                     &raw mut (*((*document).nodes.start)
                         .wrapping_offset((mapping - 1) as isize))
-                        .data
-                        .mapping
-                        .pairs
-                        .start as *mut *mut libc::c_void,
-                    &raw mut (*((*document).nodes.start)
-                        .wrapping_offset((mapping - 1) as isize))
-                        .data
-                        .mapping
-                        .pairs
-                        .top as *mut *mut libc::c_void,
-                    &raw mut (*((*document).nodes.start)
-                        .wrapping_offset((mapping - 1) as isize))
-                        .data
-                        .mapping
-                        .pairs
-                        .end as *mut *mut libc::c_void,
-                );
-            }
-            ptr::write(
-                (*((*document).nodes.start).wrapping_offset((mapping - 1) as isize))
                     .data
                     .mapping
                     .pairs
-                    .top,
+                    .start
+                        as *mut *mut libc::c_void,
+                    &raw mut (*((*document).nodes.start)
+                        .wrapping_offset((mapping - 1) as isize))
+                    .data
+                    .mapping
+                    .pairs
+                    .top as *mut *mut libc::c_void,
+                    &raw mut (*((*document).nodes.start)
+                        .wrapping_offset((mapping - 1) as isize))
+                    .data
+                    .mapping
+                    .pairs
+                    .end as *mut *mut libc::c_void,
+                );
+            }
+            ptr::write(
+                (*((*document).nodes.start)
+                    .wrapping_offset((mapping - 1) as isize))
+                .data
+                .mapping
+                .pairs
+                .top,
                 pair,
             );
-            (*((*document).nodes.start).wrapping_offset((mapping - 1) as isize))
-                .data
-                .mapping
-                .pairs
-                .top = (*((*document).nodes.start)
+            (*((*document).nodes.start)
                 .wrapping_offset((mapping - 1) as isize))
-                .data
-                .mapping
-                .pairs
-                .top
-                .wrapping_offset(1);
+            .data
+            .mapping
+            .pairs
+            .top = (*((*document).nodes.start)
+                .wrapping_offset((mapping - 1) as isize))
+            .data
+            .mapping
+            .pairs
+            .top
+            .wrapping_offset(1);
         };
         OK
     }
@@ -7730,7 +9135,11 @@ pub mod document {
             column: 0_u64,
         };
         if !!event.is_null() {
-            crate::externs::__assert_fail("!event.is_null()", "src/document.rs", 648u32);
+            crate::externs::__assert_fail(
+                "!event.is_null()",
+                "src/document.rs",
+                648u32,
+            );
         }
         let _ = memset(
             event as *mut libc::c_void,
@@ -7770,9 +9179,8 @@ pub mod document {
             line: 0_u64,
             column: 0_u64,
         };
-        let mut version_directive_copy: *mut YamlVersionDirectiveT = ptr::null_mut::<
-            YamlVersionDirectiveT,
-        >();
+        let mut version_directive_copy: *mut YamlVersionDirectiveT =
+            ptr::null_mut::<YamlVersionDirectiveT>();
         struct TagDirectivesCopy {
             start: *mut YamlTagDirectiveT,
             end: *mut YamlTagDirectiveT,
@@ -7788,9 +9196,14 @@ pub mod document {
             prefix: ptr::null_mut::<yaml_char_t>(),
         };
         if !!event.is_null() {
-            crate::externs::__assert_fail("!event.is_null()", "src/document.rs", 704u32);
+            crate::externs::__assert_fail(
+                "!event.is_null()",
+                "src/document.rs",
+                704u32,
+            );
         }
-        if !(!tag_directives_start.is_null() && !tag_directives_end.is_null()
+        if !(!tag_directives_start.is_null()
+            && !tag_directives_end.is_null()
             || tag_directives_start == tag_directives_end)
         {
             crate::externs::__assert_fail(
@@ -7800,20 +9213,26 @@ pub mod document {
             );
         }
         if !version_directive.is_null() {
-            version_directive_copy = yaml_malloc(
-                size_of::<YamlVersionDirectiveT>() as libc::c_ulong,
-            ) as *mut YamlVersionDirectiveT;
-            (*version_directive_copy).major = (*version_directive).major;
-            (*version_directive_copy).minor = (*version_directive).minor;
+            version_directive_copy =
+                yaml_malloc(
+                    size_of::<YamlVersionDirectiveT>() as libc::c_ulong
+                ) as *mut YamlVersionDirectiveT;
+            (*version_directive_copy).major =
+                (*version_directive).major;
+            (*version_directive_copy).minor =
+                (*version_directive).minor;
         }
         if tag_directives_start != tag_directives_end {
             let mut tag_directive: *mut YamlTagDirectiveT;
             {
                 tag_directives_copy.start = yaml_malloc(
-                    16 * size_of::<YamlTagDirectiveT>() as libc::c_ulong,
-                ) as *mut YamlTagDirectiveT;
+                    16 * size_of::<YamlTagDirectiveT>()
+                        as libc::c_ulong,
+                )
+                    as *mut YamlTagDirectiveT;
                 tag_directives_copy.top = tag_directives_copy.start;
-                tag_directives_copy.end = tag_directives_copy.start.offset(16_isize);
+                tag_directives_copy.end =
+                    tag_directives_copy.start.offset(16_isize);
             };
             tag_directive = tag_directives_start;
             loop {
@@ -7836,19 +9255,23 @@ pub mod document {
                     );
                 }
                 if yaml_check_utf8(
-                        (*tag_directive).handle,
-                        strlen((*tag_directive).handle as *mut libc::c_char),
-                    )
-                    .fail
+                    (*tag_directive).handle,
+                    strlen(
+                        (*tag_directive).handle as *mut libc::c_char,
+                    ),
+                )
+                .fail
                 {
                     current_block = 14964981520188694172;
                     break;
                 }
                 if yaml_check_utf8(
-                        (*tag_directive).prefix,
-                        strlen((*tag_directive).prefix as *mut libc::c_char),
-                    )
-                    .fail
+                    (*tag_directive).prefix,
+                    strlen(
+                        (*tag_directive).prefix as *mut libc::c_char,
+                    ),
+                )
+                .fail
                 {
                     current_block = 14964981520188694172;
                     break;
@@ -7860,15 +9283,21 @@ pub mod document {
                     break;
                 }
                 {
-                    if tag_directives_copy.top == tag_directives_copy.end {
+                    if tag_directives_copy.top
+                        == tag_directives_copy.end
+                    {
                         yaml_stack_extend(
-                            &raw mut tag_directives_copy.start as *mut *mut libc::c_void,
-                            &raw mut tag_directives_copy.top as *mut *mut libc::c_void,
-                            &raw mut tag_directives_copy.end as *mut *mut libc::c_void,
+                            &raw mut tag_directives_copy.start
+                                as *mut *mut libc::c_void,
+                            &raw mut tag_directives_copy.top
+                                as *mut *mut libc::c_void,
+                            &raw mut tag_directives_copy.end
+                                as *mut *mut libc::c_void,
                         );
                     }
                     ptr::write(tag_directives_copy.top, value);
-                    tag_directives_copy.top = tag_directives_copy.top.wrapping_offset(1);
+                    tag_directives_copy.top =
+                        tag_directives_copy.top.wrapping_offset(1);
                 };
                 value.handle = ptr::null_mut::<yaml_char_t>();
                 value.prefix = ptr::null_mut::<yaml_char_t>();
@@ -7886,11 +9315,20 @@ pub mod document {
             (*event).type_ = YamlDocumentStartEvent;
             (*event).start_mark = mark;
             (*event).end_mark = mark;
-            let fresh164 = &raw mut (*event).data.document_start.version_directive;
+            let fresh164 =
+                &raw mut (*event).data.document_start.version_directive;
             *fresh164 = version_directive_copy;
-            let fresh165 = &raw mut (*event).data.document_start.tag_directives.start;
+            let fresh165 = &raw mut (*event)
+                .data
+                .document_start
+                .tag_directives
+                .start;
             *fresh165 = tag_directives_copy.start;
-            let fresh166 = &raw mut (*event).data.document_start.tag_directives.end;
+            let fresh166 = &raw mut (*event)
+                .data
+                .document_start
+                .tag_directives
+                .end;
             *fresh166 = tag_directives_copy.top;
             (*event).data.document_start.implicit = implicit;
             return OK;
@@ -7898,7 +9336,8 @@ pub mod document {
         yaml_free(version_directive_copy as *mut libc::c_void);
         while !(tag_directives_copy.start == tag_directives_copy.top) {
             let value = *{
-                tag_directives_copy.top = tag_directives_copy.top.offset(-1);
+                tag_directives_copy.top =
+                    tag_directives_copy.top.offset(-1);
                 tag_directives_copy.top
             };
             yaml_free(value.handle as *mut libc::c_void);
@@ -7927,29 +9366,39 @@ pub mod document {
     /// # Panics
     ///
     /// This function does not panic.
-    pub unsafe fn yaml_document_start_event_delete(event: *mut YamlEventT) {
+    pub unsafe fn yaml_document_start_event_delete(
+        event: *mut YamlEventT,
+    ) {
         if event.is_null() {
             return;
         }
-        let version_ptr = (*event).data.document_start.version_directive;
+        let version_ptr =
+            (*event).data.document_start.version_directive;
         if !version_ptr.is_null() {
             yaml_free(version_ptr as *mut libc::c_void);
-            (*event).data.document_start.version_directive = ptr::null_mut();
+            (*event).data.document_start.version_directive =
+                ptr::null_mut();
         }
-        let mut directives_start = (*event).data.document_start.tag_directives.start;
-        let directives_end = (*event).data.document_start.tag_directives.end;
+        let mut directives_start =
+            (*event).data.document_start.tag_directives.start;
+        let directives_end =
+            (*event).data.document_start.tag_directives.end;
         while directives_start < directives_end {
             yaml_free((*directives_start).handle as *mut libc::c_void);
             yaml_free((*directives_start).prefix as *mut libc::c_void);
             directives_start = directives_start.add(1);
         }
-        if !(*event).data.document_start.tag_directives.start.is_null() {
+        if !(*event).data.document_start.tag_directives.start.is_null()
+        {
             yaml_free(
-                (*event).data.document_start.tag_directives.start as *mut libc::c_void,
+                (*event).data.document_start.tag_directives.start
+                    as *mut libc::c_void,
             );
         }
-        (*event).data.document_start.tag_directives.start = ptr::null_mut();
-        (*event).data.document_start.tag_directives.end = ptr::null_mut();
+        (*event).data.document_start.tag_directives.start =
+            ptr::null_mut();
+        (*event).data.document_start.tag_directives.end =
+            ptr::null_mut();
     }
 }
 /// Internal utilities for LibYML.
@@ -7957,7 +9406,9 @@ pub mod document {
 /// This module contains internal utility functions and structures for the library.
 pub mod internal {
     use crate::{
-        externs::memmove, libc, memory::yaml_realloc,
+        externs::memmove,
+        libc,
+        memory::yaml_realloc,
         ops::{ForceAdd as _, ForceMul as _},
         success::{Success, FAIL, OK},
         yaml::{size_t, yaml_char_t},
@@ -7985,21 +9436,22 @@ pub mod internal {
     ) {
         let new_start: *mut libc::c_void = yaml_realloc(
             *start,
-            (((*end as *mut libc::c_char).c_offset_from(*start as *mut libc::c_char)
+            (((*end as *mut libc::c_char)
+                .c_offset_from(*start as *mut libc::c_char)
                 as libc::c_long)
                 .force_mul(2_i64)) as size_t,
         );
-        *top = (new_start as *mut libc::c_char)
-            .wrapping_offset(
-                (*top as *mut libc::c_char).c_offset_from(*start as *mut libc::c_char)
-                    as libc::c_long as isize,
-            ) as *mut libc::c_void;
-        *end = (new_start as *mut libc::c_char)
-            .wrapping_offset(
-                (((*end as *mut libc::c_char).c_offset_from(*start as *mut libc::c_char)
-                    as libc::c_long)
-                    .force_mul(2_i64)) as isize,
-            ) as *mut libc::c_void;
+        *top = (new_start as *mut libc::c_char).wrapping_offset(
+            (*top as *mut libc::c_char)
+                .c_offset_from(*start as *mut libc::c_char)
+                as libc::c_long as isize,
+        ) as *mut libc::c_void;
+        *end = (new_start as *mut libc::c_char).wrapping_offset(
+            (((*end as *mut libc::c_char)
+                .c_offset_from(*start as *mut libc::c_char)
+                as libc::c_long)
+                .force_mul(2_i64)) as isize,
+        ) as *mut libc::c_void;
         *start = new_start;
     }
     /// Extend a queue by reallocating (doubling) if necessary or moving existing data.
@@ -8018,16 +9470,18 @@ pub mod internal {
         tail: *mut *mut libc::c_void,
         end: *mut *mut libc::c_void,
     ) {
-        use crate::memory::yaml_realloc;
         use crate::libc;
+        use crate::memory::yaml_realloc;
         if *tail == *end {
             let used_bytes = (*tail as *mut libc::c_char)
                 .c_offset_from(*head as *mut libc::c_char);
             let capacity = (*end as *mut libc::c_char)
                 .c_offset_from(*start as *mut libc::c_char);
             if *head != *start {
-                let _ = memmove(*start, *head, used_bytes as libc::c_ulong);
-                *tail = (*start as *mut libc::c_char).add(used_bytes as usize)
+                let _ =
+                    memmove(*start, *head, used_bytes as libc::c_ulong);
+                *tail = (*start as *mut libc::c_char)
+                    .add(used_bytes as usize)
                     as *mut libc::c_void;
                 *head = *start;
             } else {
@@ -8038,9 +9492,9 @@ pub mod internal {
                 );
                 if new_start.is_null() {
                     {
-                        ::core::panicking::panic_fmt(
-                            format_args!("yaml_queue_extend: reallocation failed"),
-                        );
+                        ::core::panicking::panic_fmt(format_args!(
+                            "yaml_queue_extend: reallocation failed"
+                        ));
                     };
                 }
                 let old_start_char = *start as *mut libc::c_char;
@@ -8050,9 +9504,12 @@ pub mod internal {
                     .c_offset_from(old_start_char);
                 *start = new_start;
                 let new_start_char = new_start as *mut libc::c_char;
-                *head = new_start_char.add(head_offset as usize) as *mut libc::c_void;
-                *tail = new_start_char.add(tail_offset as usize) as *mut libc::c_void;
-                *end = new_start_char.add(new_capacity as usize) as *mut libc::c_void;
+                *head = new_start_char.add(head_offset as usize)
+                    as *mut libc::c_void;
+                *tail = new_start_char.add(tail_offset as usize)
+                    as *mut libc::c_void;
+                *end = new_start_char.add(new_capacity as usize)
+                    as *mut libc::c_void;
             }
         }
     }
@@ -8074,8 +9531,12 @@ pub mod internal {
     /// - The string must be properly null-terminated.
     /// - The string must not contain any invalid characters or sequences.
     ///
-    pub unsafe fn yaml_check_utf8(start: *const yaml_char_t, length: size_t) -> Success {
-        let end: *const yaml_char_t = start.wrapping_offset(length as isize);
+    pub unsafe fn yaml_check_utf8(
+        start: *const yaml_char_t,
+        length: size_t,
+    ) -> Success {
+        let end: *const yaml_char_t =
+            start.wrapping_offset(length as isize);
         let mut pointer: *const yaml_char_t = start;
         while pointer < end {
             let mut octet: libc::c_uchar;
@@ -8116,11 +9577,14 @@ pub mod internal {
                 if octet & 0xC0 != 0x80 {
                     return FAIL;
                 }
-                value = (value << 6).force_add((octet & 0x3F) as libc::c_uint);
+                value = (value << 6)
+                    .force_add((octet & 0x3F) as libc::c_uint);
                 k = k.force_add(1);
             }
-            if !(width == 1 || width == 2 && value >= 0x80
-                || width == 3 && value >= 0x800 || width == 4 && value >= 0x10000)
+            if !(width == 1
+                || width == 2 && value >= 0x80
+                || width == 3 && value >= 0x800
+                || width == 4 && value >= 0x10000)
             {
                 return FAIL;
             }
@@ -8135,7 +9599,8 @@ pub mod internal {
 pub mod memory {
     use crate::{
         externs::{free, malloc, realloc, strlen},
-        libc, yaml::{size_t, yaml_char_t},
+        libc,
+        yaml::{size_t, yaml_char_t},
     };
     use core::{mem::size_of, ptr};
     use libc::c_void;
@@ -8225,8 +9690,15 @@ pub mod memory {
     ///     }
     /// }
     /// ```
-    pub unsafe fn yaml_realloc(ptr: *mut c_void, size: size_t) -> *mut c_void {
-        if !ptr.is_null() { realloc(ptr, size) } else { malloc(size) }
+    pub unsafe fn yaml_realloc(
+        ptr: *mut c_void,
+        size: size_t,
+    ) -> *mut c_void {
+        if !ptr.is_null() {
+            realloc(ptr, size)
+        } else {
+            malloc(size)
+        }
     }
     /// Free memory allocated by `yaml_malloc` or `yaml_realloc`.
     ///
@@ -8303,13 +9775,16 @@ pub mod memory {
     ///     }
     /// }
     /// ```
-    pub unsafe fn yaml_strdup(str: *const yaml_char_t) -> *mut yaml_char_t {
+    pub unsafe fn yaml_strdup(
+        str: *const yaml_char_t,
+    ) -> *mut yaml_char_t {
         if str.is_null() {
             return ptr::null_mut();
         }
         let len = strlen(str as *const libc::c_char) as usize;
         let new_size = (len + 1) * size_of::<yaml_char_t>();
-        let new_str = malloc(new_size.try_into().unwrap()) as *mut yaml_char_t;
+        let new_str =
+            malloc(new_size.try_into().unwrap()) as *mut yaml_char_t;
         if new_str.is_null() {
             return ptr::null_mut();
         }
@@ -8374,7 +9849,9 @@ mod ops {
         where
             Self: TryInto<U>,
         {
-            <Self as TryInto<U>>::try_into(self).ok().unwrap_or_else(die)
+            <Self as TryInto<U>>::try_into(self)
+                .ok()
+                .unwrap_or_else(die)
         }
     }
     #[cold]
@@ -8383,14 +9860,18 @@ mod ops {
         impl Drop for PanicAgain {
             fn drop(&mut self) {
                 {
-                    ::core::panicking::panic_fmt(format_args!("arithmetic overflow"));
+                    ::core::panicking::panic_fmt(format_args!(
+                        "arithmetic overflow"
+                    ));
                 };
             }
         }
         fn do_die() -> ! {
             let _panic_again = PanicAgain;
             {
-                ::core::panicking::panic_fmt(format_args!("arithmetic overflow"));
+                ::core::panicking::panic_fmt(format_args!(
+                    "arithmetic overflow"
+                ));
             };
         }
         do_die();
@@ -8405,36 +9886,49 @@ mod parser {
     use crate::success::{Success, FAIL, OK};
     use crate::yaml::{size_t, yaml_char_t};
     use crate::{
-        libc, YamlAliasEvent, YamlAliasToken, YamlAnchorToken, YamlBlockEndToken,
-        YamlBlockEntryToken, YamlBlockMappingStartToken, YamlBlockMappingStyle,
-        YamlBlockSequenceStartToken, YamlBlockSequenceStyle, YamlDocumentEndEvent,
-        YamlDocumentEndToken, YamlDocumentStartEvent, YamlDocumentStartToken, YamlEventT,
-        YamlFlowEntryToken, YamlFlowMappingEndToken, YamlFlowMappingStartToken,
-        YamlFlowMappingStyle, YamlFlowSequenceEndToken, YamlFlowSequenceStartToken,
-        YamlFlowSequenceStyle, YamlKeyToken, YamlMappingEndEvent, YamlMappingStartEvent,
-        YamlMarkT, YamlNoError, YamlParseBlockMappingFirstKeyState,
+        libc, YamlAliasEvent, YamlAliasToken, YamlAnchorToken,
+        YamlBlockEndToken, YamlBlockEntryToken,
+        YamlBlockMappingStartToken, YamlBlockMappingStyle,
+        YamlBlockSequenceStartToken, YamlBlockSequenceStyle,
+        YamlDocumentEndEvent, YamlDocumentEndToken,
+        YamlDocumentStartEvent, YamlDocumentStartToken, YamlEventT,
+        YamlFlowEntryToken, YamlFlowMappingEndToken,
+        YamlFlowMappingStartToken, YamlFlowMappingStyle,
+        YamlFlowSequenceEndToken, YamlFlowSequenceStartToken,
+        YamlFlowSequenceStyle, YamlKeyToken, YamlMappingEndEvent,
+        YamlMappingStartEvent, YamlMarkT, YamlNoError,
+        YamlParseBlockMappingFirstKeyState,
         YamlParseBlockMappingKeyState, YamlParseBlockMappingValueState,
-        YamlParseBlockNodeOrIndentlessSequenceState, YamlParseBlockNodeState,
-        YamlParseBlockSequenceEntryState, YamlParseBlockSequenceFirstEntryState,
+        YamlParseBlockNodeOrIndentlessSequenceState,
+        YamlParseBlockNodeState, YamlParseBlockSequenceEntryState,
+        YamlParseBlockSequenceFirstEntryState,
         YamlParseDocumentContentState, YamlParseDocumentEndState,
         YamlParseDocumentStartState, YamlParseEndState,
-        YamlParseFlowMappingEmptyValueState, YamlParseFlowMappingFirstKeyState,
+        YamlParseFlowMappingEmptyValueState,
+        YamlParseFlowMappingFirstKeyState,
         YamlParseFlowMappingKeyState, YamlParseFlowMappingValueState,
-        YamlParseFlowNodeState, YamlParseFlowSequenceEntryMappingEndState,
+        YamlParseFlowNodeState,
+        YamlParseFlowSequenceEntryMappingEndState,
         YamlParseFlowSequenceEntryMappingKeyState,
-        YamlParseFlowSequenceEntryMappingValueState, YamlParseFlowSequenceEntryState,
-        YamlParseFlowSequenceFirstEntryState, YamlParseImplicitDocumentStartState,
-        YamlParseIndentlessSequenceEntryState, YamlParseStreamStartState,
-        YamlParserError, YamlParserT, YamlPlainScalarStyle, YamlScalarEvent,
-        YamlScalarToken, YamlSequenceEndEvent, YamlSequenceStartEvent,
+        YamlParseFlowSequenceEntryMappingValueState,
+        YamlParseFlowSequenceEntryState,
+        YamlParseFlowSequenceFirstEntryState,
+        YamlParseImplicitDocumentStartState,
+        YamlParseIndentlessSequenceEntryState,
+        YamlParseStreamStartState, YamlParserError, YamlParserT,
+        YamlPlainScalarStyle, YamlScalarEvent, YamlScalarToken,
+        YamlSequenceEndEvent, YamlSequenceStartEvent,
         YamlStreamEndEvent, YamlStreamEndToken, YamlStreamStartEvent,
-        YamlStreamStartToken, YamlTagDirectiveT, YamlTagDirectiveToken, YamlTagToken,
-        YamlTokenT, YamlValueToken, YamlVersionDirectiveT, YamlVersionDirectiveToken,
+        YamlStreamStartToken, YamlTagDirectiveT, YamlTagDirectiveToken,
+        YamlTagToken, YamlTokenT, YamlValueToken,
+        YamlVersionDirectiveT, YamlVersionDirectiveToken,
     };
     use core::mem::size_of;
     use core::ptr::{self, addr_of_mut};
     unsafe fn peek_token(parser: *mut YamlParserT) -> *mut YamlTokenT {
-        if (*parser).token_available || yaml_parser_fetch_more_tokens(parser).ok {
+        if (*parser).token_available
+            || yaml_parser_fetch_more_tokens(parser).ok
+        {
             (*parser).tokens.head
         } else {
             ptr::null_mut::<YamlTokenT>()
@@ -8444,8 +9938,8 @@ mod parser {
         (*parser).token_available = false;
         let fresh3 = &raw mut (*parser).tokens_parsed;
         *fresh3 = (*fresh3).wrapping_add(1);
-        (*parser).stream_end_produced = (*(*parser).tokens.head).type_
-            == YamlStreamEndToken;
+        (*parser).stream_end_produced =
+            (*(*parser).tokens.head).type_ == YamlStreamEndToken;
         let fresh4 = &raw mut (*parser).tokens.head;
         *fresh4 = (*fresh4).wrapping_offset(1);
     }
@@ -8492,10 +9986,18 @@ mod parser {
         event: *mut YamlEventT,
     ) -> Success {
         if !!parser.is_null() {
-            crate::externs::__assert_fail("!parser.is_null()", "src/parser.rs", 108u32);
+            crate::externs::__assert_fail(
+                "!parser.is_null()",
+                "src/parser.rs",
+                108u32,
+            );
         }
         if !!event.is_null() {
-            crate::externs::__assert_fail("!event.is_null()", "src/parser.rs", 109u32);
+            crate::externs::__assert_fail(
+                "!event.is_null()",
+                "src/parser.rs",
+                109u32,
+            );
         }
         let _ = memset(
             event as *mut libc::c_void,
@@ -8543,7 +10045,9 @@ mod parser {
         event: *mut YamlEventT,
     ) -> Success {
         match (*parser).state {
-            YamlParseStreamStartState => yaml_parser_parse_stream_start(parser, event),
+            YamlParseStreamStartState => {
+                yaml_parser_parse_stream_start(parser, event)
+            }
             YamlParseImplicitDocumentStartState => {
                 yaml_parser_parse_document_start(parser, event, true)
             }
@@ -8553,44 +10057,68 @@ mod parser {
             YamlParseDocumentContentState => {
                 yaml_parser_parse_document_content(parser, event)
             }
-            YamlParseDocumentEndState => yaml_parser_parse_document_end(parser, event),
-            YamlParseBlockNodeState => yaml_parser_parse_node(parser, event, true, false),
+            YamlParseDocumentEndState => {
+                yaml_parser_parse_document_end(parser, event)
+            }
+            YamlParseBlockNodeState => {
+                yaml_parser_parse_node(parser, event, true, false)
+            }
             YamlParseBlockNodeOrIndentlessSequenceState => {
                 yaml_parser_parse_node(parser, event, true, true)
             }
-            YamlParseFlowNodeState => yaml_parser_parse_node(parser, event, false, false),
+            YamlParseFlowNodeState => {
+                yaml_parser_parse_node(parser, event, false, false)
+            }
             YamlParseBlockSequenceFirstEntryState => {
-                yaml_parser_parse_block_sequence_entry(parser, event, true)
+                yaml_parser_parse_block_sequence_entry(
+                    parser, event, true,
+                )
             }
             YamlParseBlockSequenceEntryState => {
-                yaml_parser_parse_block_sequence_entry(parser, event, false)
+                yaml_parser_parse_block_sequence_entry(
+                    parser, event, false,
+                )
             }
             YamlParseIndentlessSequenceEntryState => {
-                yaml_parser_parse_indentless_sequence_entry(parser, event)
+                yaml_parser_parse_indentless_sequence_entry(
+                    parser, event,
+                )
             }
             YamlParseBlockMappingFirstKeyState => {
                 yaml_parser_parse_block_mapping_key(parser, event, true)
             }
             YamlParseBlockMappingKeyState => {
-                yaml_parser_parse_block_mapping_key(parser, event, false)
+                yaml_parser_parse_block_mapping_key(
+                    parser, event, false,
+                )
             }
             YamlParseBlockMappingValueState => {
                 yaml_parser_parse_block_mapping_value(parser, event)
             }
             YamlParseFlowSequenceFirstEntryState => {
-                yaml_parser_parse_flow_sequence_entry(parser, event, true)
+                yaml_parser_parse_flow_sequence_entry(
+                    parser, event, true,
+                )
             }
             YamlParseFlowSequenceEntryState => {
-                yaml_parser_parse_flow_sequence_entry(parser, event, false)
+                yaml_parser_parse_flow_sequence_entry(
+                    parser, event, false,
+                )
             }
             YamlParseFlowSequenceEntryMappingKeyState => {
-                yaml_parser_parse_flow_sequence_entry_mapping_key(parser, event)
+                yaml_parser_parse_flow_sequence_entry_mapping_key(
+                    parser, event,
+                )
             }
             YamlParseFlowSequenceEntryMappingValueState => {
-                yaml_parser_parse_flow_sequence_entry_mapping_value(parser, event)
+                yaml_parser_parse_flow_sequence_entry_mapping_value(
+                    parser, event,
+                )
             }
             YamlParseFlowSequenceEntryMappingEndState => {
-                yaml_parser_parse_flow_sequence_entry_mapping_end(parser, event)
+                yaml_parser_parse_flow_sequence_entry_mapping_end(
+                    parser, event,
+                )
             }
             YamlParseFlowMappingFirstKeyState => {
                 yaml_parser_parse_flow_mapping_key(parser, event, true)
@@ -8599,10 +10127,14 @@ mod parser {
                 yaml_parser_parse_flow_mapping_key(parser, event, false)
             }
             YamlParseFlowMappingValueState => {
-                yaml_parser_parse_flow_mapping_value(parser, event, false)
+                yaml_parser_parse_flow_mapping_value(
+                    parser, event, false,
+                )
             }
             YamlParseFlowMappingEmptyValueState => {
-                yaml_parser_parse_flow_mapping_value(parser, event, true)
+                yaml_parser_parse_flow_mapping_value(
+                    parser, event, true,
+                )
             }
             _ => FAIL,
         }
@@ -8633,7 +10165,8 @@ mod parser {
         (*event).type_ = YamlStreamStartEvent;
         (*event).start_mark = (*token).start_mark;
         (*event).end_mark = (*token).start_mark;
-        (*event).data.stream_start.encoding = (*token).data.stream_start.encoding;
+        (*event).data.stream_start.encoding =
+            (*token).data.stream_start.encoding;
         skip_token(parser);
         OK
     }
@@ -8643,9 +10176,8 @@ mod parser {
         implicit: bool,
     ) -> Success {
         let mut token: *mut YamlTokenT;
-        let mut version_directive: *mut YamlVersionDirectiveT = ptr::null_mut::<
-            YamlVersionDirectiveT,
-        >();
+        let mut version_directive: *mut YamlVersionDirectiveT =
+            ptr::null_mut::<YamlVersionDirectiveT>();
         struct TagDirectives {
             start: *mut YamlTagDirectiveT,
             end: *mut YamlTagDirectiveT,
@@ -8667,31 +10199,39 @@ mod parser {
                 }
             }
         }
-        if implicit && (*token).type_ != YamlVersionDirectiveToken
+        if implicit
+            && (*token).type_ != YamlVersionDirectiveToken
             && (*token).type_ != YamlTagDirectiveToken
             && (*token).type_ != YamlDocumentStartToken
             && (*token).type_ != YamlStreamEndToken
         {
             if yaml_parser_process_directives(
-                    parser,
-                    ptr::null_mut::<*mut YamlVersionDirectiveT>(),
-                    ptr::null_mut::<*mut YamlTagDirectiveT>(),
-                    ptr::null_mut::<*mut YamlTagDirectiveT>(),
-                )
-                .fail
+                parser,
+                ptr::null_mut::<*mut YamlVersionDirectiveT>(),
+                ptr::null_mut::<*mut YamlTagDirectiveT>(),
+                ptr::null_mut::<*mut YamlTagDirectiveT>(),
+            )
+            .fail
             {
                 return FAIL;
             }
             {
                 if (*parser).states.top == (*parser).states.end {
                     yaml_stack_extend(
-                        &raw mut (*parser).states.start as *mut *mut libc::c_void,
-                        &raw mut (*parser).states.top as *mut *mut libc::c_void,
-                        &raw mut (*parser).states.end as *mut *mut libc::c_void,
+                        &raw mut (*parser).states.start
+                            as *mut *mut libc::c_void,
+                        &raw mut (*parser).states.top
+                            as *mut *mut libc::c_void,
+                        &raw mut (*parser).states.end
+                            as *mut *mut libc::c_void,
                     );
                 }
-                ptr::write((*parser).states.top, YamlParseDocumentEndState);
-                (*parser).states.top = (*parser).states.top.wrapping_offset(1);
+                ptr::write(
+                    (*parser).states.top,
+                    YamlParseDocumentEndState,
+                );
+                (*parser).states.top =
+                    (*parser).states.top.wrapping_offset(1);
             };
             (*parser).state = YamlParseBlockNodeState;
             let _ = memset(
@@ -8702,11 +10242,20 @@ mod parser {
             (*event).type_ = YamlDocumentStartEvent;
             (*event).start_mark = (*token).start_mark;
             (*event).end_mark = (*token).start_mark;
-            let fresh9 = &raw mut (*event).data.document_start.version_directive;
+            let fresh9 =
+                &raw mut (*event).data.document_start.version_directive;
             *fresh9 = ptr::null_mut::<YamlVersionDirectiveT>();
-            let fresh10 = &raw mut (*event).data.document_start.tag_directives.start;
+            let fresh10 = &raw mut (*event)
+                .data
+                .document_start
+                .tag_directives
+                .start;
             *fresh10 = ptr::null_mut::<YamlTagDirectiveT>();
-            let fresh11 = &raw mut (*event).data.document_start.tag_directives.end;
+            let fresh11 = &raw mut (*event)
+                .data
+                .document_start
+                .tag_directives
+                .end;
             *fresh11 = ptr::null_mut::<YamlTagDirectiveT>();
             (*event).data.document_start.implicit = true;
             OK
@@ -8714,12 +10263,12 @@ mod parser {
             let end_mark: YamlMarkT;
             let start_mark: YamlMarkT = (*token).start_mark;
             if yaml_parser_process_directives(
-                    parser,
-                    &raw mut version_directive,
-                    &raw mut tag_directives.start,
-                    &raw mut tag_directives.end,
-                )
-                .fail
+                parser,
+                &raw mut version_directive,
+                &raw mut tag_directives.start,
+                &raw mut tag_directives.end,
+            )
+            .fail
             {
                 return FAIL;
             }
@@ -8728,21 +10277,30 @@ mod parser {
                 if (*token).type_ != YamlDocumentStartToken {
                     yaml_parser_set_parser_error(
                         parser,
-                        b"did not find expected <document start>\0" as *const u8
+                        b"did not find expected <document start>\0"
+                            as *const u8
                             as *const libc::c_char,
                         (*token).start_mark,
                     );
                 } else {
                     {
-                        if (*parser).states.top == (*parser).states.end {
+                        if (*parser).states.top == (*parser).states.end
+                        {
                             yaml_stack_extend(
-                                &raw mut (*parser).states.start as *mut *mut libc::c_void,
-                                &raw mut (*parser).states.top as *mut *mut libc::c_void,
-                                &raw mut (*parser).states.end as *mut *mut libc::c_void,
+                                &raw mut (*parser).states.start
+                                    as *mut *mut libc::c_void,
+                                &raw mut (*parser).states.top
+                                    as *mut *mut libc::c_void,
+                                &raw mut (*parser).states.end
+                                    as *mut *mut libc::c_void,
                             );
                         }
-                        ptr::write((*parser).states.top, YamlParseDocumentEndState);
-                        (*parser).states.top = (*parser).states.top.wrapping_offset(1);
+                        ptr::write(
+                            (*parser).states.top,
+                            YamlParseDocumentEndState,
+                        );
+                        (*parser).states.top =
+                            (*parser).states.top.wrapping_offset(1);
                     };
                     (*parser).state = YamlParseDocumentContentState;
                     end_mark = (*token).end_mark;
@@ -8773,7 +10331,8 @@ mod parser {
                     *fresh16 = tag_directives.end;
                     (*event).data.document_start.implicit = false;
                     skip_token(parser);
-                    tag_directives.end = ptr::null_mut::<YamlTagDirectiveT>();
+                    tag_directives.end =
+                        ptr::null_mut::<YamlTagDirectiveT>();
                     tag_directives.start = tag_directives.end;
                     return OK;
                 }
@@ -8781,14 +10340,17 @@ mod parser {
             yaml_free(version_directive as *mut libc::c_void);
             while tag_directives.start != tag_directives.end {
                 yaml_free(
-                    (*tag_directives.end.wrapping_offset(-1_isize)).handle
+                    (*tag_directives.end.wrapping_offset(-1_isize))
+                        .handle
                         as *mut libc::c_void,
                 );
                 yaml_free(
-                    (*tag_directives.end.wrapping_offset(-1_isize)).prefix
+                    (*tag_directives.end.wrapping_offset(-1_isize))
+                        .prefix
                         as *mut libc::c_void,
                 );
-                tag_directives.end = tag_directives.end.wrapping_offset(-1);
+                tag_directives.end =
+                    tag_directives.end.wrapping_offset(-1);
             }
             yaml_free(tag_directives.start as *mut libc::c_void);
             FAIL
@@ -8846,9 +10408,12 @@ mod parser {
             skip_token(parser);
             implicit = false;
         }
-        while !((*parser).tag_directives.start == (*parser).tag_directives.top) {
+        while !((*parser).tag_directives.start
+            == (*parser).tag_directives.top)
+        {
             let tag_directive = *{
-                (*parser).tag_directives.top = (*parser).tag_directives.top.offset(-1);
+                (*parser).tag_directives.top =
+                    (*parser).tag_directives.top.offset(-1);
                 (*parser).tag_directives.top
             };
             yaml_free(tag_directive.handle as *mut libc::c_void);
@@ -8874,9 +10439,12 @@ mod parser {
     ) -> Success {
         let mut current_block: u64;
         let mut token: *mut YamlTokenT;
-        let mut anchor: *mut yaml_char_t = ptr::null_mut::<yaml_char_t>();
-        let mut tag_handle: *mut yaml_char_t = ptr::null_mut::<yaml_char_t>();
-        let mut tag_suffix: *mut yaml_char_t = ptr::null_mut::<yaml_char_t>();
+        let mut anchor: *mut yaml_char_t =
+            ptr::null_mut::<yaml_char_t>();
+        let mut tag_handle: *mut yaml_char_t =
+            ptr::null_mut::<yaml_char_t>();
+        let mut tag_suffix: *mut yaml_char_t =
+            ptr::null_mut::<yaml_char_t>();
         let mut tag: *mut yaml_char_t = ptr::null_mut::<yaml_char_t>();
         let mut start_mark: YamlMarkT;
         let mut end_mark: YamlMarkT;
@@ -8971,57 +10539,75 @@ mod parser {
                         let mut tag_directive: *mut YamlTagDirectiveT;
                         tag_directive = (*parser).tag_directives.start;
                         loop {
-                            if tag_directive == (*parser).tag_directives.top {
+                            if tag_directive
+                                == (*parser).tag_directives.top
+                            {
                                 current_block = 17728966195399430138;
                                 break;
                             }
                             if strcmp(
-                                (*tag_directive).handle as *mut libc::c_char,
+                                (*tag_directive).handle
+                                    as *mut libc::c_char,
                                 tag_handle as *mut libc::c_char,
                             ) == 0
                             {
                                 let prefix_len: size_t = strlen(
-                                    (*tag_directive).prefix as *mut libc::c_char,
+                                    (*tag_directive).prefix
+                                        as *mut libc::c_char,
                                 );
                                 let suffix_len: size_t = strlen(
                                     tag_suffix as *mut libc::c_char,
                                 );
                                 tag = yaml_malloc(
-                                    prefix_len.force_add(suffix_len).force_add(1_u64),
-                                ) as *mut yaml_char_t;
+                                    prefix_len
+                                        .force_add(suffix_len)
+                                        .force_add(1_u64),
+                                )
+                                    as *mut yaml_char_t;
                                 let _ = memcpy(
                                     tag as *mut libc::c_void,
-                                    (*tag_directive).prefix as *const libc::c_void,
+                                    (*tag_directive).prefix
+                                        as *const libc::c_void,
                                     prefix_len,
                                 );
                                 let _ = memcpy(
-                                    tag.wrapping_offset(prefix_len as isize)
+                                    tag.wrapping_offset(
+                                        prefix_len as isize,
+                                    )
                                         as *mut libc::c_void,
                                     tag_suffix as *const libc::c_void,
                                     suffix_len,
                                 );
-                                *tag
-                                    .wrapping_offset(
-                                        prefix_len.force_add(suffix_len) as isize,
-                                    ) = b'\0';
-                                yaml_free(tag_handle as *mut libc::c_void);
-                                yaml_free(tag_suffix as *mut libc::c_void);
-                                tag_suffix = ptr::null_mut::<yaml_char_t>();
+                                *tag.wrapping_offset(
+                                    prefix_len.force_add(suffix_len)
+                                        as isize,
+                                ) = b'\0';
+                                yaml_free(
+                                    tag_handle as *mut libc::c_void,
+                                );
+                                yaml_free(
+                                    tag_suffix as *mut libc::c_void,
+                                );
+                                tag_suffix =
+                                    ptr::null_mut::<yaml_char_t>();
                                 tag_handle = tag_suffix;
                                 current_block = 17728966195399430138;
                                 break;
                             } else {
-                                tag_directive = tag_directive.wrapping_offset(1);
+                                tag_directive =
+                                    tag_directive.wrapping_offset(1);
                             }
                         }
                         if current_block != 17786380918591080555 {
                             if tag.is_null() {
                                 yaml_parser_set_parser_error_context(
                                     parser,
-                                    b"while parsing a node\0" as *const u8
+                                    b"while parsing a node\0"
+                                        as *const u8
                                         as *const libc::c_char,
                                     start_mark,
-                                    b"found undefined tag handle\0" as *const u8
+                                    b"found undefined tag handle\0"
+                                        as *const u8
                                         as *const libc::c_char,
                                     tag_mark,
                                 );
@@ -9036,9 +10622,12 @@ mod parser {
                 }
                 if current_block != 17786380918591080555 {
                     implicit = tag.is_null() || *tag == 0;
-                    if indentless_sequence && (*token).type_ == YamlBlockEntryToken {
+                    if indentless_sequence
+                        && (*token).type_ == YamlBlockEntryToken
+                    {
                         end_mark = (*token).end_mark;
-                        (*parser).state = YamlParseIndentlessSequenceEntryState;
+                        (*parser).state =
+                            YamlParseIndentlessSequenceEntryState;
                         let _ = memset(
                             event as *mut libc::c_void,
                             0,
@@ -9047,23 +10636,31 @@ mod parser {
                         (*event).type_ = YamlSequenceStartEvent;
                         (*event).start_mark = start_mark;
                         (*event).end_mark = end_mark;
-                        let fresh37 = &raw mut (*event).data.sequence_start.anchor;
+                        let fresh37 = &raw mut (*event)
+                            .data
+                            .sequence_start
+                            .anchor;
                         *fresh37 = anchor;
-                        let fresh38 = &raw mut (*event).data.sequence_start.tag;
+                        let fresh38 =
+                            &raw mut (*event).data.sequence_start.tag;
                         *fresh38 = tag;
-                        (*event).data.sequence_start.implicit = implicit;
-                        (*event).data.sequence_start.style = YamlBlockSequenceStyle;
+                        (*event).data.sequence_start.implicit =
+                            implicit;
+                        (*event).data.sequence_start.style =
+                            YamlBlockSequenceStyle;
                         return OK;
                     } else if (*token).type_ == YamlScalarToken {
                         let mut plain_implicit = false;
                         let mut quoted_implicit = false;
                         end_mark = (*token).end_mark;
-                        if (*token).data.scalar.style == YamlPlainScalarStyle
+                        if (*token).data.scalar.style
+                            == YamlPlainScalarStyle
                             && tag.is_null()
                             || !tag.is_null()
                                 && strcmp(
                                     tag as *mut libc::c_char,
-                                    b"!\0" as *const u8 as *const libc::c_char,
+                                    b"!\0" as *const u8
+                                        as *const libc::c_char,
                                 ) == 0
                         {
                             plain_implicit = true;
@@ -9071,7 +10668,8 @@ mod parser {
                             quoted_implicit = true;
                         }
                         (*parser).state = *{
-                            (*parser).states.top = (*parser).states.top.offset(-1);
+                            (*parser).states.top =
+                                (*parser).states.top.offset(-1);
                             (*parser).states.top
                         };
                         let _ = memset(
@@ -9082,21 +10680,30 @@ mod parser {
                         (*event).type_ = YamlScalarEvent;
                         (*event).start_mark = start_mark;
                         (*event).end_mark = end_mark;
-                        let fresh40 = &raw mut (*event).data.scalar.anchor;
+                        let fresh40 =
+                            &raw mut (*event).data.scalar.anchor;
                         *fresh40 = anchor;
                         let fresh41 = &raw mut (*event).data.scalar.tag;
                         *fresh41 = tag;
-                        let fresh42 = &raw mut (*event).data.scalar.value;
+                        let fresh42 =
+                            &raw mut (*event).data.scalar.value;
                         *fresh42 = (*token).data.scalar.value;
-                        (*event).data.scalar.length = (*token).data.scalar.length;
-                        (*event).data.scalar.plain_implicit = plain_implicit;
-                        (*event).data.scalar.quoted_implicit = quoted_implicit;
-                        (*event).data.scalar.style = (*token).data.scalar.style;
+                        (*event).data.scalar.length =
+                            (*token).data.scalar.length;
+                        (*event).data.scalar.plain_implicit =
+                            plain_implicit;
+                        (*event).data.scalar.quoted_implicit =
+                            quoted_implicit;
+                        (*event).data.scalar.style =
+                            (*token).data.scalar.style;
                         skip_token(parser);
                         return OK;
-                    } else if (*token).type_ == YamlFlowSequenceStartToken {
+                    } else if (*token).type_
+                        == YamlFlowSequenceStartToken
+                    {
                         end_mark = (*token).end_mark;
-                        (*parser).state = YamlParseFlowSequenceFirstEntryState;
+                        (*parser).state =
+                            YamlParseFlowSequenceFirstEntryState;
                         let _ = memset(
                             event as *mut libc::c_void,
                             0,
@@ -9105,16 +10712,25 @@ mod parser {
                         (*event).type_ = YamlSequenceStartEvent;
                         (*event).start_mark = start_mark;
                         (*event).end_mark = end_mark;
-                        let fresh45 = &raw mut (*event).data.sequence_start.anchor;
+                        let fresh45 = &raw mut (*event)
+                            .data
+                            .sequence_start
+                            .anchor;
                         *fresh45 = anchor;
-                        let fresh46 = &raw mut (*event).data.sequence_start.tag;
+                        let fresh46 =
+                            &raw mut (*event).data.sequence_start.tag;
                         *fresh46 = tag;
-                        (*event).data.sequence_start.implicit = implicit;
-                        (*event).data.sequence_start.style = YamlFlowSequenceStyle;
+                        (*event).data.sequence_start.implicit =
+                            implicit;
+                        (*event).data.sequence_start.style =
+                            YamlFlowSequenceStyle;
                         return OK;
-                    } else if (*token).type_ == YamlFlowMappingStartToken {
+                    } else if (*token).type_
+                        == YamlFlowMappingStartToken
+                    {
                         end_mark = (*token).end_mark;
-                        (*parser).state = YamlParseFlowMappingFirstKeyState;
+                        (*parser).state =
+                            YamlParseFlowMappingFirstKeyState;
                         let _ = memset(
                             event as *mut libc::c_void,
                             0,
@@ -9123,16 +10739,22 @@ mod parser {
                         (*event).type_ = YamlMappingStartEvent;
                         (*event).start_mark = start_mark;
                         (*event).end_mark = end_mark;
-                        let fresh47 = &raw mut (*event).data.mapping_start.anchor;
+                        let fresh47 =
+                            &raw mut (*event).data.mapping_start.anchor;
                         *fresh47 = anchor;
-                        let fresh48 = &raw mut (*event).data.mapping_start.tag;
+                        let fresh48 =
+                            &raw mut (*event).data.mapping_start.tag;
                         *fresh48 = tag;
                         (*event).data.mapping_start.implicit = implicit;
-                        (*event).data.mapping_start.style = YamlFlowMappingStyle;
+                        (*event).data.mapping_start.style =
+                            YamlFlowMappingStyle;
                         return OK;
-                    } else if block && (*token).type_ == YamlBlockSequenceStartToken {
+                    } else if block
+                        && (*token).type_ == YamlBlockSequenceStartToken
+                    {
                         end_mark = (*token).end_mark;
-                        (*parser).state = YamlParseBlockSequenceFirstEntryState;
+                        (*parser).state =
+                            YamlParseBlockSequenceFirstEntryState;
                         let _ = memset(
                             event as *mut libc::c_void,
                             0,
@@ -9141,16 +10763,25 @@ mod parser {
                         (*event).type_ = YamlSequenceStartEvent;
                         (*event).start_mark = start_mark;
                         (*event).end_mark = end_mark;
-                        let fresh49 = &raw mut (*event).data.sequence_start.anchor;
+                        let fresh49 = &raw mut (*event)
+                            .data
+                            .sequence_start
+                            .anchor;
                         *fresh49 = anchor;
-                        let fresh50 = &raw mut (*event).data.sequence_start.tag;
+                        let fresh50 =
+                            &raw mut (*event).data.sequence_start.tag;
                         *fresh50 = tag;
-                        (*event).data.sequence_start.implicit = implicit;
-                        (*event).data.sequence_start.style = YamlBlockSequenceStyle;
+                        (*event).data.sequence_start.implicit =
+                            implicit;
+                        (*event).data.sequence_start.style =
+                            YamlBlockSequenceStyle;
                         return OK;
-                    } else if block && (*token).type_ == YamlBlockMappingStartToken {
+                    } else if block
+                        && (*token).type_ == YamlBlockMappingStartToken
+                    {
                         end_mark = (*token).end_mark;
-                        (*parser).state = YamlParseBlockMappingFirstKeyState;
+                        (*parser).state =
+                            YamlParseBlockMappingFirstKeyState;
                         let _ = memset(
                             event as *mut libc::c_void,
                             0,
@@ -9159,19 +10790,23 @@ mod parser {
                         (*event).type_ = YamlMappingStartEvent;
                         (*event).start_mark = start_mark;
                         (*event).end_mark = end_mark;
-                        let fresh51 = &raw mut (*event).data.mapping_start.anchor;
+                        let fresh51 =
+                            &raw mut (*event).data.mapping_start.anchor;
                         *fresh51 = anchor;
-                        let fresh52 = &raw mut (*event).data.mapping_start.tag;
+                        let fresh52 =
+                            &raw mut (*event).data.mapping_start.tag;
                         *fresh52 = tag;
                         (*event).data.mapping_start.implicit = implicit;
-                        (*event).data.mapping_start.style = YamlBlockMappingStyle;
+                        (*event).data.mapping_start.style =
+                            YamlBlockMappingStyle;
                         return OK;
                     } else if !anchor.is_null() || !tag.is_null() {
-                        let value: *mut yaml_char_t = yaml_malloc(1_u64)
-                            as *mut yaml_char_t;
+                        let value: *mut yaml_char_t =
+                            yaml_malloc(1_u64) as *mut yaml_char_t;
                         *value = b'\0';
                         (*parser).state = *{
-                            (*parser).states.top = (*parser).states.top.offset(-1);
+                            (*parser).states.top =
+                                (*parser).states.top.offset(-1);
                             (*parser).states.top
                         };
                         let _ = memset(
@@ -9182,29 +10817,35 @@ mod parser {
                         (*event).type_ = YamlScalarEvent;
                         (*event).start_mark = start_mark;
                         (*event).end_mark = end_mark;
-                        let fresh54 = &raw mut (*event).data.scalar.anchor;
+                        let fresh54 =
+                            &raw mut (*event).data.scalar.anchor;
                         *fresh54 = anchor;
                         let fresh55 = &raw mut (*event).data.scalar.tag;
                         *fresh55 = tag;
-                        let fresh56 = &raw mut (*event).data.scalar.value;
+                        let fresh56 =
+                            &raw mut (*event).data.scalar.value;
                         *fresh56 = value;
                         (*event).data.scalar.length = 0_u64;
                         (*event).data.scalar.plain_implicit = implicit;
                         (*event).data.scalar.quoted_implicit = false;
-                        (*event).data.scalar.style = YamlPlainScalarStyle;
+                        (*event).data.scalar.style =
+                            YamlPlainScalarStyle;
                         return OK;
                     } else {
                         yaml_parser_set_parser_error_context(
                             parser,
                             if block {
-                                b"while parsing a block node\0" as *const u8
+                                b"while parsing a block node\0"
+                                    as *const u8
                                     as *const libc::c_char
                             } else {
-                                b"while parsing a flow node\0" as *const u8
+                                b"while parsing a flow node\0"
+                                    as *const u8
                                     as *const libc::c_char
                             },
                             start_mark,
-                            b"did not find expected node content\0" as *const u8
+                            b"did not find expected node content\0"
+                                as *const u8
                                 as *const libc::c_char,
                             (*token).start_mark,
                         );
@@ -9229,13 +10870,17 @@ mod parser {
             {
                 if (*parser).marks.top == (*parser).marks.end {
                     yaml_stack_extend(
-                        &raw mut (*parser).marks.start as *mut *mut libc::c_void,
-                        &raw mut (*parser).marks.top as *mut *mut libc::c_void,
-                        &raw mut (*parser).marks.end as *mut *mut libc::c_void,
+                        &raw mut (*parser).marks.start
+                            as *mut *mut libc::c_void,
+                        &raw mut (*parser).marks.top
+                            as *mut *mut libc::c_void,
+                        &raw mut (*parser).marks.end
+                            as *mut *mut libc::c_void,
                     );
                 }
                 ptr::write((*parser).marks.top, (*token).start_mark);
-                (*parser).marks.top = (*parser).marks.top.wrapping_offset(1);
+                (*parser).marks.top =
+                    (*parser).marks.top.wrapping_offset(1);
             };
             skip_token(parser);
         }
@@ -9256,13 +10901,20 @@ mod parser {
                 {
                     if (*parser).states.top == (*parser).states.end {
                         yaml_stack_extend(
-                            &raw mut (*parser).states.start as *mut *mut libc::c_void,
-                            &raw mut (*parser).states.top as *mut *mut libc::c_void,
-                            &raw mut (*parser).states.end as *mut *mut libc::c_void,
+                            &raw mut (*parser).states.start
+                                as *mut *mut libc::c_void,
+                            &raw mut (*parser).states.top
+                                as *mut *mut libc::c_void,
+                            &raw mut (*parser).states.end
+                                as *mut *mut libc::c_void,
                         );
                     }
-                    ptr::write((*parser).states.top, YamlParseBlockSequenceEntryState);
-                    (*parser).states.top = (*parser).states.top.wrapping_offset(1);
+                    ptr::write(
+                        (*parser).states.top,
+                        YamlParseBlockSequenceEntryState,
+                    );
+                    (*parser).states.top =
+                        (*parser).states.top.wrapping_offset(1);
                 };
                 yaml_parser_parse_node(parser, event, true, false)
             } else {
@@ -9294,7 +10946,8 @@ mod parser {
                 b"while parsing a block collection\0" as *const u8
                     as *const libc::c_char,
                 *{
-                    (*parser).marks.top = (*parser).marks.top.offset(-1);
+                    (*parser).marks.top =
+                        (*parser).marks.top.offset(-1);
                     (*parser).marks.top
                 },
                 b"did not find expected '-' indicator\0" as *const u8
@@ -9320,23 +10973,28 @@ mod parser {
             if token.is_null() {
                 return FAIL;
             }
-            if (*token).type_ != YamlBlockEntryToken && (*token).type_ != YamlKeyToken
+            if (*token).type_ != YamlBlockEntryToken
+                && (*token).type_ != YamlKeyToken
                 && (*token).type_ != YamlValueToken
                 && (*token).type_ != YamlBlockEndToken
             {
                 {
                     if (*parser).states.top == (*parser).states.end {
                         yaml_stack_extend(
-                            &raw mut (*parser).states.start as *mut *mut libc::c_void,
-                            &raw mut (*parser).states.top as *mut *mut libc::c_void,
-                            &raw mut (*parser).states.end as *mut *mut libc::c_void,
+                            &raw mut (*parser).states.start
+                                as *mut *mut libc::c_void,
+                            &raw mut (*parser).states.top
+                                as *mut *mut libc::c_void,
+                            &raw mut (*parser).states.end
+                                as *mut *mut libc::c_void,
                         );
                     }
                     ptr::write(
                         (*parser).states.top,
                         YamlParseIndentlessSequenceEntryState,
                     );
-                    (*parser).states.top = (*parser).states.top.wrapping_offset(1);
+                    (*parser).states.top =
+                        (*parser).states.top.wrapping_offset(1);
                 };
                 yaml_parser_parse_node(parser, event, true, false)
             } else {
@@ -9370,13 +11028,17 @@ mod parser {
             {
                 if (*parser).marks.top == (*parser).marks.end {
                     yaml_stack_extend(
-                        &raw mut (*parser).marks.start as *mut *mut libc::c_void,
-                        &raw mut (*parser).marks.top as *mut *mut libc::c_void,
-                        &raw mut (*parser).marks.end as *mut *mut libc::c_void,
+                        &raw mut (*parser).marks.start
+                            as *mut *mut libc::c_void,
+                        &raw mut (*parser).marks.top
+                            as *mut *mut libc::c_void,
+                        &raw mut (*parser).marks.end
+                            as *mut *mut libc::c_void,
                     );
                 }
                 ptr::write((*parser).marks.top, (*token).start_mark);
-                (*parser).marks.top = (*parser).marks.top.wrapping_offset(1);
+                (*parser).marks.top =
+                    (*parser).marks.top.wrapping_offset(1);
             };
             skip_token(parser);
         }
@@ -9391,19 +11053,27 @@ mod parser {
             if token.is_null() {
                 return FAIL;
             }
-            if (*token).type_ != YamlKeyToken && (*token).type_ != YamlValueToken
+            if (*token).type_ != YamlKeyToken
+                && (*token).type_ != YamlValueToken
                 && (*token).type_ != YamlBlockEndToken
             {
                 {
                     if (*parser).states.top == (*parser).states.end {
                         yaml_stack_extend(
-                            &raw mut (*parser).states.start as *mut *mut libc::c_void,
-                            &raw mut (*parser).states.top as *mut *mut libc::c_void,
-                            &raw mut (*parser).states.end as *mut *mut libc::c_void,
+                            &raw mut (*parser).states.start
+                                as *mut *mut libc::c_void,
+                            &raw mut (*parser).states.top
+                                as *mut *mut libc::c_void,
+                            &raw mut (*parser).states.end
+                                as *mut *mut libc::c_void,
                         );
                     }
-                    ptr::write((*parser).states.top, YamlParseBlockMappingValueState);
-                    (*parser).states.top = (*parser).states.top.wrapping_offset(1);
+                    ptr::write(
+                        (*parser).states.top,
+                        YamlParseBlockMappingValueState,
+                    );
+                    (*parser).states.top =
+                        (*parser).states.top.wrapping_offset(1);
                 };
                 yaml_parser_parse_node(parser, event, true, true)
             } else {
@@ -9432,12 +11102,15 @@ mod parser {
         } else {
             yaml_parser_set_parser_error_context(
                 parser,
-                b"while parsing a block mapping\0" as *const u8 as *const libc::c_char,
+                b"while parsing a block mapping\0" as *const u8
+                    as *const libc::c_char,
                 *{
-                    (*parser).marks.top = (*parser).marks.top.offset(-1);
+                    (*parser).marks.top =
+                        (*parser).marks.top.offset(-1);
                     (*parser).marks.top
                 },
-                b"did not find expected key\0" as *const u8 as *const libc::c_char,
+                b"did not find expected key\0" as *const u8
+                    as *const libc::c_char,
                 (*token).start_mark,
             );
             FAIL
@@ -9459,19 +11132,27 @@ mod parser {
             if token.is_null() {
                 return FAIL;
             }
-            if (*token).type_ != YamlKeyToken && (*token).type_ != YamlValueToken
+            if (*token).type_ != YamlKeyToken
+                && (*token).type_ != YamlValueToken
                 && (*token).type_ != YamlBlockEndToken
             {
                 {
                     if (*parser).states.top == (*parser).states.end {
                         yaml_stack_extend(
-                            &raw mut (*parser).states.start as *mut *mut libc::c_void,
-                            &raw mut (*parser).states.top as *mut *mut libc::c_void,
-                            &raw mut (*parser).states.end as *mut *mut libc::c_void,
+                            &raw mut (*parser).states.start
+                                as *mut *mut libc::c_void,
+                            &raw mut (*parser).states.top
+                                as *mut *mut libc::c_void,
+                            &raw mut (*parser).states.end
+                                as *mut *mut libc::c_void,
                         );
                     }
-                    ptr::write((*parser).states.top, YamlParseBlockMappingKeyState);
-                    (*parser).states.top = (*parser).states.top.wrapping_offset(1);
+                    ptr::write(
+                        (*parser).states.top,
+                        YamlParseBlockMappingKeyState,
+                    );
+                    (*parser).states.top =
+                        (*parser).states.top.wrapping_offset(1);
                 };
                 yaml_parser_parse_node(parser, event, true, true)
             } else {
@@ -9494,13 +11175,17 @@ mod parser {
             {
                 if (*parser).marks.top == (*parser).marks.end {
                     yaml_stack_extend(
-                        &raw mut (*parser).marks.start as *mut *mut libc::c_void,
-                        &raw mut (*parser).marks.top as *mut *mut libc::c_void,
-                        &raw mut (*parser).marks.end as *mut *mut libc::c_void,
+                        &raw mut (*parser).marks.start
+                            as *mut *mut libc::c_void,
+                        &raw mut (*parser).marks.top
+                            as *mut *mut libc::c_void,
+                        &raw mut (*parser).marks.end
+                            as *mut *mut libc::c_void,
                     );
                 }
                 ptr::write((*parser).marks.top, (*token).start_mark);
-                (*parser).marks.top = (*parser).marks.top.wrapping_offset(1);
+                (*parser).marks.top =
+                    (*parser).marks.top.wrapping_offset(1);
             };
             skip_token(parser);
         }
@@ -9522,10 +11207,12 @@ mod parser {
                         b"while parsing a flow sequence\0" as *const u8
                             as *const libc::c_char,
                         *{
-                            (*parser).marks.top = (*parser).marks.top.offset(-1);
+                            (*parser).marks.top =
+                                (*parser).marks.top.offset(-1);
                             (*parser).marks.top
                         },
-                        b"did not find expected ',' or ']'\0" as *const u8
+                        b"did not find expected ',' or ']'\0"
+                            as *const u8
                             as *const libc::c_char,
                         (*token).start_mark,
                     );
@@ -9533,7 +11220,8 @@ mod parser {
                 }
             }
             if (*token).type_ == YamlKeyToken {
-                (*parser).state = YamlParseFlowSequenceEntryMappingKeyState;
+                (*parser).state =
+                    YamlParseFlowSequenceEntryMappingKeyState;
                 let _ = memset(
                     event as *mut libc::c_void,
                     0,
@@ -9542,27 +11230,38 @@ mod parser {
                 (*event).type_ = YamlMappingStartEvent;
                 (*event).start_mark = (*token).start_mark;
                 (*event).end_mark = (*token).end_mark;
-                let fresh99 = &raw mut (*event).data.mapping_start.anchor;
+                let fresh99 =
+                    &raw mut (*event).data.mapping_start.anchor;
                 *fresh99 = ptr::null_mut::<yaml_char_t>();
                 let fresh100 = &raw mut (*event).data.mapping_start.tag;
                 *fresh100 = ptr::null_mut::<yaml_char_t>();
                 (*event).data.mapping_start.implicit = true;
-                (*event).data.mapping_start.style = YamlFlowMappingStyle;
+                (*event).data.mapping_start.style =
+                    YamlFlowMappingStyle;
                 skip_token(parser);
                 return OK;
             } else if (*token).type_ != YamlFlowSequenceEndToken {
                 {
                     if (*parser).states.top == (*parser).states.end {
                         yaml_stack_extend(
-                            &raw mut (*parser).states.start as *mut *mut libc::c_void,
-                            &raw mut (*parser).states.top as *mut *mut libc::c_void,
-                            &raw mut (*parser).states.end as *mut *mut libc::c_void,
+                            &raw mut (*parser).states.start
+                                as *mut *mut libc::c_void,
+                            &raw mut (*parser).states.top
+                                as *mut *mut libc::c_void,
+                            &raw mut (*parser).states.end
+                                as *mut *mut libc::c_void,
                         );
                     }
-                    ptr::write((*parser).states.top, YamlParseFlowSequenceEntryState);
-                    (*parser).states.top = (*parser).states.top.wrapping_offset(1);
+                    ptr::write(
+                        (*parser).states.top,
+                        YamlParseFlowSequenceEntryState,
+                    );
+                    (*parser).states.top =
+                        (*parser).states.top.wrapping_offset(1);
                 };
-                return yaml_parser_parse_node(parser, event, false, false);
+                return yaml_parser_parse_node(
+                    parser, event, false, false,
+                );
             }
         }
         (*parser).state = *{
@@ -9592,28 +11291,34 @@ mod parser {
         if token.is_null() {
             return FAIL;
         }
-        if (*token).type_ != YamlValueToken && (*token).type_ != YamlFlowEntryToken
+        if (*token).type_ != YamlValueToken
+            && (*token).type_ != YamlFlowEntryToken
             && (*token).type_ != YamlFlowSequenceEndToken
         {
             {
                 if (*parser).states.top == (*parser).states.end {
                     yaml_stack_extend(
-                        &raw mut (*parser).states.start as *mut *mut libc::c_void,
-                        &raw mut (*parser).states.top as *mut *mut libc::c_void,
-                        &raw mut (*parser).states.end as *mut *mut libc::c_void,
+                        &raw mut (*parser).states.start
+                            as *mut *mut libc::c_void,
+                        &raw mut (*parser).states.top
+                            as *mut *mut libc::c_void,
+                        &raw mut (*parser).states.end
+                            as *mut *mut libc::c_void,
                     );
                 }
                 ptr::write(
                     (*parser).states.top,
                     YamlParseFlowSequenceEntryMappingValueState,
                 );
-                (*parser).states.top = (*parser).states.top.wrapping_offset(1);
+                (*parser).states.top =
+                    (*parser).states.top.wrapping_offset(1);
             };
             yaml_parser_parse_node(parser, event, false, false)
         } else {
             let mark: YamlMarkT = (*token).end_mark;
             skip_token(parser);
-            (*parser).state = YamlParseFlowSequenceEntryMappingValueState;
+            (*parser).state =
+                YamlParseFlowSequenceEntryMappingValueState;
             yaml_parser_process_empty_scalar(event, mark)
         }
     }
@@ -9638,18 +11343,24 @@ mod parser {
                 {
                     if (*parser).states.top == (*parser).states.end {
                         yaml_stack_extend(
-                            &raw mut (*parser).states.start as *mut *mut libc::c_void,
-                            &raw mut (*parser).states.top as *mut *mut libc::c_void,
-                            &raw mut (*parser).states.end as *mut *mut libc::c_void,
+                            &raw mut (*parser).states.start
+                                as *mut *mut libc::c_void,
+                            &raw mut (*parser).states.top
+                                as *mut *mut libc::c_void,
+                            &raw mut (*parser).states.end
+                                as *mut *mut libc::c_void,
                         );
                     }
                     ptr::write(
                         (*parser).states.top,
                         YamlParseFlowSequenceEntryMappingEndState,
                     );
-                    (*parser).states.top = (*parser).states.top.wrapping_offset(1);
+                    (*parser).states.top =
+                        (*parser).states.top.wrapping_offset(1);
                 };
-                return yaml_parser_parse_node(parser, event, false, false);
+                return yaml_parser_parse_node(
+                    parser, event, false, false,
+                );
             }
         }
         (*parser).state = YamlParseFlowSequenceEntryMappingEndState;
@@ -9685,13 +11396,17 @@ mod parser {
             {
                 if (*parser).marks.top == (*parser).marks.end {
                     yaml_stack_extend(
-                        &raw mut (*parser).marks.start as *mut *mut libc::c_void,
-                        &raw mut (*parser).marks.top as *mut *mut libc::c_void,
-                        &raw mut (*parser).marks.end as *mut *mut libc::c_void,
+                        &raw mut (*parser).marks.start
+                            as *mut *mut libc::c_void,
+                        &raw mut (*parser).marks.top
+                            as *mut *mut libc::c_void,
+                        &raw mut (*parser).marks.end
+                            as *mut *mut libc::c_void,
                     );
                 }
                 ptr::write((*parser).marks.top, (*token).start_mark);
-                (*parser).marks.top = (*parser).marks.top.wrapping_offset(1);
+                (*parser).marks.top =
+                    (*parser).marks.top.wrapping_offset(1);
             };
             skip_token(parser);
         }
@@ -9713,10 +11428,12 @@ mod parser {
                         b"while parsing a flow mapping\0" as *const u8
                             as *const libc::c_char,
                         *{
-                            (*parser).marks.top = (*parser).marks.top.offset(-1);
+                            (*parser).marks.top =
+                                (*parser).marks.top.offset(-1);
                             (*parser).marks.top
                         },
-                        b"did not find expected ',' or '}'\0" as *const u8
+                        b"did not find expected ',' or '}'\0"
+                            as *const u8
                             as *const libc::c_char,
                         (*token).start_mark,
                     );
@@ -9734,37 +11451,56 @@ mod parser {
                     && (*token).type_ != YamlFlowMappingEndToken
                 {
                     {
-                        if (*parser).states.top == (*parser).states.end {
+                        if (*parser).states.top == (*parser).states.end
+                        {
                             yaml_stack_extend(
-                                &raw mut (*parser).states.start as *mut *mut libc::c_void,
-                                &raw mut (*parser).states.top as *mut *mut libc::c_void,
-                                &raw mut (*parser).states.end as *mut *mut libc::c_void,
+                                &raw mut (*parser).states.start
+                                    as *mut *mut libc::c_void,
+                                &raw mut (*parser).states.top
+                                    as *mut *mut libc::c_void,
+                                &raw mut (*parser).states.end
+                                    as *mut *mut libc::c_void,
                             );
                         }
-                        ptr::write((*parser).states.top, YamlParseFlowMappingValueState);
-                        (*parser).states.top = (*parser).states.top.wrapping_offset(1);
+                        ptr::write(
+                            (*parser).states.top,
+                            YamlParseFlowMappingValueState,
+                        );
+                        (*parser).states.top =
+                            (*parser).states.top.wrapping_offset(1);
                     };
-                    return yaml_parser_parse_node(parser, event, false, false);
+                    return yaml_parser_parse_node(
+                        parser, event, false, false,
+                    );
                 } else {
                     (*parser).state = YamlParseFlowMappingValueState;
-                    return yaml_parser_process_empty_scalar(event, (*token).start_mark);
+                    return yaml_parser_process_empty_scalar(
+                        event,
+                        (*token).start_mark,
+                    );
                 }
             } else if (*token).type_ != YamlFlowMappingEndToken {
                 {
                     if (*parser).states.top == (*parser).states.end {
                         yaml_stack_extend(
-                            &raw mut (*parser).states.start as *mut *mut libc::c_void,
-                            &raw mut (*parser).states.top as *mut *mut libc::c_void,
-                            &raw mut (*parser).states.end as *mut *mut libc::c_void,
+                            &raw mut (*parser).states.start
+                                as *mut *mut libc::c_void,
+                            &raw mut (*parser).states.top
+                                as *mut *mut libc::c_void,
+                            &raw mut (*parser).states.end
+                                as *mut *mut libc::c_void,
                         );
                     }
                     ptr::write(
                         (*parser).states.top,
                         YamlParseFlowMappingEmptyValueState,
                     );
-                    (*parser).states.top = (*parser).states.top.wrapping_offset(1);
+                    (*parser).states.top =
+                        (*parser).states.top.wrapping_offset(1);
                 };
-                return yaml_parser_parse_node(parser, event, false, false);
+                return yaml_parser_parse_node(
+                    parser, event, false, false,
+                );
             }
         }
         (*parser).state = *{
@@ -9798,7 +11534,10 @@ mod parser {
         }
         if empty {
             (*parser).state = YamlParseFlowMappingKeyState;
-            return yaml_parser_process_empty_scalar(event, (*token).start_mark);
+            return yaml_parser_process_empty_scalar(
+                event,
+                (*token).start_mark,
+            );
         }
         if (*token).type_ == YamlValueToken {
             skip_token(parser);
@@ -9812,15 +11551,24 @@ mod parser {
                 {
                     if (*parser).states.top == (*parser).states.end {
                         yaml_stack_extend(
-                            &raw mut (*parser).states.start as *mut *mut libc::c_void,
-                            &raw mut (*parser).states.top as *mut *mut libc::c_void,
-                            &raw mut (*parser).states.end as *mut *mut libc::c_void,
+                            &raw mut (*parser).states.start
+                                as *mut *mut libc::c_void,
+                            &raw mut (*parser).states.top
+                                as *mut *mut libc::c_void,
+                            &raw mut (*parser).states.end
+                                as *mut *mut libc::c_void,
                         );
                     }
-                    ptr::write((*parser).states.top, YamlParseFlowMappingKeyState);
-                    (*parser).states.top = (*parser).states.top.wrapping_offset(1);
+                    ptr::write(
+                        (*parser).states.top,
+                        YamlParseFlowMappingKeyState,
+                    );
+                    (*parser).states.top =
+                        (*parser).states.top.wrapping_offset(1);
                 };
-                return yaml_parser_parse_node(parser, event, false, false);
+                return yaml_parser_parse_node(
+                    parser, event, false, false,
+                );
             }
         }
         (*parser).state = YamlParseFlowMappingKeyState;
@@ -9830,7 +11578,8 @@ mod parser {
         event: *mut YamlEventT,
         mark: YamlMarkT,
     ) -> Success {
-        let value: *mut yaml_char_t = yaml_malloc(1_u64) as *mut yaml_char_t;
+        let value: *mut yaml_char_t =
+            yaml_malloc(1_u64) as *mut yaml_char_t;
         *value = b'\0';
         let _ = memset(
             event as *mut libc::c_void,
@@ -9861,12 +11610,16 @@ mod parser {
         let mut current_block: u64;
         let mut default_tag_directives: [YamlTagDirectiveT; 3] = [
             YamlTagDirectiveT {
-                handle: b"!\0" as *const u8 as *const libc::c_char as *mut yaml_char_t,
-                prefix: b"!\0" as *const u8 as *const libc::c_char as *mut yaml_char_t,
+                handle: b"!\0" as *const u8 as *const libc::c_char
+                    as *mut yaml_char_t,
+                prefix: b"!\0" as *const u8 as *const libc::c_char
+                    as *mut yaml_char_t,
             },
             YamlTagDirectiveT {
-                handle: b"!!\0" as *const u8 as *const libc::c_char as *mut yaml_char_t,
-                prefix: b"tag:yaml.org,2002:\0" as *const u8 as *const libc::c_char
+                handle: b"!!\0" as *const u8 as *const libc::c_char
+                    as *mut yaml_char_t,
+                prefix: b"tag:yaml.org,2002:\0" as *const u8
+                    as *const libc::c_char
                     as *mut yaml_char_t,
             },
             YamlTagDirectiveT {
@@ -9875,9 +11628,8 @@ mod parser {
             },
         ];
         let mut default_tag_directive: *mut YamlTagDirectiveT;
-        let mut version_directive: *mut YamlVersionDirectiveT = ptr::null_mut::<
-            YamlVersionDirectiveT,
-        >();
+        let mut version_directive: *mut YamlVersionDirectiveT =
+            ptr::null_mut::<YamlVersionDirectiveT>();
         struct TagDirectives {
             start: *mut YamlTagDirectiveT,
             end: *mut YamlTagDirectiveT,
@@ -9892,7 +11644,8 @@ mod parser {
         {
             tag_directives.start = yaml_malloc(
                 16 * size_of::<YamlTagDirectiveT>() as libc::c_ulong,
-            ) as *mut YamlTagDirectiveT;
+            )
+                as *mut YamlTagDirectiveT;
             tag_directives.top = tag_directives.start;
             tag_directives.end = tag_directives.start.offset(16_isize);
         };
@@ -9909,7 +11662,8 @@ mod parser {
                     if !version_directive.is_null() {
                         yaml_parser_set_parser_error(
                             parser,
-                            b"found duplicate %YAML directive\0" as *const u8
+                            b"found duplicate %YAML directive\0"
+                                as *const u8
                                 as *const libc::c_char,
                             (*token).start_mark,
                         );
@@ -9917,28 +11671,29 @@ mod parser {
                         break;
                     } else if (*token).data.version_directive.major != 1
                         || (*token).data.version_directive.minor != 1
-                            && (*token).data.version_directive.minor != 2
+                            && (*token).data.version_directive.minor
+                                != 2
                     {
                         yaml_parser_set_parser_error(
                             parser,
-                            b"found incompatible YAML document\0" as *const u8
+                            b"found incompatible YAML document\0"
+                                as *const u8
                                 as *const libc::c_char,
                             (*token).start_mark,
                         );
                         current_block = 17143798186130252483;
                         break;
                     } else {
-                        version_directive = yaml_malloc(
-                            size_of::<YamlVersionDirectiveT>() as libc::c_ulong,
-                        ) as *mut YamlVersionDirectiveT;
-                        (*version_directive).major = (*token)
-                            .data
-                            .version_directive
-                            .major;
-                        (*version_directive).minor = (*token)
-                            .data
-                            .version_directive
-                            .minor;
+                        version_directive = yaml_malloc(size_of::<
+                            YamlVersionDirectiveT,
+                        >(
+                        )
+                            as libc::c_ulong)
+                            as *mut YamlVersionDirectiveT;
+                        (*version_directive).major =
+                            (*token).data.version_directive.major;
+                        (*version_directive).minor =
+                            (*token).data.version_directive.minor;
                     }
                 } else if (*token).type_ == YamlTagDirectiveToken {
                     let value = YamlTagDirectiveT {
@@ -9946,12 +11701,12 @@ mod parser {
                         prefix: (*token).data.tag_directive.prefix,
                     };
                     if yaml_parser_append_tag_directive(
-                            parser,
-                            value,
-                            false,
-                            (*token).start_mark,
-                        )
-                        .fail
+                        parser,
+                        value,
+                        false,
+                        (*token).start_mark,
+                    )
+                    .fail
                     {
                         current_block = 17143798186130252483;
                         break;
@@ -9959,13 +11714,17 @@ mod parser {
                     {
                         if tag_directives.top == tag_directives.end {
                             yaml_stack_extend(
-                                &raw mut tag_directives.start as *mut *mut libc::c_void,
-                                &raw mut tag_directives.top as *mut *mut libc::c_void,
-                                &raw mut tag_directives.end as *mut *mut libc::c_void,
+                                &raw mut tag_directives.start
+                                    as *mut *mut libc::c_void,
+                                &raw mut tag_directives.top
+                                    as *mut *mut libc::c_void,
+                                &raw mut tag_directives.end
+                                    as *mut *mut libc::c_void,
                             );
                         }
                         ptr::write(tag_directives.top, value);
-                        tag_directives.top = tag_directives.top.wrapping_offset(1);
+                        tag_directives.top =
+                            tag_directives.top.wrapping_offset(1);
                     };
                 }
                 skip_token(parser);
@@ -9976,24 +11735,26 @@ mod parser {
                 }
             }
             if current_block != 17143798186130252483 {
-                default_tag_directive = default_tag_directives.as_mut_ptr();
+                default_tag_directive =
+                    default_tag_directives.as_mut_ptr();
                 loop {
                     if (*default_tag_directive).handle.is_null() {
                         current_block = 18377268871191777778;
                         break;
                     }
                     if yaml_parser_append_tag_directive(
-                            parser,
-                            *default_tag_directive,
-                            true,
-                            (*token).start_mark,
-                        )
-                        .fail
+                        parser,
+                        *default_tag_directive,
+                        true,
+                        (*token).start_mark,
+                    )
+                    .fail
                     {
                         current_block = 17143798186130252483;
                         break;
                     }
-                    default_tag_directive = default_tag_directive.wrapping_offset(1);
+                    default_tag_directive =
+                        default_tag_directive.wrapping_offset(1);
                 }
                 if current_block != 17143798186130252483 {
                     if !version_directive_ref.is_null() {
@@ -10001,26 +11762,35 @@ mod parser {
                     }
                     if !tag_directives_start_ref.is_null() {
                         if tag_directives.start == tag_directives.top {
-                            *tag_directives_end_ref = ptr::null_mut::<
-                                YamlTagDirectiveT,
-                            >();
-                            *tag_directives_start_ref = *tag_directives_end_ref;
-                            yaml_free(tag_directives.start as *mut libc::c_void);
+                            *tag_directives_end_ref =
+                                ptr::null_mut::<YamlTagDirectiveT>();
+                            *tag_directives_start_ref =
+                                *tag_directives_end_ref;
+                            yaml_free(
+                                tag_directives.start
+                                    as *mut libc::c_void,
+                            );
                             tag_directives.end = ptr::null_mut();
                             tag_directives.top = ptr::null_mut();
                             tag_directives.start = ptr::null_mut();
                         } else {
-                            *tag_directives_start_ref = tag_directives.start;
-                            *tag_directives_end_ref = tag_directives.top;
+                            *tag_directives_start_ref =
+                                tag_directives.start;
+                            *tag_directives_end_ref =
+                                tag_directives.top;
                         }
                     } else {
-                        yaml_free(tag_directives.start as *mut libc::c_void);
+                        yaml_free(
+                            tag_directives.start as *mut libc::c_void,
+                        );
                         tag_directives.end = ptr::null_mut();
                         tag_directives.top = ptr::null_mut();
                         tag_directives.start = ptr::null_mut();
                     }
                     if version_directive_ref.is_null() {
-                        yaml_free(version_directive as *mut libc::c_void);
+                        yaml_free(
+                            version_directive as *mut libc::c_void,
+                        );
                     }
                     return OK;
                 }
@@ -10075,18 +11845,21 @@ mod parser {
         copy.handle = yaml_strdup(value.handle);
         copy.prefix = yaml_strdup(value.prefix);
         {
-            if (*parser).tag_directives.top == (*parser).tag_directives.end {
+            if (*parser).tag_directives.top
+                == (*parser).tag_directives.end
+            {
                 yaml_stack_extend(
-                    &raw mut (*parser).tag_directives.start as *mut *mut libc::c_void,
-                    &raw mut (*parser).tag_directives.top as *mut *mut libc::c_void,
-                    &raw mut (*parser).tag_directives.end as *mut *mut libc::c_void,
+                    &raw mut (*parser).tag_directives.start
+                        as *mut *mut libc::c_void,
+                    &raw mut (*parser).tag_directives.top
+                        as *mut *mut libc::c_void,
+                    &raw mut (*parser).tag_directives.end
+                        as *mut *mut libc::c_void,
                 );
             }
             ptr::write((*parser).tag_directives.top, copy);
-            (*parser).tag_directives.top = (*parser)
-                .tag_directives
-                .top
-                .wrapping_offset(1);
+            (*parser).tag_directives.top =
+                (*parser).tag_directives.top.wrapping_offset(1);
         };
         OK
     }
@@ -10097,8 +11870,9 @@ mod reader {
     use crate::success::{Success, FAIL, OK};
     use crate::yaml::{size_t, yaml_char_t};
     use crate::{
-        libc, PointerExt, YamlAnyEncoding, YamlParserT, YamlReaderError,
-        YamlUtf16beEncoding, YamlUtf16leEncoding, YamlUtf8Encoding,
+        libc, PointerExt, YamlAnyEncoding, YamlParserT,
+        YamlReaderError, YamlUtf16beEncoding, YamlUtf16leEncoding,
+        YamlUtf8Encoding,
     };
     use core::ptr::addr_of_mut;
     unsafe fn yaml_parser_set_reader_error(
@@ -10114,23 +11888,33 @@ mod reader {
         (*parser).problem_value = value;
         FAIL
     }
-    const BOM_UTF8: *const libc::c_char = b"\xEF\xBB\xBF\0" as *const u8
-        as *const libc::c_char;
-    const BOM_UTF16LE: *const libc::c_char = b"\xFF\xFE\0" as *const u8
-        as *const libc::c_char;
-    const BOM_UTF16BE: *const libc::c_char = b"\xFE\xFF\0" as *const u8
-        as *const libc::c_char;
-    unsafe fn yaml_parser_determine_encoding(parser: *mut YamlParserT) -> Success {
+    const BOM_UTF8: *const libc::c_char =
+        b"\xEF\xBB\xBF\0" as *const u8 as *const libc::c_char;
+    const BOM_UTF16LE: *const libc::c_char =
+        b"\xFF\xFE\0" as *const u8 as *const libc::c_char;
+    const BOM_UTF16BE: *const libc::c_char =
+        b"\xFE\xFF\0" as *const u8 as *const libc::c_char;
+    unsafe fn yaml_parser_determine_encoding(
+        parser: *mut YamlParserT,
+    ) -> Success {
         while !(*parser).eof
-            && ((*parser).raw_buffer.last.c_offset_from((*parser).raw_buffer.pointer)
-                as libc::c_long) < 3_i64
+            && ((*parser)
+                .raw_buffer
+                .last
+                .c_offset_from((*parser).raw_buffer.pointer)
+                as libc::c_long)
+                < 3_i64
         {
             if yaml_parser_update_raw_buffer(parser).fail {
                 return FAIL;
             }
         }
-        if (*parser).raw_buffer.last.c_offset_from((*parser).raw_buffer.pointer)
-            as libc::c_long >= 2_i64
+        if (*parser)
+            .raw_buffer
+            .last
+            .c_offset_from((*parser).raw_buffer.pointer)
+            as libc::c_long
+            >= 2_i64
             && memcmp(
                 (*parser).raw_buffer.pointer as *const libc::c_void,
                 BOM_UTF16LE as *const libc::c_void,
@@ -10142,8 +11926,12 @@ mod reader {
             *fresh1 = (*fresh1).wrapping_offset(2_isize);
             let fresh2 = &raw mut (*parser).offset;
             *fresh2 = (*fresh2).force_add(3_u64);
-        } else if (*parser).raw_buffer.last.c_offset_from((*parser).raw_buffer.pointer)
-            as libc::c_long >= 2_i64
+        } else if (*parser)
+            .raw_buffer
+            .last
+            .c_offset_from((*parser).raw_buffer.pointer)
+            as libc::c_long
+            >= 2_i64
             && memcmp(
                 (*parser).raw_buffer.pointer as *const libc::c_void,
                 BOM_UTF16BE as *const libc::c_void,
@@ -10155,8 +11943,12 @@ mod reader {
             *fresh3 = (*fresh3).wrapping_offset(2_isize);
             let fresh4 = &raw mut (*parser).offset;
             *fresh4 = (*fresh4).force_add(3_u64);
-        } else if (*parser).raw_buffer.last.c_offset_from((*parser).raw_buffer.pointer)
-            as libc::c_long >= 3_i64
+        } else if (*parser)
+            .raw_buffer
+            .last
+            .c_offset_from((*parser).raw_buffer.pointer)
+            as libc::c_long
+            >= 3_i64
             && memcmp(
                 (*parser).raw_buffer.pointer as *const libc::c_void,
                 BOM_UTF8 as *const libc::c_void,
@@ -10173,7 +11965,9 @@ mod reader {
         }
         OK
     }
-    unsafe fn yaml_parser_update_raw_buffer(parser: *mut YamlParserT) -> Success {
+    unsafe fn yaml_parser_update_raw_buffer(
+        parser: *mut YamlParserT,
+    ) -> Success {
         let mut size_read: size_t = 0_u64;
         if (*parser).raw_buffer.start == (*parser).raw_buffer.pointer
             && (*parser).raw_buffer.last == (*parser).raw_buffer.end
@@ -10189,26 +11983,31 @@ mod reader {
             let _ = memmove(
                 (*parser).raw_buffer.start as *mut libc::c_void,
                 (*parser).raw_buffer.pointer as *const libc::c_void,
-                (*parser).raw_buffer.last.c_offset_from((*parser).raw_buffer.pointer)
+                (*parser)
+                    .raw_buffer
+                    .last
+                    .c_offset_from((*parser).raw_buffer.pointer)
                     as libc::c_long as libc::c_ulong,
             );
         }
         let fresh7 = &raw mut (*parser).raw_buffer.last;
-        *fresh7 = (*fresh7)
-            .wrapping_offset(
-                -((*parser).raw_buffer.pointer.c_offset_from((*parser).raw_buffer.start)
-                    as libc::c_long as isize),
-            );
+        *fresh7 = (*fresh7).wrapping_offset(
+            -((*parser)
+                .raw_buffer
+                .pointer
+                .c_offset_from((*parser).raw_buffer.start)
+                as libc::c_long as isize),
+        );
         let fresh8 = &raw mut (*parser).raw_buffer.pointer;
         *fresh8 = (*parser).raw_buffer.start;
-        if (*parser)
-            .read_handler
-            .expect(
-                "non-null function pointer",
-            )(
+        if (*parser).read_handler.expect("non-null function pointer")(
             (*parser).read_handler_data,
             (*parser).raw_buffer.last,
-            (*parser).raw_buffer.end.c_offset_from((*parser).raw_buffer.last) as size_t,
+            (*parser)
+                .raw_buffer
+                .end
+                .c_offset_from((*parser).raw_buffer.last)
+                as size_t,
             &raw mut size_read,
         ) == 0
         {
@@ -10238,7 +12037,9 @@ mod reader {
                 169u32,
             );
         }
-        if (*parser).eof && (*parser).raw_buffer.pointer == (*parser).raw_buffer.last {
+        if (*parser).eof
+            && (*parser).raw_buffer.pointer == (*parser).raw_buffer.last
+        {
             return OK;
         }
         if (*parser).unread >= length {
@@ -10255,7 +12056,8 @@ mod reader {
             let size: size_t = (*parser)
                 .buffer
                 .last
-                .c_offset_from((*parser).buffer.pointer) as size_t;
+                .c_offset_from((*parser).buffer.pointer)
+                as size_t;
             let _ = memmove(
                 (*parser).buffer.start as *mut libc::c_void,
                 (*parser).buffer.pointer as *const libc::c_void,
@@ -10264,7 +12066,8 @@ mod reader {
             let fresh10 = &raw mut (*parser).buffer.pointer;
             *fresh10 = (*parser).buffer.start;
             let fresh11 = &raw mut (*parser).buffer.last;
-            *fresh11 = (*parser).buffer.start.wrapping_offset(size as isize);
+            *fresh11 =
+                (*parser).buffer.start.wrapping_offset(size as isize);
         } else if (*parser).buffer.pointer == (*parser).buffer.last {
             let fresh12 = &raw mut (*parser).buffer.pointer;
             *fresh12 = (*parser).buffer.start;
@@ -10272,13 +12075,17 @@ mod reader {
             *fresh13 = (*parser).buffer.start;
         }
         while (*parser).unread < length {
-            if (!first || (*parser).raw_buffer.pointer == (*parser).raw_buffer.last)
+            if (!first
+                || (*parser).raw_buffer.pointer
+                    == (*parser).raw_buffer.last)
                 && yaml_parser_update_raw_buffer(parser).fail
             {
                 return FAIL;
             }
             first = false;
-            while (*parser).raw_buffer.pointer != (*parser).raw_buffer.last {
+            while (*parser).raw_buffer.pointer
+                != (*parser).raw_buffer.last
+            {
                 let mut value: libc::c_uint = 0;
                 let value2: libc::c_uint;
                 let mut incomplete = false;
@@ -10290,7 +12097,8 @@ mod reader {
                 let raw_unread: size_t = (*parser)
                     .raw_buffer
                     .last
-                    .c_offset_from((*parser).raw_buffer.pointer) as size_t;
+                    .c_offset_from((*parser).raw_buffer.pointer)
+                    as size_t;
                 match (*parser).encoding {
                     YamlUtf8Encoding => {
                         octet = *(*parser).raw_buffer.pointer;
@@ -10304,11 +12112,13 @@ mod reader {
                             4
                         } else {
                             0
-                        } as libc::c_uint;
+                        }
+                            as libc::c_uint;
                         if width == 0 {
                             return yaml_parser_set_reader_error(
                                 parser,
-                                b"invalid leading UTF-8 octet\0" as *const u8
+                                b"invalid leading UTF-8 octet\0"
+                                    as *const u8
                                     as *const libc::c_char,
                                 (*parser).offset,
                                 octet as libc::c_int,
@@ -10318,7 +12128,8 @@ mod reader {
                             if (*parser).eof {
                                 return yaml_parser_set_reader_error(
                                     parser,
-                                    b"incomplete UTF-8 octet sequence\0" as *const u8
+                                    b"incomplete UTF-8 octet sequence\0"
+                                        as *const u8
                                         as *const libc::c_char,
                                     (*parser).offset,
                                     -1,
@@ -10336,7 +12147,8 @@ mod reader {
                                 octet & 0x7
                             } else {
                                 0
-                            } as libc::c_uint;
+                            }
+                                as libc::c_uint;
                             k = 1_u64;
                             while k < width as libc::c_ulong {
                                 octet = *(*parser)
@@ -10352,11 +12164,13 @@ mod reader {
                                         octet as libc::c_int,
                                     );
                                 }
-                                value = (value << 6)
-                                    .force_add((octet & 0x3F) as libc::c_uint);
+                                value = (value << 6).force_add(
+                                    (octet & 0x3F) as libc::c_uint,
+                                );
                                 k = k.force_add(1);
                             }
-                            if !(width == 1 || width == 2 && value >= 0x80
+                            if !(width == 1
+                                || width == 2 && value >= 0x80
                                 || width == 3 && value >= 0x800
                                 || width == 4 && value >= 0x10000)
                             {
@@ -10368,10 +12182,13 @@ mod reader {
                                     -1,
                                 );
                             }
-                            if (0xD800..=0xDFFF).contains(&value) || value > 0x10FFFF {
+                            if (0xD800..=0xDFFF).contains(&value)
+                                || value > 0x10FFFF
+                            {
                                 return yaml_parser_set_reader_error(
                                     parser,
-                                    b"invalid Unicode character\0" as *const u8
+                                    b"invalid Unicode character\0"
+                                        as *const u8
                                         as *const libc::c_char,
                                     (*parser).offset,
                                     value as libc::c_int,
@@ -10380,12 +12197,16 @@ mod reader {
                         }
                     }
                     YamlUtf16leEncoding | YamlUtf16beEncoding => {
-                        low = if (*parser).encoding == YamlUtf16leEncoding {
+                        low = if (*parser).encoding
+                            == YamlUtf16leEncoding
+                        {
                             0
                         } else {
                             1
                         };
-                        high = if (*parser).encoding == YamlUtf16leEncoding {
+                        high = if (*parser).encoding
+                            == YamlUtf16leEncoding
+                        {
                             1
                         } else {
                             0
@@ -10394,7 +12215,8 @@ mod reader {
                             if (*parser).eof {
                                 return yaml_parser_set_reader_error(
                                     parser,
-                                    b"incomplete UTF-16 character\0" as *const u8
+                                    b"incomplete UTF-16 character\0"
+                                        as *const u8
                                         as *const libc::c_char,
                                     (*parser).offset,
                                     -1,
@@ -10405,16 +12227,20 @@ mod reader {
                             value = (*(*parser)
                                 .raw_buffer
                                 .pointer
-                                .wrapping_offset(low as isize) as libc::c_int
+                                .wrapping_offset(low as isize)
+                                as libc::c_int
                                 + ((*(*parser)
                                     .raw_buffer
                                     .pointer
-                                    .wrapping_offset(high as isize) as libc::c_int) << 8))
+                                    .wrapping_offset(high as isize)
+                                    as libc::c_int)
+                                    << 8))
                                 as libc::c_uint;
                             if value & 0xFC00 == 0xDC00 {
                                 return yaml_parser_set_reader_error(
                                     parser,
-                                    b"unexpected low surrogate area\0" as *const u8
+                                    b"unexpected low surrogate area\0"
+                                        as *const u8
                                         as *const libc::c_char,
                                     (*parser).offset,
                                     value as libc::c_int,
@@ -10437,11 +12263,18 @@ mod reader {
                                     value2 = (*(*parser)
                                         .raw_buffer
                                         .pointer
-                                        .wrapping_offset((low + 2) as isize) as libc::c_int
+                                        .wrapping_offset(
+                                            (low + 2) as isize,
+                                        )
+                                        as libc::c_int
                                         + ((*(*parser)
                                             .raw_buffer
                                             .pointer
-                                            .wrapping_offset((high + 2) as isize) as libc::c_int) << 8))
+                                            .wrapping_offset(
+                                                (high + 2) as isize,
+                                            )
+                                            as libc::c_int)
+                                            << 8))
                                         as libc::c_uint;
                                     if value2 & 0xFC00 != 0xDC00 {
                                         return yaml_parser_set_reader_error(
@@ -10453,7 +12286,9 @@ mod reader {
                                         );
                                     }
                                     value = 0x10000_u32
-                                        .force_add((value & 0x3FF) << 10)
+                                        .force_add(
+                                            (value & 0x3FF) << 10,
+                                        )
                                         .force_add(value2 & 0x3FF);
                                 }
                             } else {
@@ -10466,15 +12301,19 @@ mod reader {
                 if incomplete {
                     break;
                 }
-                if !(value == 0x9 || value == 0xA || value == 0xD
-                    || (0x20..=0x7E).contains(&value) || value == 0x85
+                if !(value == 0x9
+                    || value == 0xA
+                    || value == 0xD
+                    || (0x20..=0x7E).contains(&value)
+                    || value == 0x85
                     || (0xA0..=0xD7FF).contains(&value)
                     || (0xE000..=0xFFFD).contains(&value)
                     || (0x10000..=0x10FFFF).contains(&value))
                 {
                     return yaml_parser_set_reader_error(
                         parser,
-                        b"control characters are not allowed\0" as *const u8
+                        b"control characters are not allowed\0"
+                            as *const u8
                             as *const libc::c_char,
                         (*parser).offset,
                         value as libc::c_int,
@@ -10493,41 +12332,50 @@ mod reader {
                     let fresh18 = &raw mut (*parser).buffer.last;
                     let fresh19 = *fresh18;
                     *fresh18 = (*fresh18).wrapping_offset(1);
-                    *fresh19 = 0xC0_u32.force_add(value >> 6) as yaml_char_t;
+                    *fresh19 =
+                        0xC0_u32.force_add(value >> 6) as yaml_char_t;
                     let fresh20 = &raw mut (*parser).buffer.last;
                     let fresh21 = *fresh20;
                     *fresh20 = (*fresh20).wrapping_offset(1);
-                    *fresh21 = 0x80_u32.force_add(value & 0x3F) as yaml_char_t;
+                    *fresh21 =
+                        0x80_u32.force_add(value & 0x3F) as yaml_char_t;
                 } else if value <= 0xFFFF {
                     let fresh22 = &raw mut (*parser).buffer.last;
                     let fresh23 = *fresh22;
                     *fresh22 = (*fresh22).wrapping_offset(1);
-                    *fresh23 = 0xE0_u32.force_add(value >> 12) as yaml_char_t;
+                    *fresh23 =
+                        0xE0_u32.force_add(value >> 12) as yaml_char_t;
                     let fresh24 = &raw mut (*parser).buffer.last;
                     let fresh25 = *fresh24;
                     *fresh24 = (*fresh24).wrapping_offset(1);
-                    *fresh25 = 0x80_u32.force_add(value >> 6 & 0x3F) as yaml_char_t;
+                    *fresh25 = 0x80_u32.force_add(value >> 6 & 0x3F)
+                        as yaml_char_t;
                     let fresh26 = &raw mut (*parser).buffer.last;
                     let fresh27 = *fresh26;
                     *fresh26 = (*fresh26).wrapping_offset(1);
-                    *fresh27 = 0x80_u32.force_add(value & 0x3F) as yaml_char_t;
+                    *fresh27 =
+                        0x80_u32.force_add(value & 0x3F) as yaml_char_t;
                 } else {
                     let fresh28 = &raw mut (*parser).buffer.last;
                     let fresh29 = *fresh28;
                     *fresh28 = (*fresh28).wrapping_offset(1);
-                    *fresh29 = 0xF0_u32.force_add(value >> 18) as yaml_char_t;
+                    *fresh29 =
+                        0xF0_u32.force_add(value >> 18) as yaml_char_t;
                     let fresh30 = &raw mut (*parser).buffer.last;
                     let fresh31 = *fresh30;
                     *fresh30 = (*fresh30).wrapping_offset(1);
-                    *fresh31 = 0x80_u32.force_add(value >> 12 & 0x3F) as yaml_char_t;
+                    *fresh31 = 0x80_u32.force_add(value >> 12 & 0x3F)
+                        as yaml_char_t;
                     let fresh32 = &raw mut (*parser).buffer.last;
                     let fresh33 = *fresh32;
                     *fresh32 = (*fresh32).wrapping_offset(1);
-                    *fresh33 = 0x80_u32.force_add(value >> 6 & 0x3F) as yaml_char_t;
+                    *fresh33 = 0x80_u32.force_add(value >> 6 & 0x3F)
+                        as yaml_char_t;
                     let fresh34 = &raw mut (*parser).buffer.last;
                     let fresh35 = *fresh34;
                     *fresh34 = (*fresh34).wrapping_offset(1);
-                    *fresh35 = 0x80_u32.force_add(value & 0x3F) as yaml_char_t;
+                    *fresh35 =
+                        0x80_u32.force_add(value & 0x3F) as yaml_char_t;
                 }
                 let fresh36 = &raw mut (*parser).unread;
                 *fresh36 = (*fresh36).force_add(1);
@@ -10545,7 +12393,8 @@ mod reader {
         if (*parser).offset >= (!0_u64).wrapping_div(2_u64) {
             return yaml_parser_set_reader_error(
                 parser,
-                b"input is too long\0" as *const u8 as *const libc::c_char,
+                b"input is too long\0" as *const u8
+                    as *const libc::c_char,
                 (*parser).offset,
                 -1,
             );
@@ -10562,22 +12411,31 @@ mod scanner {
     use crate::reader::yaml_parser_update_buffer;
     use crate::string::{yaml_string_extend, yaml_string_join};
     use crate::success::{Success, FAIL, OK};
-    use crate::yaml::{ptrdiff_t, size_t, yaml_char_t, YamlStringT, NULL_STRING};
+    use crate::yaml::{
+        ptrdiff_t, size_t, yaml_char_t, YamlStringT, NULL_STRING,
+    };
     use crate::{
-        libc, PointerExt, YamlAliasToken, YamlAnchorToken, YamlBlockEndToken,
-        YamlBlockEntryToken, YamlBlockMappingStartToken, YamlBlockSequenceStartToken,
-        YamlDocumentEndToken, YamlDocumentStartToken, YamlDoubleQuotedScalarStyle,
-        YamlFlowEntryToken, YamlFlowMappingEndToken, YamlFlowMappingStartToken,
-        YamlFlowSequenceEndToken, YamlFlowSequenceStartToken, YamlFoldedScalarStyle,
-        YamlKeyToken, YamlLiteralScalarStyle, YamlMarkT, YamlMemoryError, YamlNoError,
-        YamlParserT, YamlPlainScalarStyle, YamlScalarToken, YamlScannerError,
-        YamlSimpleKeyT, YamlSingleQuotedScalarStyle, YamlStreamEndToken,
-        YamlStreamStartToken, YamlTagDirectiveToken, YamlTagToken, YamlTokenT,
+        libc, PointerExt, YamlAliasToken, YamlAnchorToken,
+        YamlBlockEndToken, YamlBlockEntryToken,
+        YamlBlockMappingStartToken, YamlBlockSequenceStartToken,
+        YamlDocumentEndToken, YamlDocumentStartToken,
+        YamlDoubleQuotedScalarStyle, YamlFlowEntryToken,
+        YamlFlowMappingEndToken, YamlFlowMappingStartToken,
+        YamlFlowSequenceEndToken, YamlFlowSequenceStartToken,
+        YamlFoldedScalarStyle, YamlKeyToken, YamlLiteralScalarStyle,
+        YamlMarkT, YamlMemoryError, YamlNoError, YamlParserT,
+        YamlPlainScalarStyle, YamlScalarToken, YamlScannerError,
+        YamlSimpleKeyT, YamlSingleQuotedScalarStyle,
+        YamlStreamEndToken, YamlStreamStartToken,
+        YamlTagDirectiveToken, YamlTagToken, YamlTokenT,
         YamlTokenTypeT, YamlValueToken, YamlVersionDirectiveToken,
     };
     use core::mem::{size_of, MaybeUninit};
     use core::ptr::{self, addr_of_mut};
-    unsafe fn cache(parser: *mut YamlParserT, length: size_t) -> Success {
+    unsafe fn cache(
+        parser: *mut YamlParserT,
+        length: size_t,
+    ) -> Success {
         if (*parser).unread >= length {
             OK
         } else {
@@ -10585,24 +12443,32 @@ mod scanner {
         }
     }
     unsafe fn skip(parser: *mut YamlParserT) {
-        let width = if *(*parser).buffer.pointer.wrapping_offset(0) & 0x80 == 0x00 {
+        let width = if *(*parser).buffer.pointer.wrapping_offset(0)
+            & 0x80
+            == 0x00
+        {
             1
-        } else if *(*parser).buffer.pointer.wrapping_offset(0) & 0xE0 == 0xC0 {
+        } else if *(*parser).buffer.pointer.wrapping_offset(0) & 0xE0
+            == 0xC0
+        {
             2
-        } else if *(*parser).buffer.pointer.wrapping_offset(0) & 0xF0 == 0xE0 {
+        } else if *(*parser).buffer.pointer.wrapping_offset(0) & 0xF0
+            == 0xE0
+        {
             3
-        } else if *(*parser).buffer.pointer.wrapping_offset(0) & 0xF8 == 0xF0 {
+        } else if *(*parser).buffer.pointer.wrapping_offset(0) & 0xF8
+            == 0xF0
+        {
             4
         } else {
             0
         };
-        (*parser).mark.index = (*parser).mark.index.force_add(width as u64);
+        (*parser).mark.index =
+            (*parser).mark.index.force_add(width as u64);
         (*parser).mark.column = (*parser).mark.column.force_add(1);
         (*parser).unread = (*parser).unread.wrapping_sub(1);
-        (*parser).buffer.pointer = (*parser)
-            .buffer
-            .pointer
-            .wrapping_offset(width as isize);
+        (*parser).buffer.pointer =
+            (*parser).buffer.pointer.wrapping_offset(width as isize);
     }
     unsafe fn skip_line(parser: *mut YamlParserT) {
         if *(*parser).buffer.pointer.offset(0) == b'\r'
@@ -10612,35 +12478,64 @@ mod scanner {
             (*parser).mark.column = 0;
             (*parser).mark.line = (*parser).mark.line.force_add(1);
             (*parser).unread = (*parser).unread.wrapping_sub(2);
-            (*parser).buffer.pointer = (*parser).buffer.pointer.wrapping_offset(2);
+            (*parser).buffer.pointer =
+                (*parser).buffer.pointer.wrapping_offset(2);
         } else if *(*parser).buffer.pointer.offset(0) == b'\r'
             || *(*parser).buffer.pointer.offset(0) == b'\n'
             || *(*parser).buffer.pointer.offset(0) == b'\xC2'
-                && *(*parser).buffer.pointer.offset((0 + 1).try_into().unwrap())
+                && *(*parser)
+                    .buffer
+                    .pointer
+                    .offset((0 + 1).try_into().unwrap())
                     == b'\x85'
             || *(*parser).buffer.pointer.offset(0) == b'\xE2'
-                && *(*parser).buffer.pointer.offset((0 + 1).try_into().unwrap())
+                && *(*parser)
+                    .buffer
+                    .pointer
+                    .offset((0 + 1).try_into().unwrap())
                     == b'\x80'
-                && *(*parser).buffer.pointer.offset((0 + 2).try_into().unwrap())
+                && *(*parser)
+                    .buffer
+                    .pointer
+                    .offset((0 + 2).try_into().unwrap())
                     == b'\xA8'
             || *(*parser).buffer.pointer.offset(0) == b'\xE2'
-                && *(*parser).buffer.pointer.offset((0 + 1).try_into().unwrap())
+                && *(*parser)
+                    .buffer
+                    .pointer
+                    .offset((0 + 1).try_into().unwrap())
                     == b'\x80'
-                && *(*parser).buffer.pointer.offset((0 + 2).try_into().unwrap())
+                && *(*parser)
+                    .buffer
+                    .pointer
+                    .offset((0 + 2).try_into().unwrap())
                     == b'\xA9'
         {
-            let width = if *(*parser).buffer.pointer.wrapping_offset(0) & 0x80 == 0x00 {
+            let width = if *(*parser).buffer.pointer.wrapping_offset(0)
+                & 0x80
+                == 0x00
+            {
                 1
-            } else if *(*parser).buffer.pointer.wrapping_offset(0) & 0xE0 == 0xC0 {
+            } else if *(*parser).buffer.pointer.wrapping_offset(0)
+                & 0xE0
+                == 0xC0
+            {
                 2
-            } else if *(*parser).buffer.pointer.wrapping_offset(0) & 0xF0 == 0xE0 {
+            } else if *(*parser).buffer.pointer.wrapping_offset(0)
+                & 0xF0
+                == 0xE0
+            {
                 3
-            } else if *(*parser).buffer.pointer.wrapping_offset(0) & 0xF8 == 0xF0 {
+            } else if *(*parser).buffer.pointer.wrapping_offset(0)
+                & 0xF8
+                == 0xF0
+            {
                 4
             } else {
                 0
             };
-            (*parser).mark.index = (*parser).mark.index.force_add(width as u64);
+            (*parser).mark.index =
+                (*parser).mark.index.force_add(width as u64);
             (*parser).mark.column = 0;
             (*parser).mark.line = (*parser).mark.line.force_add(1);
             (*parser).unread = (*parser).unread.wrapping_sub(1);
@@ -10659,13 +12554,22 @@ mod scanner {
                 &raw mut (*string).end,
             );
         }
-        let width = if *(*parser).buffer.pointer.wrapping_offset(0) & 0x80 == 0x00 {
+        let width = if *(*parser).buffer.pointer.wrapping_offset(0)
+            & 0x80
+            == 0x00
+        {
             1
-        } else if *(*parser).buffer.pointer.wrapping_offset(0) & 0xE0 == 0xC0 {
+        } else if *(*parser).buffer.pointer.wrapping_offset(0) & 0xE0
+            == 0xC0
+        {
             2
-        } else if *(*parser).buffer.pointer.wrapping_offset(0) & 0xF0 == 0xE0 {
+        } else if *(*parser).buffer.pointer.wrapping_offset(0) & 0xF0
+            == 0xE0
+        {
             3
-        } else if *(*parser).buffer.pointer.wrapping_offset(0) & 0xF8 == 0xF0 {
+        } else if *(*parser).buffer.pointer.wrapping_offset(0) & 0xF8
+            == 0xF0
+        {
             4
         } else {
             0
@@ -10673,43 +12577,57 @@ mod scanner {
         if *(*parser).buffer.pointer & 0x80 == 0x00 {
             *(*string).pointer = *(*parser).buffer.pointer;
             (*string).pointer = (*string).pointer.wrapping_offset(1);
-            (*parser).buffer.pointer = (*parser).buffer.pointer.wrapping_offset(1);
+            (*parser).buffer.pointer =
+                (*parser).buffer.pointer.wrapping_offset(1);
         } else if *(*parser).buffer.pointer & 0xE0 == 0xC0 {
             *(*string).pointer = *(*parser).buffer.pointer;
             (*string).pointer = (*string).pointer.wrapping_offset(1);
-            (*parser).buffer.pointer = (*parser).buffer.pointer.wrapping_offset(1);
+            (*parser).buffer.pointer =
+                (*parser).buffer.pointer.wrapping_offset(1);
             *(*string).pointer = *(*parser).buffer.pointer;
             (*string).pointer = (*string).pointer.wrapping_offset(1);
-            (*parser).buffer.pointer = (*parser).buffer.pointer.wrapping_offset(1);
+            (*parser).buffer.pointer =
+                (*parser).buffer.pointer.wrapping_offset(1);
         } else if *(*parser).buffer.pointer & 0xF0 == 0xE0 {
             *(*string).pointer = *(*parser).buffer.pointer;
             (*string).pointer = (*string).pointer.wrapping_offset(1);
-            (*parser).buffer.pointer = (*parser).buffer.pointer.wrapping_offset(1);
+            (*parser).buffer.pointer =
+                (*parser).buffer.pointer.wrapping_offset(1);
             *(*string).pointer = *(*parser).buffer.pointer;
             (*string).pointer = (*string).pointer.wrapping_offset(1);
-            (*parser).buffer.pointer = (*parser).buffer.pointer.wrapping_offset(1);
+            (*parser).buffer.pointer =
+                (*parser).buffer.pointer.wrapping_offset(1);
             *(*string).pointer = *(*parser).buffer.pointer;
             (*string).pointer = (*string).pointer.wrapping_offset(1);
-            (*parser).buffer.pointer = (*parser).buffer.pointer.wrapping_offset(1);
+            (*parser).buffer.pointer =
+                (*parser).buffer.pointer.wrapping_offset(1);
         } else if *(*parser).buffer.pointer & 0xF8 == 0xF0 {
             *(*string).pointer = *(*parser).buffer.pointer;
             (*string).pointer = (*string).pointer.wrapping_offset(1);
-            (*parser).buffer.pointer = (*parser).buffer.pointer.wrapping_offset(1);
+            (*parser).buffer.pointer =
+                (*parser).buffer.pointer.wrapping_offset(1);
             *(*string).pointer = *(*parser).buffer.pointer;
             (*string).pointer = (*string).pointer.wrapping_offset(1);
-            (*parser).buffer.pointer = (*parser).buffer.pointer.wrapping_offset(1);
+            (*parser).buffer.pointer =
+                (*parser).buffer.pointer.wrapping_offset(1);
             *(*string).pointer = *(*parser).buffer.pointer;
             (*string).pointer = (*string).pointer.wrapping_offset(1);
-            (*parser).buffer.pointer = (*parser).buffer.pointer.wrapping_offset(1);
+            (*parser).buffer.pointer =
+                (*parser).buffer.pointer.wrapping_offset(1);
             *(*string).pointer = *(*parser).buffer.pointer;
             (*string).pointer = (*string).pointer.wrapping_offset(1);
-            (*parser).buffer.pointer = (*parser).buffer.pointer.wrapping_offset(1);
+            (*parser).buffer.pointer =
+                (*parser).buffer.pointer.wrapping_offset(1);
         }
-        (*parser).mark.index = (*parser).mark.index.force_add(width as u64);
+        (*parser).mark.index =
+            (*parser).mark.index.force_add(width as u64);
         (*parser).mark.column = (*parser).mark.column.force_add(1);
         (*parser).unread = (*parser).unread.wrapping_sub(1);
     }
-    unsafe fn read_line(parser: *mut YamlParserT, string: *mut YamlStringT) {
+    unsafe fn read_line(
+        parser: *mut YamlParserT,
+        string: *mut YamlStringT,
+    ) {
         let new_end = (*string).pointer.wrapping_add(5);
         if new_end >= (*string).end {
             yaml_string_extend(
@@ -10723,7 +12641,8 @@ mod scanner {
         {
             *(*string).pointer = b'\n';
             (*string).pointer = (*string).pointer.wrapping_offset(1);
-            (*parser).buffer.pointer = (*parser).buffer.pointer.wrapping_offset(2);
+            (*parser).buffer.pointer =
+                (*parser).buffer.pointer.wrapping_offset(2);
             (*parser).mark.index = (*parser).mark.index.force_add(2);
             (*parser).mark.column = 0;
             (*parser).mark.line = (*parser).mark.line.force_add(1);
@@ -10733,7 +12652,8 @@ mod scanner {
         {
             *(*string).pointer = b'\n';
             (*string).pointer = (*string).pointer.wrapping_offset(1);
-            (*parser).buffer.pointer = (*parser).buffer.pointer.wrapping_offset(1);
+            (*parser).buffer.pointer =
+                (*parser).buffer.pointer.wrapping_offset(1);
             (*parser).mark.index = (*parser).mark.index.force_add(1);
             (*parser).mark.column = 0;
             (*parser).mark.line = (*parser).mark.line.force_add(1);
@@ -10743,7 +12663,8 @@ mod scanner {
         {
             *(*string).pointer = b'\n';
             (*string).pointer = (*string).pointer.wrapping_offset(1);
-            (*parser).buffer.pointer = (*parser).buffer.pointer.wrapping_offset(2);
+            (*parser).buffer.pointer =
+                (*parser).buffer.pointer.wrapping_offset(2);
             (*parser).mark.index = (*parser).mark.index.force_add(2);
             (*parser).mark.column = 0;
             (*parser).mark.line = (*parser).mark.line.force_add(1);
@@ -10755,13 +12676,16 @@ mod scanner {
         {
             *(*string).pointer = *(*parser).buffer.pointer;
             (*string).pointer = (*string).pointer.wrapping_offset(1);
-            (*parser).buffer.pointer = (*parser).buffer.pointer.wrapping_offset(1);
+            (*parser).buffer.pointer =
+                (*parser).buffer.pointer.wrapping_offset(1);
             *(*string).pointer = *(*parser).buffer.pointer;
             (*string).pointer = (*string).pointer.wrapping_offset(1);
-            (*parser).buffer.pointer = (*parser).buffer.pointer.wrapping_offset(1);
+            (*parser).buffer.pointer =
+                (*parser).buffer.pointer.wrapping_offset(1);
             *(*string).pointer = *(*parser).buffer.pointer;
             (*string).pointer = (*string).pointer.wrapping_offset(1);
-            (*parser).buffer.pointer = (*parser).buffer.pointer.wrapping_offset(1);
+            (*parser).buffer.pointer =
+                (*parser).buffer.pointer.wrapping_offset(1);
             (*parser).mark.index = (*parser).mark.index.force_add(3);
             (*parser).mark.column = 0;
             (*parser).mark.line = (*parser).mark.line.force_add(1);
@@ -10797,25 +12721,38 @@ mod scanner {
         token: *mut YamlTokenT,
     ) -> Success {
         if !!parser.is_null() {
-            crate::externs::__assert_fail("!parser.is_null()", "src/scanner.rs", 178u32);
+            crate::externs::__assert_fail(
+                "!parser.is_null()",
+                "src/scanner.rs",
+                178u32,
+            );
         }
         if !!token.is_null() {
-            crate::externs::__assert_fail("!token.is_null()", "src/scanner.rs", 179u32);
+            crate::externs::__assert_fail(
+                "!token.is_null()",
+                "src/scanner.rs",
+                179u32,
+            );
         }
         let _ = memset(
             token as *mut libc::c_void,
             0,
             size_of::<YamlTokenT>() as libc::c_ulong,
         );
-        if (*parser).stream_end_produced || (*parser).error != YamlNoError {
+        if (*parser).stream_end_produced
+            || (*parser).error != YamlNoError
+        {
             return OK;
         }
-        if !(*parser).token_available && yaml_parser_fetch_more_tokens(parser).fail {
+        if !(*parser).token_available
+            && yaml_parser_fetch_more_tokens(parser).fail
+        {
             return FAIL;
         }
         *token = *{
             let head = (*parser).tokens.head;
-            (*parser).tokens.head = (*parser).tokens.head.wrapping_offset(1);
+            (*parser).tokens.head =
+                (*parser).tokens.head.wrapping_offset(1);
             head
         };
         (*parser).token_available = false;
@@ -10859,7 +12796,8 @@ mod scanner {
                     .add((*parser).not_simple_keys as usize);
                 while simple_key != (*parser).simple_keys.top {
                     if (*simple_key).possible
-                        && (*simple_key).token_number == (*parser).tokens_parsed
+                        && (*simple_key).token_number
+                            == (*parser).tokens_parsed
                     {
                         need_more_tokens = true;
                         break;
@@ -10878,7 +12816,9 @@ mod scanner {
         (*parser).token_available = true;
         OK
     }
-    unsafe fn yaml_parser_fetch_next_token(parser: *mut YamlParserT) -> Success {
+    unsafe fn yaml_parser_fetch_next_token(
+        parser: *mut YamlParserT,
+    ) -> Success {
         if cache(parser, 1_u64).fail {
             return FAIL;
         }
@@ -10892,17 +12832,23 @@ mod scanner {
         if yaml_parser_stale_simple_keys(parser).fail {
             return FAIL;
         }
-        yaml_parser_unroll_indent(parser, (*parser).mark.column as ptrdiff_t);
+        yaml_parser_unroll_indent(
+            parser,
+            (*parser).mark.column as ptrdiff_t,
+        );
         if cache(parser, 4_u64).fail {
             return FAIL;
         }
         if *(*parser).buffer.pointer.offset(0) == b'\0' {
             return yaml_parser_fetch_stream_end(parser);
         }
-        if (*parser).mark.column == 0_u64 && *(*parser).buffer.pointer == b'%' {
+        if (*parser).mark.column == 0_u64
+            && *(*parser).buffer.pointer == b'%'
+        {
             return yaml_parser_fetch_directive(parser);
         }
-        if (*parser).mark.column == 0_u64 && *(*parser).buffer.pointer.offset(0) == b'-'
+        if (*parser).mark.column == 0_u64
+            && *(*parser).buffer.pointer.offset(0) == b'-'
             && *(*parser).buffer.pointer.offset(1) == b'-'
             && *(*parser).buffer.pointer.offset(2) == b'-'
             && (*(*parser).buffer.pointer.offset(3) == b' '
@@ -10910,22 +12856,42 @@ mod scanner {
                 || (*(*parser).buffer.pointer.offset(3) == b'\r'
                     || *(*parser).buffer.pointer.offset(3) == b'\n'
                     || *(*parser).buffer.pointer.offset(3) == b'\xC2'
-                        && *(*parser).buffer.pointer.offset((3 + 1).try_into().unwrap())
+                        && *(*parser)
+                            .buffer
+                            .pointer
+                            .offset((3 + 1).try_into().unwrap())
                             == b'\x85'
                     || *(*parser).buffer.pointer.offset(3) == b'\xE2'
-                        && *(*parser).buffer.pointer.offset((3 + 1).try_into().unwrap())
+                        && *(*parser)
+                            .buffer
+                            .pointer
+                            .offset((3 + 1).try_into().unwrap())
                             == b'\x80'
-                        && *(*parser).buffer.pointer.offset((3 + 2).try_into().unwrap())
+                        && *(*parser)
+                            .buffer
+                            .pointer
+                            .offset((3 + 2).try_into().unwrap())
                             == b'\xA8'
                     || *(*parser).buffer.pointer.offset(3) == b'\xE2'
-                        && *(*parser).buffer.pointer.offset((3 + 1).try_into().unwrap())
+                        && *(*parser)
+                            .buffer
+                            .pointer
+                            .offset((3 + 1).try_into().unwrap())
                             == b'\x80'
-                        && *(*parser).buffer.pointer.offset((3 + 2).try_into().unwrap())
-                            == b'\xA9' || *(*parser).buffer.pointer.offset(3) == b'\0'))
+                        && *(*parser)
+                            .buffer
+                            .pointer
+                            .offset((3 + 2).try_into().unwrap())
+                            == b'\xA9'
+                    || *(*parser).buffer.pointer.offset(3) == b'\0'))
         {
-            return yaml_parser_fetch_document_indicator(parser, YamlDocumentStartToken);
+            return yaml_parser_fetch_document_indicator(
+                parser,
+                YamlDocumentStartToken,
+            );
         }
-        if (*parser).mark.column == 0_u64 && *(*parser).buffer.pointer.offset(0) == b'.'
+        if (*parser).mark.column == 0_u64
+            && *(*parser).buffer.pointer.offset(0) == b'.'
             && *(*parser).buffer.pointer.offset(1) == b'.'
             && *(*parser).buffer.pointer.offset(2) == b'.'
             && (*(*parser).buffer.pointer.offset(3) == b' '
@@ -10933,20 +12899,39 @@ mod scanner {
                 || (*(*parser).buffer.pointer.offset(3) == b'\r'
                     || *(*parser).buffer.pointer.offset(3) == b'\n'
                     || *(*parser).buffer.pointer.offset(3) == b'\xC2'
-                        && *(*parser).buffer.pointer.offset((3 + 1).try_into().unwrap())
+                        && *(*parser)
+                            .buffer
+                            .pointer
+                            .offset((3 + 1).try_into().unwrap())
                             == b'\x85'
                     || *(*parser).buffer.pointer.offset(3) == b'\xE2'
-                        && *(*parser).buffer.pointer.offset((3 + 1).try_into().unwrap())
+                        && *(*parser)
+                            .buffer
+                            .pointer
+                            .offset((3 + 1).try_into().unwrap())
                             == b'\x80'
-                        && *(*parser).buffer.pointer.offset((3 + 2).try_into().unwrap())
+                        && *(*parser)
+                            .buffer
+                            .pointer
+                            .offset((3 + 2).try_into().unwrap())
                             == b'\xA8'
                     || *(*parser).buffer.pointer.offset(3) == b'\xE2'
-                        && *(*parser).buffer.pointer.offset((3 + 1).try_into().unwrap())
+                        && *(*parser)
+                            .buffer
+                            .pointer
+                            .offset((3 + 1).try_into().unwrap())
                             == b'\x80'
-                        && *(*parser).buffer.pointer.offset((3 + 2).try_into().unwrap())
-                            == b'\xA9' || *(*parser).buffer.pointer.offset(3) == b'\0'))
+                        && *(*parser)
+                            .buffer
+                            .pointer
+                            .offset((3 + 2).try_into().unwrap())
+                            == b'\xA9'
+                    || *(*parser).buffer.pointer.offset(3) == b'\0'))
         {
-            return yaml_parser_fetch_document_indicator(parser, YamlDocumentEndToken);
+            return yaml_parser_fetch_document_indicator(
+                parser,
+                YamlDocumentEndToken,
+            );
         }
         if *(*parser).buffer.pointer == b'[' {
             return yaml_parser_fetch_flow_collection_start(
@@ -10981,18 +12966,34 @@ mod scanner {
                 || (*(*parser).buffer.pointer.offset(1) == b'\r'
                     || *(*parser).buffer.pointer.offset(1) == b'\n'
                     || *(*parser).buffer.pointer.offset(1) == b'\xC2'
-                        && *(*parser).buffer.pointer.offset((1 + 1).try_into().unwrap())
+                        && *(*parser)
+                            .buffer
+                            .pointer
+                            .offset((1 + 1).try_into().unwrap())
                             == b'\x85'
                     || *(*parser).buffer.pointer.offset(1) == b'\xE2'
-                        && *(*parser).buffer.pointer.offset((1 + 1).try_into().unwrap())
+                        && *(*parser)
+                            .buffer
+                            .pointer
+                            .offset((1 + 1).try_into().unwrap())
                             == b'\x80'
-                        && *(*parser).buffer.pointer.offset((1 + 2).try_into().unwrap())
+                        && *(*parser)
+                            .buffer
+                            .pointer
+                            .offset((1 + 2).try_into().unwrap())
                             == b'\xA8'
                     || *(*parser).buffer.pointer.offset(1) == b'\xE2'
-                        && *(*parser).buffer.pointer.offset((1 + 1).try_into().unwrap())
+                        && *(*parser)
+                            .buffer
+                            .pointer
+                            .offset((1 + 1).try_into().unwrap())
                             == b'\x80'
-                        && *(*parser).buffer.pointer.offset((1 + 2).try_into().unwrap())
-                            == b'\xA9' || *(*parser).buffer.pointer.offset(1) == b'\0'))
+                        && *(*parser)
+                            .buffer
+                            .pointer
+                            .offset((1 + 2).try_into().unwrap())
+                            == b'\xA9'
+                    || *(*parser).buffer.pointer.offset(1) == b'\0'))
         {
             return yaml_parser_fetch_block_entry(parser);
         }
@@ -11001,31 +13002,41 @@ mod scanner {
                 || (*(*parser).buffer.pointer.offset(1) == b' '
                     || *(*parser).buffer.pointer.offset(1) == b'\t'
                     || (*(*parser).buffer.pointer.offset(1) == b'\r'
-                        || *(*parser).buffer.pointer.offset(1) == b'\n'
-                        || *(*parser).buffer.pointer.offset(1) == b'\xC2'
+                        || *(*parser).buffer.pointer.offset(1)
+                            == b'\n'
+                        || *(*parser).buffer.pointer.offset(1)
+                            == b'\xC2'
                             && *(*parser)
                                 .buffer
                                 .pointer
-                                .offset((1 + 1).try_into().unwrap()) == b'\x85'
-                        || *(*parser).buffer.pointer.offset(1) == b'\xE2'
+                                .offset((1 + 1).try_into().unwrap())
+                                == b'\x85'
+                        || *(*parser).buffer.pointer.offset(1)
+                            == b'\xE2'
                             && *(*parser)
                                 .buffer
                                 .pointer
-                                .offset((1 + 1).try_into().unwrap()) == b'\x80'
+                                .offset((1 + 1).try_into().unwrap())
+                                == b'\x80'
                             && *(*parser)
                                 .buffer
                                 .pointer
-                                .offset((1 + 2).try_into().unwrap()) == b'\xA8'
-                        || *(*parser).buffer.pointer.offset(1) == b'\xE2'
+                                .offset((1 + 2).try_into().unwrap())
+                                == b'\xA8'
+                        || *(*parser).buffer.pointer.offset(1)
+                            == b'\xE2'
                             && *(*parser)
                                 .buffer
                                 .pointer
-                                .offset((1 + 1).try_into().unwrap()) == b'\x80'
+                                .offset((1 + 1).try_into().unwrap())
+                                == b'\x80'
                             && *(*parser)
                                 .buffer
                                 .pointer
-                                .offset((1 + 2).try_into().unwrap()) == b'\xA9'
-                        || *(*parser).buffer.pointer.offset(1) == b'\0')))
+                                .offset((1 + 2).try_into().unwrap())
+                                == b'\xA9'
+                        || *(*parser).buffer.pointer.offset(1)
+                            == b'\0')))
         {
             return yaml_parser_fetch_key(parser);
         }
@@ -11034,31 +13045,41 @@ mod scanner {
                 || (*(*parser).buffer.pointer.offset(1) == b' '
                     || *(*parser).buffer.pointer.offset(1) == b'\t'
                     || (*(*parser).buffer.pointer.offset(1) == b'\r'
-                        || *(*parser).buffer.pointer.offset(1) == b'\n'
-                        || *(*parser).buffer.pointer.offset(1) == b'\xC2'
+                        || *(*parser).buffer.pointer.offset(1)
+                            == b'\n'
+                        || *(*parser).buffer.pointer.offset(1)
+                            == b'\xC2'
                             && *(*parser)
                                 .buffer
                                 .pointer
-                                .offset((1 + 1).try_into().unwrap()) == b'\x85'
-                        || *(*parser).buffer.pointer.offset(1) == b'\xE2'
+                                .offset((1 + 1).try_into().unwrap())
+                                == b'\x85'
+                        || *(*parser).buffer.pointer.offset(1)
+                            == b'\xE2'
                             && *(*parser)
                                 .buffer
                                 .pointer
-                                .offset((1 + 1).try_into().unwrap()) == b'\x80'
+                                .offset((1 + 1).try_into().unwrap())
+                                == b'\x80'
                             && *(*parser)
                                 .buffer
                                 .pointer
-                                .offset((1 + 2).try_into().unwrap()) == b'\xA8'
-                        || *(*parser).buffer.pointer.offset(1) == b'\xE2'
+                                .offset((1 + 2).try_into().unwrap())
+                                == b'\xA8'
+                        || *(*parser).buffer.pointer.offset(1)
+                            == b'\xE2'
                             && *(*parser)
                                 .buffer
                                 .pointer
-                                .offset((1 + 1).try_into().unwrap()) == b'\x80'
+                                .offset((1 + 1).try_into().unwrap())
+                                == b'\x80'
                             && *(*parser)
                                 .buffer
                                 .pointer
-                                .offset((1 + 2).try_into().unwrap()) == b'\xA9'
-                        || *(*parser).buffer.pointer.offset(1) == b'\0')))
+                                .offset((1 + 2).try_into().unwrap())
+                                == b'\xA9'
+                        || *(*parser).buffer.pointer.offset(1)
+                            == b'\0')))
         {
             return yaml_parser_fetch_value(parser);
         }
@@ -11071,10 +13092,14 @@ mod scanner {
         if *(*parser).buffer.pointer == b'!' {
             return yaml_parser_fetch_tag(parser);
         }
-        if *(*parser).buffer.pointer == b'|' && (*parser).flow_level == 0 {
+        if *(*parser).buffer.pointer == b'|'
+            && (*parser).flow_level == 0
+        {
             return yaml_parser_fetch_block_scalar(parser, true);
         }
-        if *(*parser).buffer.pointer == b'>' && (*parser).flow_level == 0 {
+        if *(*parser).buffer.pointer == b'>'
+            && (*parser).flow_level == 0
+        {
             return yaml_parser_fetch_block_scalar(parser, false);
         }
         if *(*parser).buffer.pointer == b'\'' {
@@ -11088,27 +13113,52 @@ mod scanner {
             || (*(*parser).buffer.pointer.offset(0) == b'\r'
                 || *(*parser).buffer.pointer.offset(0) == b'\n'
                 || *(*parser).buffer.pointer.offset(0) == b'\xC2'
-                    && *(*parser).buffer.pointer.offset((0 + 1).try_into().unwrap())
+                    && *(*parser)
+                        .buffer
+                        .pointer
+                        .offset((0 + 1).try_into().unwrap())
                         == b'\x85'
                 || *(*parser).buffer.pointer.offset(0) == b'\xE2'
-                    && *(*parser).buffer.pointer.offset((0 + 1).try_into().unwrap())
+                    && *(*parser)
+                        .buffer
+                        .pointer
+                        .offset((0 + 1).try_into().unwrap())
                         == b'\x80'
-                    && *(*parser).buffer.pointer.offset((0 + 2).try_into().unwrap())
+                    && *(*parser)
+                        .buffer
+                        .pointer
+                        .offset((0 + 2).try_into().unwrap())
                         == b'\xA8'
                 || *(*parser).buffer.pointer.offset(0) == b'\xE2'
-                    && *(*parser).buffer.pointer.offset((0 + 1).try_into().unwrap())
+                    && *(*parser)
+                        .buffer
+                        .pointer
+                        .offset((0 + 1).try_into().unwrap())
                         == b'\x80'
-                    && *(*parser).buffer.pointer.offset((0 + 2).try_into().unwrap())
-                        == b'\xA9' || *(*parser).buffer.pointer.offset(0) == b'\0')
-            || *(*parser).buffer.pointer == b'-' || *(*parser).buffer.pointer == b'?'
-            || *(*parser).buffer.pointer == b':' || *(*parser).buffer.pointer == b','
-            || *(*parser).buffer.pointer == b'[' || *(*parser).buffer.pointer == b']'
-            || *(*parser).buffer.pointer == b'{' || *(*parser).buffer.pointer == b'}'
-            || *(*parser).buffer.pointer == b'#' || *(*parser).buffer.pointer == b'&'
-            || *(*parser).buffer.pointer == b'*' || *(*parser).buffer.pointer == b'!'
-            || *(*parser).buffer.pointer == b'|' || *(*parser).buffer.pointer == b'>'
-            || *(*parser).buffer.pointer == b'\'' || *(*parser).buffer.pointer == b'"'
-            || *(*parser).buffer.pointer == b'%' || *(*parser).buffer.pointer == b'@'
+                    && *(*parser)
+                        .buffer
+                        .pointer
+                        .offset((0 + 2).try_into().unwrap())
+                        == b'\xA9'
+                || *(*parser).buffer.pointer.offset(0) == b'\0')
+            || *(*parser).buffer.pointer == b'-'
+            || *(*parser).buffer.pointer == b'?'
+            || *(*parser).buffer.pointer == b':'
+            || *(*parser).buffer.pointer == b','
+            || *(*parser).buffer.pointer == b'['
+            || *(*parser).buffer.pointer == b']'
+            || *(*parser).buffer.pointer == b'{'
+            || *(*parser).buffer.pointer == b'}'
+            || *(*parser).buffer.pointer == b'#'
+            || *(*parser).buffer.pointer == b'&'
+            || *(*parser).buffer.pointer == b'*'
+            || *(*parser).buffer.pointer == b'!'
+            || *(*parser).buffer.pointer == b'|'
+            || *(*parser).buffer.pointer == b'>'
+            || *(*parser).buffer.pointer == b'\''
+            || *(*parser).buffer.pointer == b'"'
+            || *(*parser).buffer.pointer == b'%'
+            || *(*parser).buffer.pointer == b'@'
             || *(*parser).buffer.pointer == b'`')
             || *(*parser).buffer.pointer == b'-'
                 && !(*(*parser).buffer.pointer.offset(1) == b' '
@@ -11119,46 +13169,62 @@ mod scanner {
                 && !(*(*parser).buffer.pointer.offset(1) == b' '
                     || *(*parser).buffer.pointer.offset(1) == b'\t'
                     || (*(*parser).buffer.pointer.offset(1) == b'\r'
-                        || *(*parser).buffer.pointer.offset(1) == b'\n'
-                        || *(*parser).buffer.pointer.offset(1) == b'\xC2'
+                        || *(*parser).buffer.pointer.offset(1)
+                            == b'\n'
+                        || *(*parser).buffer.pointer.offset(1)
+                            == b'\xC2'
                             && *(*parser)
                                 .buffer
                                 .pointer
-                                .offset((1 + 1).try_into().unwrap()) == b'\x85'
-                        || *(*parser).buffer.pointer.offset(1) == b'\xE2'
+                                .offset((1 + 1).try_into().unwrap())
+                                == b'\x85'
+                        || *(*parser).buffer.pointer.offset(1)
+                            == b'\xE2'
                             && *(*parser)
                                 .buffer
                                 .pointer
-                                .offset((1 + 1).try_into().unwrap()) == b'\x80'
+                                .offset((1 + 1).try_into().unwrap())
+                                == b'\x80'
                             && *(*parser)
                                 .buffer
                                 .pointer
-                                .offset((1 + 2).try_into().unwrap()) == b'\xA8'
-                        || *(*parser).buffer.pointer.offset(1) == b'\xE2'
+                                .offset((1 + 2).try_into().unwrap())
+                                == b'\xA8'
+                        || *(*parser).buffer.pointer.offset(1)
+                            == b'\xE2'
                             && *(*parser)
                                 .buffer
                                 .pointer
-                                .offset((1 + 1).try_into().unwrap()) == b'\x80'
+                                .offset((1 + 1).try_into().unwrap())
+                                == b'\x80'
                             && *(*parser)
                                 .buffer
                                 .pointer
-                                .offset((1 + 2).try_into().unwrap()) == b'\xA9'
-                        || *(*parser).buffer.pointer.offset(1) == b'\0'))
+                                .offset((1 + 2).try_into().unwrap())
+                                == b'\xA9'
+                        || *(*parser).buffer.pointer.offset(1)
+                            == b'\0'))
         {
             return yaml_parser_fetch_plain_scalar(parser);
         }
         yaml_parser_set_scanner_error(
             parser,
-            b"while scanning for the next token\0" as *const u8 as *const libc::c_char,
-            (*parser).mark,
-            b"found character that cannot start any token\0" as *const u8
+            b"while scanning for the next token\0" as *const u8
                 as *const libc::c_char,
+            (*parser).mark,
+            b"found character that cannot start any token\0"
+                as *const u8 as *const libc::c_char,
         );
         FAIL
     }
-    unsafe fn yaml_parser_stale_simple_keys(parser: *mut YamlParserT) -> Success {
+    unsafe fn yaml_parser_stale_simple_keys(
+        parser: *mut YamlParserT,
+    ) -> Success {
         let mut simple_key: *mut YamlSimpleKeyT;
-        simple_key = (*parser).simple_keys.start.add((*parser).not_simple_keys as usize);
+        simple_key = (*parser)
+            .simple_keys
+            .start
+            .add((*parser).not_simple_keys as usize);
         while simple_key != (*parser).simple_keys.top {
             if (*simple_key).possible
                 && ((*simple_key).mark.line < (*parser).mark.line
@@ -11177,7 +13243,10 @@ mod scanner {
                     return FAIL;
                 }
                 (*simple_key).possible = false;
-                if (*parser).simple_keys.start.add((*parser).not_simple_keys as usize)
+                if (*parser)
+                    .simple_keys
+                    .start
+                    .add((*parser).not_simple_keys as usize)
                     == simple_key
                 {
                     (*parser).not_simple_keys += 1;
@@ -11187,26 +13256,34 @@ mod scanner {
         }
         OK
     }
-    unsafe fn yaml_parser_save_simple_key(parser: *mut YamlParserT) -> Success {
+    unsafe fn yaml_parser_save_simple_key(
+        parser: *mut YamlParserT,
+    ) -> Success {
         let required = (*parser).flow_level == 0
-            && (*parser).indent as libc::c_long == (*parser).mark.column as ptrdiff_t;
+            && (*parser).indent as libc::c_long
+                == (*parser).mark.column as ptrdiff_t;
         if (*parser).simple_key_allowed {
             let simple_key = YamlSimpleKeyT {
                 possible: true,
                 required,
-                token_number: (*parser)
-                    .tokens_parsed
-                    .force_add(
-                        (*parser).tokens.tail.c_offset_from((*parser).tokens.head)
-                            as libc::c_ulong,
-                    ),
+                token_number: (*parser).tokens_parsed.force_add(
+                    (*parser)
+                        .tokens
+                        .tail
+                        .c_offset_from((*parser).tokens.head)
+                        as libc::c_ulong,
+                ),
                 mark: (*parser).mark,
             };
             if yaml_parser_remove_simple_key(parser).fail {
                 return FAIL;
             }
-            *(*parser).simple_keys.top.wrapping_offset(-1_isize) = simple_key;
-            if (*parser).simple_keys.start.add((*parser).not_simple_keys as usize)
+            *(*parser).simple_keys.top.wrapping_offset(-1_isize) =
+                simple_key;
+            if (*parser)
+                .simple_keys
+                .start
+                .add((*parser).not_simple_keys as usize)
                 == (*parser).simple_keys.top
             {
                 (*parser).not_simple_keys -= 1;
@@ -11214,24 +13291,28 @@ mod scanner {
         }
         OK
     }
-    unsafe fn yaml_parser_remove_simple_key(parser: *mut YamlParserT) -> Success {
-        let simple_key: *mut YamlSimpleKeyT = (*parser)
-            .simple_keys
-            .top
-            .wrapping_offset(-1_isize);
+    unsafe fn yaml_parser_remove_simple_key(
+        parser: *mut YamlParserT,
+    ) -> Success {
+        let simple_key: *mut YamlSimpleKeyT =
+            (*parser).simple_keys.top.wrapping_offset(-1_isize);
         if (*simple_key).possible && (*simple_key).required {
             yaml_parser_set_scanner_error(
                 parser,
-                b"while scanning a simple key\0" as *const u8 as *const libc::c_char,
+                b"while scanning a simple key\0" as *const u8
+                    as *const libc::c_char,
                 (*simple_key).mark,
-                b"could not find expected ':'\0" as *const u8 as *const libc::c_char,
+                b"could not find expected ':'\0" as *const u8
+                    as *const libc::c_char,
             );
             return FAIL;
         }
         (*simple_key).possible = false;
         OK
     }
-    unsafe fn yaml_parser_increase_flow_level(parser: *mut YamlParserT) -> Success {
+    unsafe fn yaml_parser_increase_flow_level(
+        parser: *mut YamlParserT,
+    ) -> Success {
         let empty_simple_key = YamlSimpleKeyT {
             possible: false,
             required: false,
@@ -11245,13 +13326,17 @@ mod scanner {
         {
             if (*parser).simple_keys.top == (*parser).simple_keys.end {
                 yaml_stack_extend(
-                    &raw mut (*parser).simple_keys.start as *mut *mut libc::c_void,
-                    &raw mut (*parser).simple_keys.top as *mut *mut libc::c_void,
-                    &raw mut (*parser).simple_keys.end as *mut *mut libc::c_void,
+                    &raw mut (*parser).simple_keys.start
+                        as *mut *mut libc::c_void,
+                    &raw mut (*parser).simple_keys.top
+                        as *mut *mut libc::c_void,
+                    &raw mut (*parser).simple_keys.end
+                        as *mut *mut libc::c_void,
                 );
             }
             ptr::write((*parser).simple_keys.top, empty_simple_key);
-            (*parser).simple_keys.top = (*parser).simple_keys.top.wrapping_offset(1);
+            (*parser).simple_keys.top =
+                (*parser).simple_keys.top.wrapping_offset(1);
         };
         if (*parser).flow_level == libc::c_int::MAX {
             (*parser).error = YamlMemoryError;
@@ -11261,17 +13346,23 @@ mod scanner {
         *fresh7 += 1;
         OK
     }
-    unsafe fn yaml_parser_decrease_flow_level(parser: *mut YamlParserT) {
+    unsafe fn yaml_parser_decrease_flow_level(
+        parser: *mut YamlParserT,
+    ) {
         if (*parser).flow_level != 0 {
             let fresh8 = &raw mut (*parser).flow_level;
             *fresh8 -= 1;
-            if (*parser).simple_keys.start.add((*parser).not_simple_keys as usize)
+            if (*parser)
+                .simple_keys
+                .start
+                .add((*parser).not_simple_keys as usize)
                 == (*parser).simple_keys.top
             {
                 (*parser).not_simple_keys -= 1;
             }
             let _ = *{
-                (*parser).simple_keys.top = (*parser).simple_keys.top.offset(-1);
+                (*parser).simple_keys.top =
+                    (*parser).simple_keys.top.offset(-1);
                 (*parser).simple_keys.top
             };
         }
@@ -11292,13 +13383,17 @@ mod scanner {
             {
                 if (*parser).indents.top == (*parser).indents.end {
                     yaml_stack_extend(
-                        &raw mut (*parser).indents.start as *mut *mut libc::c_void,
-                        &raw mut (*parser).indents.top as *mut *mut libc::c_void,
-                        &raw mut (*parser).indents.end as *mut *mut libc::c_void,
+                        &raw mut (*parser).indents.start
+                            as *mut *mut libc::c_void,
+                        &raw mut (*parser).indents.top
+                            as *mut *mut libc::c_void,
+                        &raw mut (*parser).indents.end
+                            as *mut *mut libc::c_void,
                     );
                 }
                 ptr::write((*parser).indents.top, (*parser).indent);
-                (*parser).indents.top = (*parser).indents.top.wrapping_offset(1);
+                (*parser).indents.top =
+                    (*parser).indents.top.wrapping_offset(1);
             };
             if column > ptrdiff_t::from(libc::c_int::MAX) {
                 (*parser).error = YamlMemoryError;
@@ -11317,23 +13412,36 @@ mod scanner {
                 {
                     if (*parser).tokens.tail == (*parser).tokens.end {
                         yaml_queue_extend(
-                            &raw mut (*parser).tokens.start as *mut *mut libc::c_void,
-                            &raw mut (*parser).tokens.head as *mut *mut libc::c_void,
-                            &raw mut (*parser).tokens.tail as *mut *mut libc::c_void,
-                            &raw mut (*parser).tokens.end as *mut *mut libc::c_void,
+                            &raw mut (*parser).tokens.start
+                                as *mut *mut libc::c_void,
+                            &raw mut (*parser).tokens.head
+                                as *mut *mut libc::c_void,
+                            &raw mut (*parser).tokens.tail
+                                as *mut *mut libc::c_void,
+                            &raw mut (*parser).tokens.end
+                                as *mut *mut libc::c_void,
                         );
                     }
-                    ptr::copy_nonoverlapping(token, (*parser).tokens.tail, 1);
-                    (*parser).tokens.tail = (*parser).tokens.tail.wrapping_offset(1);
+                    ptr::copy_nonoverlapping(
+                        token,
+                        (*parser).tokens.tail,
+                        1,
+                    );
+                    (*parser).tokens.tail =
+                        (*parser).tokens.tail.wrapping_offset(1);
                 };
             } else {
                 {
                     if (*parser).tokens.tail == (*parser).tokens.end {
                         yaml_queue_extend(
-                            &raw mut (*parser).tokens.start as *mut *mut libc::c_void,
-                            &raw mut (*parser).tokens.head as *mut *mut libc::c_void,
-                            &raw mut (*parser).tokens.tail as *mut *mut libc::c_void,
-                            &raw mut (*parser).tokens.end as *mut *mut libc::c_void,
+                            &raw mut (*parser).tokens.start
+                                as *mut *mut libc::c_void,
+                            &raw mut (*parser).tokens.head
+                                as *mut *mut libc::c_void,
+                            &raw mut (*parser).tokens.tail
+                                as *mut *mut libc::c_void,
+                            &raw mut (*parser).tokens.end
+                                as *mut *mut libc::c_void,
                         );
                     }
                     let _ = memmove(
@@ -11341,32 +13449,37 @@ mod scanner {
                             .tokens
                             .head
                             .wrapping_offset(
-                                (number as libc::c_ulong)
-                                    .wrapping_sub((*parser).tokens_parsed) as isize,
+                                (number as libc::c_ulong).wrapping_sub(
+                                    (*parser).tokens_parsed,
+                                )
+                                    as isize,
                             )
-                            .wrapping_offset(1_isize) as *mut libc::c_void,
-                        (*parser)
+                            .wrapping_offset(1_isize)
+                            as *mut libc::c_void,
+                        (*parser).tokens.head.wrapping_offset(
+                            (number as libc::c_ulong)
+                                .wrapping_sub((*parser).tokens_parsed)
+                                as isize,
+                        )
+                            as *const libc::c_void,
+                        ((*parser)
                             .tokens
-                            .head
-                            .wrapping_offset(
-                                (number as libc::c_ulong)
-                                    .wrapping_sub((*parser).tokens_parsed) as isize,
-                            ) as *const libc::c_void,
-                        ((*parser).tokens.tail.c_offset_from((*parser).tokens.head)
+                            .tail
+                            .c_offset_from((*parser).tokens.head)
                             as libc::c_ulong)
                             .wrapping_sub(
-                                (number as libc::c_ulong)
-                                    .wrapping_sub((*parser).tokens_parsed),
+                                (number as libc::c_ulong).wrapping_sub(
+                                    (*parser).tokens_parsed,
+                                ),
                             )
-                            .wrapping_mul(size_of::<YamlTokenT>() as libc::c_ulong),
+                            .wrapping_mul(size_of::<YamlTokenT>()
+                                as libc::c_ulong),
                     );
-                    *(*parser)
-                        .tokens
-                        .head
-                        .wrapping_offset(
-                            (number as libc::c_ulong)
-                                .wrapping_sub((*parser).tokens_parsed) as isize,
-                        ) = *token;
+                    *(*parser).tokens.head.wrapping_offset(
+                        (number as libc::c_ulong)
+                            .wrapping_sub((*parser).tokens_parsed)
+                            as isize,
+                    ) = *token;
                     let fresh14 = &raw mut (*parser).tokens.tail;
                     *fresh14 = (*fresh14).wrapping_offset(1);
                 };
@@ -11374,7 +13487,10 @@ mod scanner {
         }
         OK
     }
-    unsafe fn yaml_parser_unroll_indent(parser: *mut YamlParserT, column: ptrdiff_t) {
+    unsafe fn yaml_parser_unroll_indent(
+        parser: *mut YamlParserT,
+        column: ptrdiff_t,
+    ) {
         let mut token = MaybeUninit::<YamlTokenT>::uninit();
         let token = token.as_mut_ptr();
         if (*parser).flow_level != 0 {
@@ -11392,17 +13508,27 @@ mod scanner {
             {
                 if (*parser).tokens.tail == (*parser).tokens.end {
                     yaml_queue_extend(
-                        &raw mut (*parser).tokens.start as *mut *mut libc::c_void,
-                        &raw mut (*parser).tokens.head as *mut *mut libc::c_void,
-                        &raw mut (*parser).tokens.tail as *mut *mut libc::c_void,
-                        &raw mut (*parser).tokens.end as *mut *mut libc::c_void,
+                        &raw mut (*parser).tokens.start
+                            as *mut *mut libc::c_void,
+                        &raw mut (*parser).tokens.head
+                            as *mut *mut libc::c_void,
+                        &raw mut (*parser).tokens.tail
+                            as *mut *mut libc::c_void,
+                        &raw mut (*parser).tokens.end
+                            as *mut *mut libc::c_void,
                     );
                 }
-                ptr::copy_nonoverlapping(token, (*parser).tokens.tail, 1);
-                (*parser).tokens.tail = (*parser).tokens.tail.wrapping_offset(1);
+                ptr::copy_nonoverlapping(
+                    token,
+                    (*parser).tokens.tail,
+                    1,
+                );
+                (*parser).tokens.tail =
+                    (*parser).tokens.tail.wrapping_offset(1);
             };
             (*parser).indent = *{
-                (*parser).indents.top = (*parser).indents.top.offset(-1);
+                (*parser).indents.top =
+                    (*parser).indents.top.offset(-1);
                 (*parser).indents.top
             };
         }
@@ -11424,13 +13550,17 @@ mod scanner {
         {
             if (*parser).simple_keys.top == (*parser).simple_keys.end {
                 yaml_stack_extend(
-                    &raw mut (*parser).simple_keys.start as *mut *mut libc::c_void,
-                    &raw mut (*parser).simple_keys.top as *mut *mut libc::c_void,
-                    &raw mut (*parser).simple_keys.end as *mut *mut libc::c_void,
+                    &raw mut (*parser).simple_keys.start
+                        as *mut *mut libc::c_void,
+                    &raw mut (*parser).simple_keys.top
+                        as *mut *mut libc::c_void,
+                    &raw mut (*parser).simple_keys.end
+                        as *mut *mut libc::c_void,
                 );
             }
             ptr::write((*parser).simple_keys.top, simple_key);
-            (*parser).simple_keys.top = (*parser).simple_keys.top.wrapping_offset(1);
+            (*parser).simple_keys.top =
+                (*parser).simple_keys.top.wrapping_offset(1);
         };
         (*parser).not_simple_keys = 1;
         (*parser).simple_key_allowed = true;
@@ -11447,17 +13577,24 @@ mod scanner {
         {
             if (*parser).tokens.tail == (*parser).tokens.end {
                 yaml_queue_extend(
-                    &raw mut (*parser).tokens.start as *mut *mut libc::c_void,
-                    &raw mut (*parser).tokens.head as *mut *mut libc::c_void,
-                    &raw mut (*parser).tokens.tail as *mut *mut libc::c_void,
-                    &raw mut (*parser).tokens.end as *mut *mut libc::c_void,
+                    &raw mut (*parser).tokens.start
+                        as *mut *mut libc::c_void,
+                    &raw mut (*parser).tokens.head
+                        as *mut *mut libc::c_void,
+                    &raw mut (*parser).tokens.tail
+                        as *mut *mut libc::c_void,
+                    &raw mut (*parser).tokens.end
+                        as *mut *mut libc::c_void,
                 );
             }
             ptr::copy_nonoverlapping(token, (*parser).tokens.tail, 1);
-            (*parser).tokens.tail = (*parser).tokens.tail.wrapping_offset(1);
+            (*parser).tokens.tail =
+                (*parser).tokens.tail.wrapping_offset(1);
         };
     }
-    unsafe fn yaml_parser_fetch_stream_end(parser: *mut YamlParserT) -> Success {
+    unsafe fn yaml_parser_fetch_stream_end(
+        parser: *mut YamlParserT,
+    ) -> Success {
         let mut token = MaybeUninit::<YamlTokenT>::uninit();
         let token = token.as_mut_ptr();
         if (*parser).mark.column != 0_u64 {
@@ -11481,18 +13618,25 @@ mod scanner {
         {
             if (*parser).tokens.tail == (*parser).tokens.end {
                 yaml_queue_extend(
-                    &raw mut (*parser).tokens.start as *mut *mut libc::c_void,
-                    &raw mut (*parser).tokens.head as *mut *mut libc::c_void,
-                    &raw mut (*parser).tokens.tail as *mut *mut libc::c_void,
-                    &raw mut (*parser).tokens.end as *mut *mut libc::c_void,
+                    &raw mut (*parser).tokens.start
+                        as *mut *mut libc::c_void,
+                    &raw mut (*parser).tokens.head
+                        as *mut *mut libc::c_void,
+                    &raw mut (*parser).tokens.tail
+                        as *mut *mut libc::c_void,
+                    &raw mut (*parser).tokens.end
+                        as *mut *mut libc::c_void,
                 );
             }
             ptr::copy_nonoverlapping(token, (*parser).tokens.tail, 1);
-            (*parser).tokens.tail = (*parser).tokens.tail.wrapping_offset(1);
+            (*parser).tokens.tail =
+                (*parser).tokens.tail.wrapping_offset(1);
         };
         OK
     }
-    unsafe fn yaml_parser_fetch_directive(parser: *mut YamlParserT) -> Success {
+    unsafe fn yaml_parser_fetch_directive(
+        parser: *mut YamlParserT,
+    ) -> Success {
         let mut token = MaybeUninit::<YamlTokenT>::uninit();
         let token = token.as_mut_ptr();
         yaml_parser_unroll_indent(parser, -1_i64);
@@ -11506,14 +13650,19 @@ mod scanner {
         {
             if (*parser).tokens.tail == (*parser).tokens.end {
                 yaml_queue_extend(
-                    &raw mut (*parser).tokens.start as *mut *mut libc::c_void,
-                    &raw mut (*parser).tokens.head as *mut *mut libc::c_void,
-                    &raw mut (*parser).tokens.tail as *mut *mut libc::c_void,
-                    &raw mut (*parser).tokens.end as *mut *mut libc::c_void,
+                    &raw mut (*parser).tokens.start
+                        as *mut *mut libc::c_void,
+                    &raw mut (*parser).tokens.head
+                        as *mut *mut libc::c_void,
+                    &raw mut (*parser).tokens.tail
+                        as *mut *mut libc::c_void,
+                    &raw mut (*parser).tokens.end
+                        as *mut *mut libc::c_void,
                 );
             }
             ptr::copy_nonoverlapping(token, (*parser).tokens.tail, 1);
-            (*parser).tokens.tail = (*parser).tokens.tail.wrapping_offset(1);
+            (*parser).tokens.tail =
+                (*parser).tokens.tail.wrapping_offset(1);
         };
         OK
     }
@@ -11544,14 +13693,19 @@ mod scanner {
         {
             if (*parser).tokens.tail == (*parser).tokens.end {
                 yaml_queue_extend(
-                    &raw mut (*parser).tokens.start as *mut *mut libc::c_void,
-                    &raw mut (*parser).tokens.head as *mut *mut libc::c_void,
-                    &raw mut (*parser).tokens.tail as *mut *mut libc::c_void,
-                    &raw mut (*parser).tokens.end as *mut *mut libc::c_void,
+                    &raw mut (*parser).tokens.start
+                        as *mut *mut libc::c_void,
+                    &raw mut (*parser).tokens.head
+                        as *mut *mut libc::c_void,
+                    &raw mut (*parser).tokens.tail
+                        as *mut *mut libc::c_void,
+                    &raw mut (*parser).tokens.end
+                        as *mut *mut libc::c_void,
                 );
             }
             ptr::copy_nonoverlapping(token, (*parser).tokens.tail, 1);
-            (*parser).tokens.tail = (*parser).tokens.tail.wrapping_offset(1);
+            (*parser).tokens.tail =
+                (*parser).tokens.tail.wrapping_offset(1);
         };
         OK
     }
@@ -11582,14 +13736,19 @@ mod scanner {
         {
             if (*parser).tokens.tail == (*parser).tokens.end {
                 yaml_queue_extend(
-                    &raw mut (*parser).tokens.start as *mut *mut libc::c_void,
-                    &raw mut (*parser).tokens.head as *mut *mut libc::c_void,
-                    &raw mut (*parser).tokens.tail as *mut *mut libc::c_void,
-                    &raw mut (*parser).tokens.end as *mut *mut libc::c_void,
+                    &raw mut (*parser).tokens.start
+                        as *mut *mut libc::c_void,
+                    &raw mut (*parser).tokens.head
+                        as *mut *mut libc::c_void,
+                    &raw mut (*parser).tokens.tail
+                        as *mut *mut libc::c_void,
+                    &raw mut (*parser).tokens.end
+                        as *mut *mut libc::c_void,
                 );
             }
             ptr::copy_nonoverlapping(token, (*parser).tokens.tail, 1);
-            (*parser).tokens.tail = (*parser).tokens.tail.wrapping_offset(1);
+            (*parser).tokens.tail =
+                (*parser).tokens.tail.wrapping_offset(1);
         };
         OK
     }
@@ -11618,18 +13777,25 @@ mod scanner {
         {
             if (*parser).tokens.tail == (*parser).tokens.end {
                 yaml_queue_extend(
-                    &raw mut (*parser).tokens.start as *mut *mut libc::c_void,
-                    &raw mut (*parser).tokens.head as *mut *mut libc::c_void,
-                    &raw mut (*parser).tokens.tail as *mut *mut libc::c_void,
-                    &raw mut (*parser).tokens.end as *mut *mut libc::c_void,
+                    &raw mut (*parser).tokens.start
+                        as *mut *mut libc::c_void,
+                    &raw mut (*parser).tokens.head
+                        as *mut *mut libc::c_void,
+                    &raw mut (*parser).tokens.tail
+                        as *mut *mut libc::c_void,
+                    &raw mut (*parser).tokens.end
+                        as *mut *mut libc::c_void,
                 );
             }
             ptr::copy_nonoverlapping(token, (*parser).tokens.tail, 1);
-            (*parser).tokens.tail = (*parser).tokens.tail.wrapping_offset(1);
+            (*parser).tokens.tail =
+                (*parser).tokens.tail.wrapping_offset(1);
         };
         OK
     }
-    unsafe fn yaml_parser_fetch_flow_entry(parser: *mut YamlParserT) -> Success {
+    unsafe fn yaml_parser_fetch_flow_entry(
+        parser: *mut YamlParserT,
+    ) -> Success {
         let mut token = MaybeUninit::<YamlTokenT>::uninit();
         let token = token.as_mut_ptr();
         if yaml_parser_remove_simple_key(parser).fail {
@@ -11650,18 +13816,25 @@ mod scanner {
         {
             if (*parser).tokens.tail == (*parser).tokens.end {
                 yaml_queue_extend(
-                    &raw mut (*parser).tokens.start as *mut *mut libc::c_void,
-                    &raw mut (*parser).tokens.head as *mut *mut libc::c_void,
-                    &raw mut (*parser).tokens.tail as *mut *mut libc::c_void,
-                    &raw mut (*parser).tokens.end as *mut *mut libc::c_void,
+                    &raw mut (*parser).tokens.start
+                        as *mut *mut libc::c_void,
+                    &raw mut (*parser).tokens.head
+                        as *mut *mut libc::c_void,
+                    &raw mut (*parser).tokens.tail
+                        as *mut *mut libc::c_void,
+                    &raw mut (*parser).tokens.end
+                        as *mut *mut libc::c_void,
                 );
             }
             ptr::copy_nonoverlapping(token, (*parser).tokens.tail, 1);
-            (*parser).tokens.tail = (*parser).tokens.tail.wrapping_offset(1);
+            (*parser).tokens.tail =
+                (*parser).tokens.tail.wrapping_offset(1);
         };
         OK
     }
-    unsafe fn yaml_parser_fetch_block_entry(parser: *mut YamlParserT) -> Success {
+    unsafe fn yaml_parser_fetch_block_entry(
+        parser: *mut YamlParserT,
+    ) -> Success {
         let mut token = MaybeUninit::<YamlTokenT>::uninit();
         let token = token.as_mut_ptr();
         if (*parser).flow_level == 0 {
@@ -11676,13 +13849,13 @@ mod scanner {
                 return FAIL;
             }
             if yaml_parser_roll_indent(
-                    parser,
-                    (*parser).mark.column as ptrdiff_t,
-                    -1_i64,
-                    YamlBlockSequenceStartToken,
-                    (*parser).mark,
-                )
-                .fail
+                parser,
+                (*parser).mark.column as ptrdiff_t,
+                -1_i64,
+                YamlBlockSequenceStartToken,
+                (*parser).mark,
+            )
+            .fail
             {
                 return FAIL;
             }
@@ -11705,18 +13878,25 @@ mod scanner {
         {
             if (*parser).tokens.tail == (*parser).tokens.end {
                 yaml_queue_extend(
-                    &raw mut (*parser).tokens.start as *mut *mut libc::c_void,
-                    &raw mut (*parser).tokens.head as *mut *mut libc::c_void,
-                    &raw mut (*parser).tokens.tail as *mut *mut libc::c_void,
-                    &raw mut (*parser).tokens.end as *mut *mut libc::c_void,
+                    &raw mut (*parser).tokens.start
+                        as *mut *mut libc::c_void,
+                    &raw mut (*parser).tokens.head
+                        as *mut *mut libc::c_void,
+                    &raw mut (*parser).tokens.tail
+                        as *mut *mut libc::c_void,
+                    &raw mut (*parser).tokens.end
+                        as *mut *mut libc::c_void,
                 );
             }
             ptr::copy_nonoverlapping(token, (*parser).tokens.tail, 1);
-            (*parser).tokens.tail = (*parser).tokens.tail.wrapping_offset(1);
+            (*parser).tokens.tail =
+                (*parser).tokens.tail.wrapping_offset(1);
         };
         OK
     }
-    unsafe fn yaml_parser_fetch_key(parser: *mut YamlParserT) -> Success {
+    unsafe fn yaml_parser_fetch_key(
+        parser: *mut YamlParserT,
+    ) -> Success {
         let mut token = MaybeUninit::<YamlTokenT>::uninit();
         let token = token.as_mut_ptr();
         if (*parser).flow_level == 0 {
@@ -11725,19 +13905,20 @@ mod scanner {
                     parser,
                     ptr::null::<libc::c_char>(),
                     (*parser).mark,
-                    b"mapping keys are not allowed in this context\0" as *const u8
+                    b"mapping keys are not allowed in this context\0"
+                        as *const u8
                         as *const libc::c_char,
                 );
                 return FAIL;
             }
             if yaml_parser_roll_indent(
-                    parser,
-                    (*parser).mark.column as ptrdiff_t,
-                    -1_i64,
-                    YamlBlockMappingStartToken,
-                    (*parser).mark,
-                )
-                .fail
+                parser,
+                (*parser).mark.column as ptrdiff_t,
+                -1_i64,
+                YamlBlockMappingStartToken,
+                (*parser).mark,
+            )
+            .fail
             {
                 return FAIL;
             }
@@ -11760,24 +13941,29 @@ mod scanner {
         {
             if (*parser).tokens.tail == (*parser).tokens.end {
                 yaml_queue_extend(
-                    &raw mut (*parser).tokens.start as *mut *mut libc::c_void,
-                    &raw mut (*parser).tokens.head as *mut *mut libc::c_void,
-                    &raw mut (*parser).tokens.tail as *mut *mut libc::c_void,
-                    &raw mut (*parser).tokens.end as *mut *mut libc::c_void,
+                    &raw mut (*parser).tokens.start
+                        as *mut *mut libc::c_void,
+                    &raw mut (*parser).tokens.head
+                        as *mut *mut libc::c_void,
+                    &raw mut (*parser).tokens.tail
+                        as *mut *mut libc::c_void,
+                    &raw mut (*parser).tokens.end
+                        as *mut *mut libc::c_void,
                 );
             }
             ptr::copy_nonoverlapping(token, (*parser).tokens.tail, 1);
-            (*parser).tokens.tail = (*parser).tokens.tail.wrapping_offset(1);
+            (*parser).tokens.tail =
+                (*parser).tokens.tail.wrapping_offset(1);
         };
         OK
     }
-    unsafe fn yaml_parser_fetch_value(parser: *mut YamlParserT) -> Success {
+    unsafe fn yaml_parser_fetch_value(
+        parser: *mut YamlParserT,
+    ) -> Success {
         let mut token = MaybeUninit::<YamlTokenT>::uninit();
         let token = token.as_mut_ptr();
-        let simple_key: *mut YamlSimpleKeyT = (*parser)
-            .simple_keys
-            .top
-            .wrapping_offset(-1_isize);
+        let simple_key: *mut YamlSimpleKeyT =
+            (*parser).simple_keys.top.wrapping_offset(-1_isize);
         if (*simple_key).possible {
             let _ = memset(
                 token as *mut libc::c_void,
@@ -11790,10 +13976,14 @@ mod scanner {
             {
                 if (*parser).tokens.tail == (*parser).tokens.end {
                     yaml_queue_extend(
-                        &raw mut (*parser).tokens.start as *mut *mut libc::c_void,
-                        &raw mut (*parser).tokens.head as *mut *mut libc::c_void,
-                        &raw mut (*parser).tokens.tail as *mut *mut libc::c_void,
-                        &raw mut (*parser).tokens.end as *mut *mut libc::c_void,
+                        &raw mut (*parser).tokens.start
+                            as *mut *mut libc::c_void,
+                        &raw mut (*parser).tokens.head
+                            as *mut *mut libc::c_void,
+                        &raw mut (*parser).tokens.tail
+                            as *mut *mut libc::c_void,
+                        &raw mut (*parser).tokens.end
+                            as *mut *mut libc::c_void,
                     );
                 }
                 let _ = memmove(
@@ -11802,42 +13992,45 @@ mod scanner {
                         .head
                         .wrapping_offset(
                             ((*simple_key).token_number)
-                                .wrapping_sub((*parser).tokens_parsed) as isize,
+                                .wrapping_sub((*parser).tokens_parsed)
+                                as isize,
                         )
-                        .wrapping_offset(1_isize) as *mut libc::c_void,
-                    (*parser)
+                        .wrapping_offset(1_isize)
+                        as *mut libc::c_void,
+                    (*parser).tokens.head.wrapping_offset(
+                        ((*simple_key).token_number)
+                            .wrapping_sub((*parser).tokens_parsed)
+                            as isize,
+                    ) as *const libc::c_void,
+                    ((*parser)
                         .tokens
-                        .head
-                        .wrapping_offset(
-                            ((*simple_key).token_number)
-                                .wrapping_sub((*parser).tokens_parsed) as isize,
-                        ) as *const libc::c_void,
-                    ((*parser).tokens.tail.c_offset_from((*parser).tokens.head)
+                        .tail
+                        .c_offset_from((*parser).tokens.head)
                         as libc::c_ulong)
                         .wrapping_sub(
                             ((*simple_key).token_number)
                                 .wrapping_sub((*parser).tokens_parsed),
                         )
-                        .wrapping_mul(size_of::<YamlTokenT>() as libc::c_ulong),
+                        .wrapping_mul(
+                            size_of::<YamlTokenT>() as libc::c_ulong
+                        ),
                 );
-                *(*parser)
-                    .tokens
-                    .head
-                    .wrapping_offset(
-                        ((*simple_key).token_number)
-                            .wrapping_sub((*parser).tokens_parsed) as isize,
-                    ) = *token;
+                *(*parser).tokens.head.wrapping_offset(
+                    ((*simple_key).token_number)
+                        .wrapping_sub((*parser).tokens_parsed)
+                        as isize,
+                ) = *token;
                 let fresh14 = &raw mut (*parser).tokens.tail;
                 *fresh14 = (*fresh14).wrapping_offset(1);
             };
             if yaml_parser_roll_indent(
-                    parser,
-                    (*simple_key).mark.column as ptrdiff_t,
-                    (*simple_key).token_number as ptrdiff_t,
-                    YamlBlockMappingStartToken,
-                    (*simple_key).mark,
-                )
-                .fail
+                parser,
+                (*simple_key).mark.column as ptrdiff_t,
+                (*simple_key).token_number as ptrdiff_t,
+                YamlBlockMappingStartToken,
+                (*simple_key).mark,
+            )
+            .fail
             {
                 return FAIL;
             }
@@ -11856,13 +14049,13 @@ mod scanner {
                     return FAIL;
                 }
                 if yaml_parser_roll_indent(
-                        parser,
-                        (*parser).mark.column as ptrdiff_t,
-                        -1_i64,
-                        YamlBlockMappingStartToken,
-                        (*parser).mark,
-                    )
-                    .fail
+                    parser,
+                    (*parser).mark.column as ptrdiff_t,
+                    -1_i64,
+                    YamlBlockMappingStartToken,
+                    (*parser).mark,
+                )
+                .fail
                 {
                     return FAIL;
                 }
@@ -11883,14 +14076,19 @@ mod scanner {
         {
             if (*parser).tokens.tail == (*parser).tokens.end {
                 yaml_queue_extend(
-                    &raw mut (*parser).tokens.start as *mut *mut libc::c_void,
-                    &raw mut (*parser).tokens.head as *mut *mut libc::c_void,
-                    &raw mut (*parser).tokens.tail as *mut *mut libc::c_void,
-                    &raw mut (*parser).tokens.end as *mut *mut libc::c_void,
+                    &raw mut (*parser).tokens.start
+                        as *mut *mut libc::c_void,
+                    &raw mut (*parser).tokens.head
+                        as *mut *mut libc::c_void,
+                    &raw mut (*parser).tokens.tail
+                        as *mut *mut libc::c_void,
+                    &raw mut (*parser).tokens.end
+                        as *mut *mut libc::c_void,
                 );
             }
             ptr::copy_nonoverlapping(token, (*parser).tokens.tail, 1);
-            (*parser).tokens.tail = (*parser).tokens.tail.wrapping_offset(1);
+            (*parser).tokens.tail =
+                (*parser).tokens.tail.wrapping_offset(1);
         };
         OK
     }
@@ -11910,18 +14108,25 @@ mod scanner {
         {
             if (*parser).tokens.tail == (*parser).tokens.end {
                 yaml_queue_extend(
-                    &raw mut (*parser).tokens.start as *mut *mut libc::c_void,
-                    &raw mut (*parser).tokens.head as *mut *mut libc::c_void,
-                    &raw mut (*parser).tokens.tail as *mut *mut libc::c_void,
-                    &raw mut (*parser).tokens.end as *mut *mut libc::c_void,
+                    &raw mut (*parser).tokens.start
+                        as *mut *mut libc::c_void,
+                    &raw mut (*parser).tokens.head
+                        as *mut *mut libc::c_void,
+                    &raw mut (*parser).tokens.tail
+                        as *mut *mut libc::c_void,
+                    &raw mut (*parser).tokens.end
+                        as *mut *mut libc::c_void,
                 );
             }
             ptr::copy_nonoverlapping(token, (*parser).tokens.tail, 1);
-            (*parser).tokens.tail = (*parser).tokens.tail.wrapping_offset(1);
+            (*parser).tokens.tail =
+                (*parser).tokens.tail.wrapping_offset(1);
         };
         OK
     }
-    unsafe fn yaml_parser_fetch_tag(parser: *mut YamlParserT) -> Success {
+    unsafe fn yaml_parser_fetch_tag(
+        parser: *mut YamlParserT,
+    ) -> Success {
         let mut token = MaybeUninit::<YamlTokenT>::uninit();
         let token = token.as_mut_ptr();
         if yaml_parser_save_simple_key(parser).fail {
@@ -11934,14 +14139,19 @@ mod scanner {
         {
             if (*parser).tokens.tail == (*parser).tokens.end {
                 yaml_queue_extend(
-                    &raw mut (*parser).tokens.start as *mut *mut libc::c_void,
-                    &raw mut (*parser).tokens.head as *mut *mut libc::c_void,
-                    &raw mut (*parser).tokens.tail as *mut *mut libc::c_void,
-                    &raw mut (*parser).tokens.end as *mut *mut libc::c_void,
+                    &raw mut (*parser).tokens.start
+                        as *mut *mut libc::c_void,
+                    &raw mut (*parser).tokens.head
+                        as *mut *mut libc::c_void,
+                    &raw mut (*parser).tokens.tail
+                        as *mut *mut libc::c_void,
+                    &raw mut (*parser).tokens.end
+                        as *mut *mut libc::c_void,
                 );
             }
             ptr::copy_nonoverlapping(token, (*parser).tokens.tail, 1);
-            (*parser).tokens.tail = (*parser).tokens.tail.wrapping_offset(1);
+            (*parser).tokens.tail =
+                (*parser).tokens.tail.wrapping_offset(1);
         };
         OK
     }
@@ -11961,14 +14171,19 @@ mod scanner {
         {
             if (*parser).tokens.tail == (*parser).tokens.end {
                 yaml_queue_extend(
-                    &raw mut (*parser).tokens.start as *mut *mut libc::c_void,
-                    &raw mut (*parser).tokens.head as *mut *mut libc::c_void,
-                    &raw mut (*parser).tokens.tail as *mut *mut libc::c_void,
-                    &raw mut (*parser).tokens.end as *mut *mut libc::c_void,
+                    &raw mut (*parser).tokens.start
+                        as *mut *mut libc::c_void,
+                    &raw mut (*parser).tokens.head
+                        as *mut *mut libc::c_void,
+                    &raw mut (*parser).tokens.tail
+                        as *mut *mut libc::c_void,
+                    &raw mut (*parser).tokens.end
+                        as *mut *mut libc::c_void,
                 );
             }
             ptr::copy_nonoverlapping(token, (*parser).tokens.tail, 1);
-            (*parser).tokens.tail = (*parser).tokens.tail.wrapping_offset(1);
+            (*parser).tokens.tail =
+                (*parser).tokens.tail.wrapping_offset(1);
         };
         OK
     }
@@ -11988,18 +14203,25 @@ mod scanner {
         {
             if (*parser).tokens.tail == (*parser).tokens.end {
                 yaml_queue_extend(
-                    &raw mut (*parser).tokens.start as *mut *mut libc::c_void,
-                    &raw mut (*parser).tokens.head as *mut *mut libc::c_void,
-                    &raw mut (*parser).tokens.tail as *mut *mut libc::c_void,
-                    &raw mut (*parser).tokens.end as *mut *mut libc::c_void,
+                    &raw mut (*parser).tokens.start
+                        as *mut *mut libc::c_void,
+                    &raw mut (*parser).tokens.head
+                        as *mut *mut libc::c_void,
+                    &raw mut (*parser).tokens.tail
+                        as *mut *mut libc::c_void,
+                    &raw mut (*parser).tokens.end
+                        as *mut *mut libc::c_void,
                 );
             }
             ptr::copy_nonoverlapping(token, (*parser).tokens.tail, 1);
-            (*parser).tokens.tail = (*parser).tokens.tail.wrapping_offset(1);
+            (*parser).tokens.tail =
+                (*parser).tokens.tail.wrapping_offset(1);
         };
         OK
     }
-    unsafe fn yaml_parser_fetch_plain_scalar(parser: *mut YamlParserT) -> Success {
+    unsafe fn yaml_parser_fetch_plain_scalar(
+        parser: *mut YamlParserT,
+    ) -> Success {
         let mut token = MaybeUninit::<YamlTokenT>::uninit();
         let token = token.as_mut_ptr();
         if yaml_parser_save_simple_key(parser).fail {
@@ -12012,18 +14234,25 @@ mod scanner {
         {
             if (*parser).tokens.tail == (*parser).tokens.end {
                 yaml_queue_extend(
-                    &raw mut (*parser).tokens.start as *mut *mut libc::c_void,
-                    &raw mut (*parser).tokens.head as *mut *mut libc::c_void,
-                    &raw mut (*parser).tokens.tail as *mut *mut libc::c_void,
-                    &raw mut (*parser).tokens.end as *mut *mut libc::c_void,
+                    &raw mut (*parser).tokens.start
+                        as *mut *mut libc::c_void,
+                    &raw mut (*parser).tokens.head
+                        as *mut *mut libc::c_void,
+                    &raw mut (*parser).tokens.tail
+                        as *mut *mut libc::c_void,
+                    &raw mut (*parser).tokens.end
+                        as *mut *mut libc::c_void,
                 );
             }
             ptr::copy_nonoverlapping(token, (*parser).tokens.tail, 1);
-            (*parser).tokens.tail = (*parser).tokens.tail.wrapping_offset(1);
+            (*parser).tokens.tail =
+                (*parser).tokens.tail.wrapping_offset(1);
         };
         OK
     }
-    unsafe fn yaml_parser_scan_to_next_token(parser: *mut YamlParserT) -> Success {
+    unsafe fn yaml_parser_scan_to_next_token(
+        parser: *mut YamlParserT,
+    ) -> Success {
         loop {
             if cache(parser, 1_u64).fail {
                 return FAIL;
@@ -12041,7 +14270,8 @@ mod scanner {
             let mut should_continue = true;
             while should_continue {
                 if *(*parser).buffer.pointer == b' '
-                    || ((*parser).flow_level != 0 || !(*parser).simple_key_allowed)
+                    || ((*parser).flow_level != 0
+                        || !(*parser).simple_key_allowed)
                         && *(*parser).buffer.pointer == b'\t'
                 {
                     skip(parser);
@@ -12056,18 +14286,34 @@ mod scanner {
                 while !(*(*parser).buffer.pointer.offset(0) == b'\r'
                     || *(*parser).buffer.pointer.offset(0) == b'\n'
                     || *(*parser).buffer.pointer.offset(0) == b'\xC2'
-                        && *(*parser).buffer.pointer.offset((0 + 1).try_into().unwrap())
+                        && *(*parser)
+                            .buffer
+                            .pointer
+                            .offset((0 + 1).try_into().unwrap())
                             == b'\x85'
                     || *(*parser).buffer.pointer.offset(0) == b'\xE2'
-                        && *(*parser).buffer.pointer.offset((0 + 1).try_into().unwrap())
+                        && *(*parser)
+                            .buffer
+                            .pointer
+                            .offset((0 + 1).try_into().unwrap())
                             == b'\x80'
-                        && *(*parser).buffer.pointer.offset((0 + 2).try_into().unwrap())
+                        && *(*parser)
+                            .buffer
+                            .pointer
+                            .offset((0 + 2).try_into().unwrap())
                             == b'\xA8'
                     || *(*parser).buffer.pointer.offset(0) == b'\xE2'
-                        && *(*parser).buffer.pointer.offset((0 + 1).try_into().unwrap())
+                        && *(*parser)
+                            .buffer
+                            .pointer
+                            .offset((0 + 1).try_into().unwrap())
                             == b'\x80'
-                        && *(*parser).buffer.pointer.offset((0 + 2).try_into().unwrap())
-                            == b'\xA9' || *(*parser).buffer.pointer.offset(0) == b'\0')
+                        && *(*parser)
+                            .buffer
+                            .pointer
+                            .offset((0 + 2).try_into().unwrap())
+                            == b'\xA9'
+                    || *(*parser).buffer.pointer.offset(0) == b'\0')
                 {
                     skip(parser);
                     if cache(parser, 1_u64).fail {
@@ -12078,17 +14324,32 @@ mod scanner {
             if !(*(*parser).buffer.pointer.offset(0) == b'\r'
                 || *(*parser).buffer.pointer.offset(0) == b'\n'
                 || *(*parser).buffer.pointer.offset(0) == b'\xC2'
-                    && *(*parser).buffer.pointer.offset((0 + 1).try_into().unwrap())
+                    && *(*parser)
+                        .buffer
+                        .pointer
+                        .offset((0 + 1).try_into().unwrap())
                         == b'\x85'
                 || *(*parser).buffer.pointer.offset(0) == b'\xE2'
-                    && *(*parser).buffer.pointer.offset((0 + 1).try_into().unwrap())
+                    && *(*parser)
+                        .buffer
+                        .pointer
+                        .offset((0 + 1).try_into().unwrap())
                         == b'\x80'
-                    && *(*parser).buffer.pointer.offset((0 + 2).try_into().unwrap())
+                    && *(*parser)
+                        .buffer
+                        .pointer
+                        .offset((0 + 2).try_into().unwrap())
                         == b'\xA8'
                 || *(*parser).buffer.pointer.offset(0) == b'\xE2'
-                    && *(*parser).buffer.pointer.offset((0 + 1).try_into().unwrap())
+                    && *(*parser)
+                        .buffer
+                        .pointer
+                        .offset((0 + 1).try_into().unwrap())
                         == b'\x80'
-                    && *(*parser).buffer.pointer.offset((0 + 2).try_into().unwrap())
+                    && *(*parser)
+                        .buffer
+                        .pointer
+                        .offset((0 + 2).try_into().unwrap())
                         == b'\xA9')
             {
                 break;
@@ -12112,23 +14373,31 @@ mod scanner {
         let mut name: *mut yaml_char_t = ptr::null_mut::<yaml_char_t>();
         let mut major: libc::c_int = 0;
         let mut minor: libc::c_int = 0;
-        let mut handle: *mut yaml_char_t = ptr::null_mut::<yaml_char_t>();
-        let mut prefix: *mut yaml_char_t = ptr::null_mut::<yaml_char_t>();
+        let mut handle: *mut yaml_char_t =
+            ptr::null_mut::<yaml_char_t>();
+        let mut prefix: *mut yaml_char_t =
+            ptr::null_mut::<yaml_char_t>();
         let start_mark: YamlMarkT = (*parser).mark;
         skip(parser);
-        if yaml_parser_scan_directive_name(parser, start_mark, &raw mut name).ok {
+        if yaml_parser_scan_directive_name(
+            parser,
+            start_mark,
+            &raw mut name,
+        )
+        .ok
+        {
             if strcmp(
                 name as *mut libc::c_char,
                 b"YAML\0" as *const u8 as *const libc::c_char,
             ) == 0
             {
                 if yaml_parser_scan_version_directive_value(
-                        parser,
-                        start_mark,
-                        &raw mut major,
-                        &raw mut minor,
-                    )
-                    .fail
+                    parser,
+                    start_mark,
+                    &raw mut major,
+                    &raw mut minor,
+                )
+                .fail
                 {
                     current_block = 11397968426844348457;
                 } else {
@@ -12151,12 +14420,12 @@ mod scanner {
             ) == 0
             {
                 if yaml_parser_scan_tag_directive_value(
-                        parser,
-                        start_mark,
-                        &raw mut handle,
-                        &raw mut prefix,
-                    )
-                    .fail
+                    parser,
+                    start_mark,
+                    &raw mut handle,
+                    &raw mut prefix,
+                )
+                .fail
                 {
                     current_block = 11397968426844348457;
                 } else {
@@ -12169,22 +14438,28 @@ mod scanner {
                     (*token).type_ = YamlTagDirectiveToken;
                     (*token).start_mark = start_mark;
                     (*token).end_mark = end_mark;
-                    let fresh112 = &raw mut (*token).data.tag_directive.handle;
+                    let fresh112 =
+                        &raw mut (*token).data.tag_directive.handle;
                     *fresh112 = handle;
-                    let fresh113 = &raw mut (*token).data.tag_directive.prefix;
+                    let fresh113 =
+                        &raw mut (*token).data.tag_directive.prefix;
                     *fresh113 = prefix;
                     current_block = 17407779659766490442;
                 }
             } else {
                 yaml_parser_set_scanner_error(
                     parser,
-                    b"while scanning a directive\0" as *const u8 as *const libc::c_char,
+                    b"while scanning a directive\0" as *const u8
+                        as *const libc::c_char,
                     start_mark,
-                    b"found unknown directive name\0" as *const u8 as *const libc::c_char,
+                    b"found unknown directive name\0" as *const u8
+                        as *const libc::c_char,
                 );
                 current_block = 11397968426844348457;
             }
-            if current_block != 11397968426844348457 && cache(parser, 1_u64).ok {
+            if current_block != 11397968426844348457
+                && cache(parser, 1_u64).ok
+            {
                 loop {
                     if !(*(*parser).buffer.pointer.offset(0) == b' '
                         || *(*parser).buffer.pointer.offset(0) == b'\t')
@@ -12201,32 +14476,33 @@ mod scanner {
                 if current_block != 11397968426844348457 {
                     if *(*parser).buffer.pointer == b'#' {
                         loop {
-                            if *(*parser).buffer.pointer.offset(0) == b'\r'
-                                || *(*parser).buffer.pointer.offset(0) == b'\n'
-                                || *(*parser).buffer.pointer.offset(0) == b'\xC2'
-                                    && *(*parser)
-                                        .buffer
-                                        .pointer
-                                        .offset((0 + 1).try_into().unwrap()) == b'\x85'
-                                || *(*parser).buffer.pointer.offset(0) == b'\xE2'
-                                    && *(*parser)
-                                        .buffer
-                                        .pointer
-                                        .offset((0 + 1).try_into().unwrap()) == b'\x80'
-                                    && *(*parser)
-                                        .buffer
-                                        .pointer
-                                        .offset((0 + 2).try_into().unwrap()) == b'\xA8'
-                                || *(*parser).buffer.pointer.offset(0) == b'\xE2'
-                                    && *(*parser)
-                                        .buffer
-                                        .pointer
-                                        .offset((0 + 1).try_into().unwrap()) == b'\x80'
-                                    && *(*parser)
-                                        .buffer
-                                        .pointer
-                                        .offset((0 + 2).try_into().unwrap()) == b'\xA9'
-                                || *(*parser).buffer.pointer.offset(0) == b'\0'
+                            if *(*parser).buffer.pointer.offset(0)
+                                == b'\r'
+                                || *(*parser).buffer.pointer.offset(0)
+                                    == b'\n'
+                                || *(*parser).buffer.pointer.offset(0)
+                                    == b'\xC2'
+                                    && *(*parser).buffer.pointer.offset(
+                                        (0 + 1).try_into().unwrap(),
+                                    ) == b'\x85'
+                                || *(*parser).buffer.pointer.offset(0)
+                                    == b'\xE2'
+                                    && *(*parser).buffer.pointer.offset(
+                                        (0 + 1).try_into().unwrap(),
+                                    ) == b'\x80'
+                                    && *(*parser).buffer.pointer.offset(
+                                        (0 + 2).try_into().unwrap(),
+                                    ) == b'\xA8'
+                                || *(*parser).buffer.pointer.offset(0)
+                                    == b'\xE2'
+                                    && *(*parser).buffer.pointer.offset(
+                                        (0 + 1).try_into().unwrap(),
+                                    ) == b'\x80'
+                                    && *(*parser).buffer.pointer.offset(
+                                        (0 + 2).try_into().unwrap(),
+                                    ) == b'\xA9'
+                                || *(*parser).buffer.pointer.offset(0)
+                                    == b'\0'
                             {
                                 current_block = 6669252993407410313;
                                 break;
@@ -12241,32 +14517,33 @@ mod scanner {
                         current_block = 6669252993407410313;
                     }
                     if current_block != 11397968426844348457 {
-                        if !(*(*parser).buffer.pointer.offset(0) == b'\r'
-                            || *(*parser).buffer.pointer.offset(0) == b'\n'
-                            || *(*parser).buffer.pointer.offset(0) == b'\xC2'
-                                && *(*parser)
-                                    .buffer
-                                    .pointer
-                                    .offset((0 + 1).try_into().unwrap()) == b'\x85'
-                            || *(*parser).buffer.pointer.offset(0) == b'\xE2'
-                                && *(*parser)
-                                    .buffer
-                                    .pointer
-                                    .offset((0 + 1).try_into().unwrap()) == b'\x80'
-                                && *(*parser)
-                                    .buffer
-                                    .pointer
-                                    .offset((0 + 2).try_into().unwrap()) == b'\xA8'
-                            || *(*parser).buffer.pointer.offset(0) == b'\xE2'
-                                && *(*parser)
-                                    .buffer
-                                    .pointer
-                                    .offset((0 + 1).try_into().unwrap()) == b'\x80'
-                                && *(*parser)
-                                    .buffer
-                                    .pointer
-                                    .offset((0 + 2).try_into().unwrap()) == b'\xA9'
-                            || *(*parser).buffer.pointer.offset(0) == b'\0')
+                        if !(*(*parser).buffer.pointer.offset(0)
+                            == b'\r'
+                            || *(*parser).buffer.pointer.offset(0)
+                                == b'\n'
+                            || *(*parser).buffer.pointer.offset(0)
+                                == b'\xC2'
+                                && *(*parser).buffer.pointer.offset(
+                                    (0 + 1).try_into().unwrap(),
+                                ) == b'\x85'
+                            || *(*parser).buffer.pointer.offset(0)
+                                == b'\xE2'
+                                && *(*parser).buffer.pointer.offset(
+                                    (0 + 1).try_into().unwrap(),
+                                ) == b'\x80'
+                                && *(*parser).buffer.pointer.offset(
+                                    (0 + 2).try_into().unwrap(),
+                                ) == b'\xA8'
+                            || *(*parser).buffer.pointer.offset(0)
+                                == b'\xE2'
+                                && *(*parser).buffer.pointer.offset(
+                                    (0 + 1).try_into().unwrap(),
+                                ) == b'\x80'
+                                && *(*parser).buffer.pointer.offset(
+                                    (0 + 2).try_into().unwrap(),
+                                ) == b'\xA9'
+                            || *(*parser).buffer.pointer.offset(0)
+                                == b'\0')
                         {
                             yaml_parser_set_scanner_error(
                                 parser,
@@ -12277,34 +14554,35 @@ mod scanner {
                                     as *const u8 as *const libc::c_char,
                             );
                         } else {
-                            if *(*parser).buffer.pointer.offset(0) == b'\r'
-                                || *(*parser).buffer.pointer.offset(0) == b'\n'
-                                || *(*parser).buffer.pointer.offset(0) == b'\xC2'
-                                    && *(*parser)
-                                        .buffer
-                                        .pointer
-                                        .offset((0 + 1).try_into().unwrap()) == b'\x85'
-                                || *(*parser).buffer.pointer.offset(0) == b'\xE2'
-                                    && *(*parser)
-                                        .buffer
-                                        .pointer
-                                        .offset((0 + 1).try_into().unwrap()) == b'\x80'
-                                    && *(*parser)
-                                        .buffer
-                                        .pointer
-                                        .offset((0 + 2).try_into().unwrap()) == b'\xA8'
-                                || *(*parser).buffer.pointer.offset(0) == b'\xE2'
-                                    && *(*parser)
-                                        .buffer
-                                        .pointer
-                                        .offset((0 + 1).try_into().unwrap()) == b'\x80'
-                                    && *(*parser)
-                                        .buffer
-                                        .pointer
-                                        .offset((0 + 2).try_into().unwrap()) == b'\xA9'
+                            if *(*parser).buffer.pointer.offset(0)
+                                == b'\r'
+                                || *(*parser).buffer.pointer.offset(0)
+                                    == b'\n'
+                                || *(*parser).buffer.pointer.offset(0)
+                                    == b'\xC2'
+                                    && *(*parser).buffer.pointer.offset(
+                                        (0 + 1).try_into().unwrap(),
+                                    ) == b'\x85'
+                                || *(*parser).buffer.pointer.offset(0)
+                                    == b'\xE2'
+                                    && *(*parser).buffer.pointer.offset(
+                                        (0 + 1).try_into().unwrap(),
+                                    ) == b'\x80'
+                                    && *(*parser).buffer.pointer.offset(
+                                        (0 + 2).try_into().unwrap(),
+                                    ) == b'\xA8'
+                                || *(*parser).buffer.pointer.offset(0)
+                                    == b'\xE2'
+                                    && *(*parser).buffer.pointer.offset(
+                                        (0 + 1).try_into().unwrap(),
+                                    ) == b'\x80'
+                                    && *(*parser).buffer.pointer.offset(
+                                        (0 + 2).try_into().unwrap(),
+                                    ) == b'\xA9'
                             {
                                 if cache(parser, 2_u64).fail {
-                                    current_block = 11397968426844348457;
+                                    current_block =
+                                        11397968426844348457;
                                 } else {
                                     skip_line(parser);
                                     current_block = 652864300344834934;
@@ -12336,12 +14614,13 @@ mod scanner {
         {
             string.start = yaml_malloc(16) as *mut yaml_char_t;
             if !string.start.is_null() {
-                let _ = memset(string.start as *mut libc::c_void, 0, 16);
+                let _ =
+                    memset(string.start as *mut libc::c_void, 0, 16);
             } else {
                 {
-                    ::core::panicking::panic_fmt(
-                        format_args!("Failed to allocate memory for string"),
-                    );
+                    ::core::panicking::panic_fmt(format_args!(
+                        "Failed to allocate memory for string"
+                    ));
                 };
             }
             string.pointer = string.start;
@@ -12375,44 +14654,56 @@ mod scanner {
                         b"while scanning a directive\0" as *const u8
                             as *const libc::c_char,
                         start_mark,
-                        b"could not find expected directive name\0" as *const u8
+                        b"could not find expected directive name\0"
+                            as *const u8
                             as *const libc::c_char,
                     );
                 } else if !(*(*parser).buffer.pointer.offset(0) == b' '
                     || *(*parser).buffer.pointer.offset(0) == b'\t'
                     || (*(*parser).buffer.pointer.offset(0) == b'\r'
-                        || *(*parser).buffer.pointer.offset(0) == b'\n'
-                        || *(*parser).buffer.pointer.offset(0) == b'\xC2'
+                        || *(*parser).buffer.pointer.offset(0)
+                            == b'\n'
+                        || *(*parser).buffer.pointer.offset(0)
+                            == b'\xC2'
                             && *(*parser)
                                 .buffer
                                 .pointer
-                                .offset((0 + 1).try_into().unwrap()) == b'\x85'
-                        || *(*parser).buffer.pointer.offset(0) == b'\xE2'
+                                .offset((0 + 1).try_into().unwrap())
+                                == b'\x85'
+                        || *(*parser).buffer.pointer.offset(0)
+                            == b'\xE2'
                             && *(*parser)
                                 .buffer
                                 .pointer
-                                .offset((0 + 1).try_into().unwrap()) == b'\x80'
+                                .offset((0 + 1).try_into().unwrap())
+                                == b'\x80'
                             && *(*parser)
                                 .buffer
                                 .pointer
-                                .offset((0 + 2).try_into().unwrap()) == b'\xA8'
-                        || *(*parser).buffer.pointer.offset(0) == b'\xE2'
+                                .offset((0 + 2).try_into().unwrap())
+                                == b'\xA8'
+                        || *(*parser).buffer.pointer.offset(0)
+                            == b'\xE2'
                             && *(*parser)
                                 .buffer
                                 .pointer
-                                .offset((0 + 1).try_into().unwrap()) == b'\x80'
+                                .offset((0 + 1).try_into().unwrap())
+                                == b'\x80'
                             && *(*parser)
                                 .buffer
                                 .pointer
-                                .offset((0 + 2).try_into().unwrap()) == b'\xA9'
-                        || *(*parser).buffer.pointer.offset(0) == b'\0'))
+                                .offset((0 + 2).try_into().unwrap())
+                                == b'\xA9'
+                        || *(*parser).buffer.pointer.offset(0)
+                            == b'\0'))
                 {
                     yaml_parser_set_scanner_error(
                         parser,
                         b"while scanning a directive\0" as *const u8
                             as *const libc::c_char,
                         start_mark,
-                        b"found unexpected non-alphabetical character\0" as *const u8
+                        b"found unexpected non-alphabetical character\0"
+                            as *const u8
                             as *const libc::c_char,
                     );
                 } else {
@@ -12446,7 +14737,11 @@ mod scanner {
                 return FAIL;
             }
         }
-        if yaml_parser_scan_version_directive_number(parser, start_mark, major).fail {
+        if yaml_parser_scan_version_directive_number(
+            parser, start_mark, major,
+        )
+        .fail
+        {
             return FAIL;
         }
         if !(*(*parser).buffer.pointer == b'.') {
@@ -12455,13 +14750,15 @@ mod scanner {
                 b"while scanning a %YAML directive\0" as *const u8
                     as *const libc::c_char,
                 start_mark,
-                b"did not find expected digit or '.' character\0" as *const u8
-                    as *const libc::c_char,
+                b"did not find expected digit or '.' character\0"
+                    as *const u8 as *const libc::c_char,
             );
             return FAIL;
         }
         skip(parser);
-        yaml_parser_scan_version_directive_number(parser, start_mark, minor)
+        yaml_parser_scan_version_directive_number(
+            parser, start_mark, minor,
+        )
     }
     const MAX_NUMBER_LENGTH: u64 = 9_u64;
     unsafe fn yaml_parser_scan_version_directive_number(
@@ -12475,7 +14772,8 @@ mod scanner {
             return FAIL;
         }
         while !(*parser).buffer.is_empty()
-            && (*(*parser).buffer.pointer >= b'0' && *(*parser).buffer.pointer <= b'9')
+            && (*(*parser).buffer.pointer >= b'0'
+                && *(*parser).buffer.pointer <= b'9')
         {
             length = length.force_add(1);
             if length > MAX_NUMBER_LENGTH {
@@ -12484,14 +14782,15 @@ mod scanner {
                     b"while scanning a %YAML directive\0" as *const u8
                         as *const libc::c_char,
                     start_mark,
-                    b"found extremely long version number\0" as *const u8
+                    b"found extremely long version number\0"
+                        as *const u8
                         as *const libc::c_char,
                 );
                 return FAIL;
             }
-            value = value
-                .force_mul(10)
-                .force_add((*(*parser).buffer.pointer - b'0') as libc::c_int);
+            value = value.force_mul(10).force_add(
+                (*(*parser).buffer.pointer - b'0') as libc::c_int,
+            );
             (*parser).buffer.next();
             if cache(parser, 1_u64).fail {
                 return FAIL;
@@ -12518,8 +14817,10 @@ mod scanner {
         prefix: *mut *mut yaml_char_t,
     ) -> Success {
         let mut current_block: u64;
-        let mut handle_value: *mut yaml_char_t = ptr::null_mut::<yaml_char_t>();
-        let mut prefix_value: *mut yaml_char_t = ptr::null_mut::<yaml_char_t>();
+        let mut handle_value: *mut yaml_char_t =
+            ptr::null_mut::<yaml_char_t>();
+        let mut prefix_value: *mut yaml_char_t =
+            ptr::null_mut::<yaml_char_t>();
         if cache(parser, 1_u64).fail {
             current_block = 5231181710497607163;
         } else {
@@ -12544,12 +14845,12 @@ mod scanner {
                         }
                     } else {
                         if yaml_parser_scan_tag_handle(
-                                parser,
-                                true,
-                                start_mark,
-                                &raw mut handle_value,
-                            )
-                            .fail
+                            parser,
+                            true,
+                            start_mark,
+                            &raw mut handle_value,
+                        )
+                        .fail
                         {
                             current_block = 5231181710497607163;
                             continue;
@@ -12558,21 +14859,27 @@ mod scanner {
                             current_block = 5231181710497607163;
                             continue;
                         }
-                        if !(*(*parser).buffer.pointer.offset(0) == b' '
-                            || *(*parser).buffer.pointer.offset(0) == b'\t')
+                        if !(*(*parser).buffer.pointer.offset(0)
+                            == b' '
+                            || *(*parser).buffer.pointer.offset(0)
+                                == b'\t')
                         {
                             yaml_parser_set_scanner_error(
                                 parser,
-                                b"while scanning a %TAG directive\0" as *const u8
+                                b"while scanning a %TAG directive\0"
+                                    as *const u8
                                     as *const libc::c_char,
                                 start_mark,
-                                b"did not find expected whitespace\0" as *const u8
+                                b"did not find expected whitespace\0"
+                                    as *const u8
                                     as *const libc::c_char,
                             );
                             current_block = 5231181710497607163;
                         } else {
-                            while *(*parser).buffer.pointer.offset(0) == b' '
-                                || *(*parser).buffer.pointer.offset(0) == b'\t'
+                            while *(*parser).buffer.pointer.offset(0)
+                                == b' '
+                                || *(*parser).buffer.pointer.offset(0)
+                                    == b'\t'
                             {
                                 skip(parser);
                                 if cache(parser, 1_u64).fail {
@@ -12581,14 +14888,14 @@ mod scanner {
                                 }
                             }
                             if yaml_parser_scan_tag_uri(
-                                    parser,
-                                    true,
-                                    true,
-                                    ptr::null_mut::<yaml_char_t>(),
-                                    start_mark,
-                                    &raw mut prefix_value,
-                                )
-                                .fail
+                                parser,
+                                true,
+                                true,
+                                ptr::null_mut::<yaml_char_t>(),
+                                start_mark,
+                                &raw mut prefix_value,
+                            )
+                            .fail
                             {
                                 current_block = 5231181710497607163;
                                 continue;
@@ -12597,34 +14904,85 @@ mod scanner {
                                 current_block = 5231181710497607163;
                                 continue;
                             }
-                            if !(*(*parser).buffer.pointer.offset(0) == b' '
-                                || *(*parser).buffer.pointer.offset(0) == b'\t'
-                                || (*(*parser).buffer.pointer.offset(0) == b'\r'
-                                    || *(*parser).buffer.pointer.offset(0) == b'\n'
-                                    || *(*parser).buffer.pointer.offset(0) == b'\xC2'
+                            if !(*(*parser).buffer.pointer.offset(0)
+                                == b' '
+                                || *(*parser).buffer.pointer.offset(0)
+                                    == b'\t'
+                                || (*(*parser)
+                                    .buffer
+                                    .pointer
+                                    .offset(0)
+                                    == b'\r'
+                                    || *(*parser)
+                                        .buffer
+                                        .pointer
+                                        .offset(0)
+                                        == b'\n'
+                                    || *(*parser)
+                                        .buffer
+                                        .pointer
+                                        .offset(0)
+                                        == b'\xC2'
                                         && *(*parser)
                                             .buffer
                                             .pointer
-                                            .offset((0 + 1).try_into().unwrap()) == b'\x85'
-                                    || *(*parser).buffer.pointer.offset(0) == b'\xE2'
+                                            .offset(
+                                                (0 + 1)
+                                                    .try_into()
+                                                    .unwrap(),
+                                            )
+                                            == b'\x85'
+                                    || *(*parser)
+                                        .buffer
+                                        .pointer
+                                        .offset(0)
+                                        == b'\xE2'
                                         && *(*parser)
                                             .buffer
                                             .pointer
-                                            .offset((0 + 1).try_into().unwrap()) == b'\x80'
+                                            .offset(
+                                                (0 + 1)
+                                                    .try_into()
+                                                    .unwrap(),
+                                            )
+                                            == b'\x80'
                                         && *(*parser)
                                             .buffer
                                             .pointer
-                                            .offset((0 + 2).try_into().unwrap()) == b'\xA8'
-                                    || *(*parser).buffer.pointer.offset(0) == b'\xE2'
+                                            .offset(
+                                                (0 + 2)
+                                                    .try_into()
+                                                    .unwrap(),
+                                            )
+                                            == b'\xA8'
+                                    || *(*parser)
+                                        .buffer
+                                        .pointer
+                                        .offset(0)
+                                        == b'\xE2'
                                         && *(*parser)
                                             .buffer
                                             .pointer
-                                            .offset((0 + 1).try_into().unwrap()) == b'\x80'
+                                            .offset(
+                                                (0 + 1)
+                                                    .try_into()
+                                                    .unwrap(),
+                                            )
+                                            == b'\x80'
                                         && *(*parser)
                                             .buffer
                                             .pointer
-                                            .offset((0 + 2).try_into().unwrap()) == b'\xA9'
-                                    || *(*parser).buffer.pointer.offset(0) == b'\0'))
+                                            .offset(
+                                                (0 + 2)
+                                                    .try_into()
+                                                    .unwrap(),
+                                            )
+                                            == b'\xA9'
+                                    || *(*parser)
+                                        .buffer
+                                        .pointer
+                                        .offset(0)
+                                        == b'\0'))
                             {
                                 yaml_parser_set_scanner_error(
                                     parser,
@@ -12658,12 +15016,13 @@ mod scanner {
         {
             string.start = yaml_malloc(16) as *mut yaml_char_t;
             if !string.start.is_null() {
-                let _ = memset(string.start as *mut libc::c_void, 0, 16);
+                let _ =
+                    memset(string.start as *mut libc::c_void, 0, 16);
             } else {
                 {
-                    ::core::panicking::panic_fmt(
-                        format_args!("Failed to allocate memory for string"),
-                    );
+                    ::core::panicking::panic_fmt(format_args!(
+                        "Failed to allocate memory for string"
+                    ));
                 };
             }
             string.pointer = string.start;
@@ -12698,32 +15057,33 @@ mod scanner {
                 if length == 0
                     || !(*(*parser).buffer.pointer.offset(0) == b' '
                         || *(*parser).buffer.pointer.offset(0) == b'\t'
-                        || (*(*parser).buffer.pointer.offset(0) == b'\r'
-                            || *(*parser).buffer.pointer.offset(0) == b'\n'
-                            || *(*parser).buffer.pointer.offset(0) == b'\xC2'
-                                && *(*parser)
-                                    .buffer
-                                    .pointer
-                                    .offset((0 + 1).try_into().unwrap()) == b'\x85'
-                            || *(*parser).buffer.pointer.offset(0) == b'\xE2'
-                                && *(*parser)
-                                    .buffer
-                                    .pointer
-                                    .offset((0 + 1).try_into().unwrap()) == b'\x80'
-                                && *(*parser)
-                                    .buffer
-                                    .pointer
-                                    .offset((0 + 2).try_into().unwrap()) == b'\xA8'
-                            || *(*parser).buffer.pointer.offset(0) == b'\xE2'
-                                && *(*parser)
-                                    .buffer
-                                    .pointer
-                                    .offset((0 + 1).try_into().unwrap()) == b'\x80'
-                                && *(*parser)
-                                    .buffer
-                                    .pointer
-                                    .offset((0 + 2).try_into().unwrap()) == b'\xA9'
-                            || *(*parser).buffer.pointer.offset(0) == b'\0')
+                        || (*(*parser).buffer.pointer.offset(0)
+                            == b'\r'
+                            || *(*parser).buffer.pointer.offset(0)
+                                == b'\n'
+                            || *(*parser).buffer.pointer.offset(0)
+                                == b'\xC2'
+                                && *(*parser).buffer.pointer.offset(
+                                    (0 + 1).try_into().unwrap(),
+                                ) == b'\x85'
+                            || *(*parser).buffer.pointer.offset(0)
+                                == b'\xE2'
+                                && *(*parser).buffer.pointer.offset(
+                                    (0 + 1).try_into().unwrap(),
+                                ) == b'\x80'
+                                && *(*parser).buffer.pointer.offset(
+                                    (0 + 2).try_into().unwrap(),
+                                ) == b'\xA8'
+                            || *(*parser).buffer.pointer.offset(0)
+                                == b'\xE2'
+                                && *(*parser).buffer.pointer.offset(
+                                    (0 + 1).try_into().unwrap(),
+                                ) == b'\x80'
+                                && *(*parser).buffer.pointer.offset(
+                                    (0 + 2).try_into().unwrap(),
+                                ) == b'\xA9'
+                            || *(*parser).buffer.pointer.offset(0)
+                                == b'\0')
                         || *(*parser).buffer.pointer == b'?'
                         || *(*parser).buffer.pointer == b':'
                         || *(*parser).buffer.pointer == b','
@@ -12756,7 +15116,8 @@ mod scanner {
                         (*token).type_ = YamlAnchorToken;
                         (*token).start_mark = start_mark;
                         (*token).end_mark = end_mark;
-                        let fresh220 = &raw mut (*token).data.anchor.value;
+                        let fresh220 =
+                            &raw mut (*token).data.anchor.value;
                         *fresh220 = string.start;
                     } else {
                         let _ = memset(
@@ -12767,7 +15128,8 @@ mod scanner {
                         (*token).type_ = YamlAliasToken;
                         (*token).start_mark = start_mark;
                         (*token).end_mark = end_mark;
-                        let fresh221 = &raw mut (*token).data.alias.value;
+                        let fresh221 =
+                            &raw mut (*token).data.alias.value;
                         *fresh221 = string.start;
                     }
                     return OK;
@@ -12787,8 +15149,10 @@ mod scanner {
         token: *mut YamlTokenT,
     ) -> Success {
         let mut current_block: u64;
-        let mut handle: *mut yaml_char_t = ptr::null_mut::<yaml_char_t>();
-        let mut suffix: *mut yaml_char_t = ptr::null_mut::<yaml_char_t>();
+        let mut handle: *mut yaml_char_t =
+            ptr::null_mut::<yaml_char_t>();
+        let mut suffix: *mut yaml_char_t =
+            ptr::null_mut::<yaml_char_t>();
         let end_mark: YamlMarkT;
         let start_mark: YamlMarkT = (*parser).mark;
         if cache(parser, 2_u64).ok {
@@ -12798,20 +15162,21 @@ mod scanner {
                 skip(parser);
                 skip(parser);
                 if yaml_parser_scan_tag_uri(
-                        parser,
-                        true,
-                        false,
-                        ptr::null_mut::<yaml_char_t>(),
-                        start_mark,
-                        &raw mut suffix,
-                    )
-                    .fail
+                    parser,
+                    true,
+                    false,
+                    ptr::null_mut::<yaml_char_t>(),
+                    start_mark,
+                    &raw mut suffix,
+                )
+                .fail
                 {
                     current_block = 17708497480799081542;
                 } else if !(*(*parser).buffer.pointer == b'>') {
                     yaml_parser_set_scanner_error(
                         parser,
-                        b"while scanning a tag\0" as *const u8 as *const libc::c_char,
+                        b"while scanning a tag\0" as *const u8
+                            as *const libc::c_char,
                         start_mark,
                         b"did not find the expected '>'\0" as *const u8
                             as *const libc::c_char,
@@ -12822,43 +15187,45 @@ mod scanner {
                     current_block = 4488286894823169796;
                 }
             } else if yaml_parser_scan_tag_handle(
-                    parser,
-                    false,
-                    start_mark,
-                    &raw mut handle,
-                )
-                .fail
+                parser,
+                false,
+                start_mark,
+                &raw mut handle,
+            )
+            .fail
             {
                 current_block = 17708497480799081542;
-            } else if *handle == b'!' && *handle.wrapping_offset(1_isize) != b'\0'
-                && *handle
-                    .wrapping_offset(
-                        strlen(handle as *mut libc::c_char).wrapping_sub(1_u64) as isize,
-                    ) == b'!'
+            } else if *handle == b'!'
+                && *handle.wrapping_offset(1_isize) != b'\0'
+                && *handle.wrapping_offset(
+                    strlen(handle as *mut libc::c_char)
+                        .wrapping_sub(1_u64)
+                        as isize,
+                ) == b'!'
             {
                 if yaml_parser_scan_tag_uri(
-                        parser,
-                        false,
-                        false,
-                        ptr::null_mut::<yaml_char_t>(),
-                        start_mark,
-                        &raw mut suffix,
-                    )
-                    .fail
+                    parser,
+                    false,
+                    false,
+                    ptr::null_mut::<yaml_char_t>(),
+                    start_mark,
+                    &raw mut suffix,
+                )
+                .fail
                 {
                     current_block = 17708497480799081542;
                 } else {
                     current_block = 4488286894823169796;
                 }
             } else if yaml_parser_scan_tag_uri(
-                    parser,
-                    false,
-                    false,
-                    handle,
-                    start_mark,
-                    &raw mut suffix,
-                )
-                .fail
+                parser,
+                false,
+                false,
+                handle,
+                start_mark,
+                &raw mut suffix,
+            )
+            .fail
             {
                 current_block = 17708497480799081542;
             } else {
@@ -12871,37 +15238,50 @@ mod scanner {
                 }
                 current_block = 4488286894823169796;
             }
-            if current_block != 17708497480799081542 && cache(parser, 1_u64).ok {
+            if current_block != 17708497480799081542
+                && cache(parser, 1_u64).ok
+            {
                 if !(*(*parser).buffer.pointer.offset(0) == b' '
                     || *(*parser).buffer.pointer.offset(0) == b'\t'
                     || (*(*parser).buffer.pointer.offset(0) == b'\r'
-                        || *(*parser).buffer.pointer.offset(0) == b'\n'
-                        || *(*parser).buffer.pointer.offset(0) == b'\xC2'
+                        || *(*parser).buffer.pointer.offset(0)
+                            == b'\n'
+                        || *(*parser).buffer.pointer.offset(0)
+                            == b'\xC2'
                             && *(*parser)
                                 .buffer
                                 .pointer
-                                .offset((0 + 1).try_into().unwrap()) == b'\x85'
-                        || *(*parser).buffer.pointer.offset(0) == b'\xE2'
+                                .offset((0 + 1).try_into().unwrap())
+                                == b'\x85'
+                        || *(*parser).buffer.pointer.offset(0)
+                            == b'\xE2'
                             && *(*parser)
                                 .buffer
                                 .pointer
-                                .offset((0 + 1).try_into().unwrap()) == b'\x80'
+                                .offset((0 + 1).try_into().unwrap())
+                                == b'\x80'
                             && *(*parser)
                                 .buffer
                                 .pointer
-                                .offset((0 + 2).try_into().unwrap()) == b'\xA8'
-                        || *(*parser).buffer.pointer.offset(0) == b'\xE2'
+                                .offset((0 + 2).try_into().unwrap())
+                                == b'\xA8'
+                        || *(*parser).buffer.pointer.offset(0)
+                            == b'\xE2'
                             && *(*parser)
                                 .buffer
                                 .pointer
-                                .offset((0 + 1).try_into().unwrap()) == b'\x80'
+                                .offset((0 + 1).try_into().unwrap())
+                                == b'\x80'
                             && *(*parser)
                                 .buffer
                                 .pointer
-                                .offset((0 + 2).try_into().unwrap()) == b'\xA9'
-                        || *(*parser).buffer.pointer.offset(0) == b'\0'))
+                                .offset((0 + 2).try_into().unwrap())
+                                == b'\xA9'
+                        || *(*parser).buffer.pointer.offset(0)
+                            == b'\0'))
                 {
-                    if (*parser).flow_level == 0 || !(*(*parser).buffer.pointer == b',')
+                    if (*parser).flow_level == 0
+                        || !(*(*parser).buffer.pointer == b',')
                     {
                         yaml_parser_set_scanner_error(
                             parser,
@@ -12951,12 +15331,13 @@ mod scanner {
         {
             string.start = yaml_malloc(16) as *mut yaml_char_t;
             if !string.start.is_null() {
-                let _ = memset(string.start as *mut libc::c_void, 0, 16);
+                let _ =
+                    memset(string.start as *mut libc::c_void, 0, 16);
             } else {
                 {
-                    ::core::panicking::panic_fmt(
-                        format_args!("Failed to allocate memory for string"),
-                    );
+                    ::core::panicking::panic_fmt(format_args!(
+                        "Failed to allocate memory for string"
+                    ));
                 };
             }
             string.pointer = string.start;
@@ -12971,10 +15352,12 @@ mod scanner {
                         b"while scanning a tag directive\0" as *const u8
                             as *const libc::c_char
                     } else {
-                        b"while scanning a tag\0" as *const u8 as *const libc::c_char
+                        b"while scanning a tag\0" as *const u8
+                            as *const libc::c_char
                     },
                     start_mark,
-                    b"did not find expected '!'\0" as *const u8 as *const libc::c_char,
+                    b"did not find expected '!'\0" as *const u8
+                        as *const libc::c_char,
                 );
             } else {
                 read(parser, &raw mut string);
@@ -13004,14 +15387,19 @@ mod scanner {
                             current_block = 5689001924483802034;
                         } else if directive
                             && !(*string.start == b'!'
-                                && *string.start.wrapping_offset(1_isize) == b'\0')
+                                && *string
+                                    .start
+                                    .wrapping_offset(1_isize)
+                                    == b'\0')
                         {
                             yaml_parser_set_scanner_error(
                                 parser,
-                                b"while parsing a tag directive\0" as *const u8
+                                b"while parsing a tag directive\0"
+                                    as *const u8
                                     as *const libc::c_char,
                                 start_mark,
-                                b"did not find expected '!'\0" as *const u8
+                                b"did not find expected '!'\0"
+                                    as *const u8
                                     as *const libc::c_char,
                             );
                             current_block = 1771849829115608806;
@@ -13052,12 +15440,13 @@ mod scanner {
         {
             string.start = yaml_malloc(16) as *mut yaml_char_t;
             if !string.start.is_null() {
-                let _ = memset(string.start as *mut libc::c_void, 0, 16);
+                let _ =
+                    memset(string.start as *mut libc::c_void, 0, 16);
             } else {
                 {
-                    ::core::panicking::panic_fmt(
-                        format_args!("Failed to allocate memory for string"),
-                    );
+                    ::core::panicking::panic_fmt(format_args!(
+                        "Failed to allocate memory for string"
+                    ));
                 };
             }
             string.pointer = string.start;
@@ -13077,7 +15466,9 @@ mod scanner {
                     return FAIL;
                 }
                 _ => {
-                    if string.end.c_offset_from(string.start) as size_t <= length {
+                    if string.end.c_offset_from(string.start) as size_t
+                        <= length
+                    {
                         yaml_string_extend(
                             &raw mut string.start,
                             &raw mut string.pointer,
@@ -13089,12 +15480,14 @@ mod scanner {
                         if length > 1_u64 {
                             let _ = memcpy(
                                 string.start as *mut libc::c_void,
-                                head.wrapping_offset(1_isize) as *const libc::c_void,
+                                head.wrapping_offset(1_isize)
+                                    as *const libc::c_void,
                                 length.wrapping_sub(1_u64),
                             );
-                            string.pointer = string
-                                .pointer
-                                .wrapping_offset(length.wrapping_sub(1_u64) as isize);
+                            string.pointer =
+                                string.pointer.wrapping_offset(
+                                    length.wrapping_sub(1_u64) as isize,
+                                );
                         }
                         if cache(parser, 1_u64).fail {
                             current_block = 15265153392498847348;
@@ -13104,9 +15497,11 @@ mod scanner {
                             && (*(*parser).buffer.pointer >= b'0'
                                 && *(*parser).buffer.pointer <= b'9'
                                 || *(*parser).buffer.pointer >= b'A'
-                                    && *(*parser).buffer.pointer <= b'Z'
+                                    && *(*parser).buffer.pointer
+                                        <= b'Z'
                                 || *(*parser).buffer.pointer >= b'a'
-                                    && *(*parser).buffer.pointer <= b'z'
+                                    && *(*parser).buffer.pointer
+                                        <= b'z'
                                 || *(*parser).buffer.pointer == b'_'
                                 || *(*parser).buffer.pointer == b'-'
                                 || *(*parser).buffer.pointer == b';'
@@ -13127,12 +15522,16 @@ mod scanner {
                                 || *(*parser).buffer.pointer == b'('
                                 || *(*parser).buffer.pointer == b')'
                                 || uri_char
-                                    && (*(*parser).buffer.pointer == b','
-                                        || *(*parser).buffer.pointer == b'['
-                                        || *(*parser).buffer.pointer == b']'))
+                                    && (*(*parser).buffer.pointer
+                                        == b','
+                                        || *(*parser).buffer.pointer
+                                            == b'['
+                                        || *(*parser).buffer.pointer
+                                            == b']'))
                         {
                             if *(*parser).buffer.pointer == b'%' {
-                                let new_end = string.pointer.wrapping_add(5);
+                                let new_end =
+                                    string.pointer.wrapping_add(5);
                                 if new_end >= string.end {
                                     yaml_string_extend(
                                         &raw mut string.start,
@@ -13141,14 +15540,15 @@ mod scanner {
                                     );
                                 }
                                 if yaml_parser_scan_uri_escapes(
-                                        parser,
-                                        directive,
-                                        start_mark,
-                                        &raw mut string,
-                                    )
-                                    .fail
+                                    parser,
+                                    directive,
+                                    start_mark,
+                                    &raw mut string,
+                                )
+                                .fail
                                 {
-                                    current_block = 15265153392498847348;
+                                    current_block =
+                                        15265153392498847348;
                                     continue 'c_21953;
                                 }
                             } else {
@@ -13161,7 +15561,8 @@ mod scanner {
                             }
                         }
                         if length == 0 {
-                            let new_end = string.pointer.wrapping_add(5);
+                            let new_end =
+                                string.pointer.wrapping_add(5);
                             if new_end >= string.end {
                                 yaml_string_extend(
                                     &raw mut string.start,
@@ -13172,13 +15573,17 @@ mod scanner {
                             yaml_parser_set_scanner_error(
                                 parser,
                                 if directive {
-                                    b"while parsing a %TAG directive\0" as *const u8
+                                    b"while parsing a %TAG directive\0"
+                                        as *const u8
                                         as *const libc::c_char
                                 } else {
-                                    b"while parsing a tag\0" as *const u8 as *const libc::c_char
+                                    b"while parsing a tag\0"
+                                        as *const u8
+                                        as *const libc::c_char
                                 },
                                 start_mark,
-                                b"did not find expected tag URI\0" as *const u8
+                                b"did not find expected tag URI\0"
+                                    as *const u8
                                     as *const libc::c_char,
                             );
                             current_block = 15265153392498847348;
@@ -13203,18 +15608,42 @@ mod scanner {
                 return FAIL;
             }
             if !(*(*parser).buffer.pointer == b'%'
-                && (*(*parser).buffer.pointer.wrapping_offset(1) >= b'0'
-                    && *(*parser).buffer.pointer.wrapping_offset(1) <= b'9'
-                    || *(*parser).buffer.pointer.wrapping_offset(1) >= b'A'
-                        && *(*parser).buffer.pointer.wrapping_offset(1) <= b'F'
-                    || *(*parser).buffer.pointer.wrapping_offset(1) >= b'a'
-                        && *(*parser).buffer.pointer.wrapping_offset(1) <= b'f')
-                && (*(*parser).buffer.pointer.wrapping_offset(2) >= b'0'
-                    && *(*parser).buffer.pointer.wrapping_offset(2) <= b'9'
-                    || *(*parser).buffer.pointer.wrapping_offset(2) >= b'A'
-                        && *(*parser).buffer.pointer.wrapping_offset(2) <= b'F'
-                    || *(*parser).buffer.pointer.wrapping_offset(2) >= b'a'
-                        && *(*parser).buffer.pointer.wrapping_offset(2) <= b'f'))
+                && (*(*parser).buffer.pointer.wrapping_offset(1)
+                    >= b'0'
+                    && *(*parser).buffer.pointer.wrapping_offset(1)
+                        <= b'9'
+                    || *(*parser).buffer.pointer.wrapping_offset(1)
+                        >= b'A'
+                        && *(*parser)
+                            .buffer
+                            .pointer
+                            .wrapping_offset(1)
+                            <= b'F'
+                    || *(*parser).buffer.pointer.wrapping_offset(1)
+                        >= b'a'
+                        && *(*parser)
+                            .buffer
+                            .pointer
+                            .wrapping_offset(1)
+                            <= b'f')
+                && (*(*parser).buffer.pointer.wrapping_offset(2)
+                    >= b'0'
+                    && *(*parser).buffer.pointer.wrapping_offset(2)
+                        <= b'9'
+                    || *(*parser).buffer.pointer.wrapping_offset(2)
+                        >= b'A'
+                        && *(*parser)
+                            .buffer
+                            .pointer
+                            .wrapping_offset(2)
+                            <= b'F'
+                    || *(*parser).buffer.pointer.wrapping_offset(2)
+                        >= b'a'
+                        && *(*parser)
+                            .buffer
+                            .pointer
+                            .wrapping_offset(2)
+                            <= b'f'))
             {
                 yaml_parser_set_scanner_error(
                     parser,
@@ -13222,7 +15651,8 @@ mod scanner {
                         b"while parsing a %TAG directive\0" as *const u8
                             as *const libc::c_char
                     } else {
-                        b"while parsing a tag\0" as *const u8 as *const libc::c_char
+                        b"while parsing a tag\0" as *const u8
+                            as *const libc::c_char
                     },
                     start_mark,
                     b"did not find URI escaped octet\0" as *const u8
@@ -13230,28 +15660,42 @@ mod scanner {
                 );
                 return FAIL;
             }
-            let octet: libc::c_uchar = (((if *(*parser).buffer.pointer.wrapping_offset(1)
-                >= b'A' && *(*parser).buffer.pointer.wrapping_offset(1) <= b'F'
+            let octet: libc::c_uchar = (((if *(*parser)
+                .buffer
+                .pointer
+                .wrapping_offset(1)
+                >= b'A'
+                && *(*parser).buffer.pointer.wrapping_offset(1) <= b'F'
             {
                 *(*parser).buffer.pointer.wrapping_offset(1) - b'A' + 10
-            } else if *(*parser).buffer.pointer.wrapping_offset(1) >= b'a'
+            } else if *(*parser).buffer.pointer.wrapping_offset(1)
+                >= b'a'
                 && *(*parser).buffer.pointer.wrapping_offset(1) <= b'f'
             {
                 *(*parser).buffer.pointer.wrapping_offset(1) - b'a' + 10
             } else {
                 *(*parser).buffer.pointer.wrapping_offset(1) - b'0'
-            } as libc::c_int) << 4)
-                + if *(*parser).buffer.pointer.wrapping_offset(2) >= b'A'
-                    && *(*parser).buffer.pointer.wrapping_offset(2) <= b'F'
+            }
+                as libc::c_int)
+                << 4)
+                + if *(*parser).buffer.pointer.wrapping_offset(2)
+                    >= b'A'
+                    && *(*parser).buffer.pointer.wrapping_offset(2)
+                        <= b'F'
                 {
-                    *(*parser).buffer.pointer.wrapping_offset(2) - b'A' + 10
-                } else if *(*parser).buffer.pointer.wrapping_offset(2) >= b'a'
-                    && *(*parser).buffer.pointer.wrapping_offset(2) <= b'f'
+                    *(*parser).buffer.pointer.wrapping_offset(2) - b'A'
+                        + 10
+                } else if *(*parser).buffer.pointer.wrapping_offset(2)
+                    >= b'a'
+                    && *(*parser).buffer.pointer.wrapping_offset(2)
+                        <= b'f'
                 {
-                    *(*parser).buffer.pointer.wrapping_offset(2) - b'a' + 10
+                    *(*parser).buffer.pointer.wrapping_offset(2) - b'a'
+                        + 10
                 } else {
                     *(*parser).buffer.pointer.wrapping_offset(2) - b'0'
-                } as libc::c_int) as libc::c_uchar;
+                } as libc::c_int)
+                as libc::c_uchar;
             if width == 0 {
                 width = if octet & 0x80 == 0 {
                     1
@@ -13268,13 +15712,16 @@ mod scanner {
                     yaml_parser_set_scanner_error(
                         parser,
                         if directive {
-                            b"while parsing a %TAG directive\0" as *const u8
+                            b"while parsing a %TAG directive\0"
+                                as *const u8
                                 as *const libc::c_char
                         } else {
-                            b"while parsing a tag\0" as *const u8 as *const libc::c_char
+                            b"while parsing a tag\0" as *const u8
+                                as *const libc::c_char
                         },
                         start_mark,
-                        b"found an incorrect leading UTF-8 octet\0" as *const u8
+                        b"found an incorrect leading UTF-8 octet\0"
+                            as *const u8
                             as *const libc::c_char,
                     );
                     return FAIL;
@@ -13286,10 +15733,12 @@ mod scanner {
                         b"while parsing a %TAG directive\0" as *const u8
                             as *const libc::c_char
                     } else {
-                        b"while parsing a tag\0" as *const u8 as *const libc::c_char
+                        b"while parsing a tag\0" as *const u8
+                            as *const libc::c_char
                     },
                     start_mark,
-                    b"found an incorrect trailing UTF-8 octet\0" as *const u8
+                    b"found an incorrect trailing UTF-8 octet\0"
+                        as *const u8
                         as *const libc::c_char,
                 );
                 return FAIL;
@@ -13326,12 +15775,13 @@ mod scanner {
         {
             string.start = yaml_malloc(16) as *mut yaml_char_t;
             if !string.start.is_null() {
-                let _ = memset(string.start as *mut libc::c_void, 0, 16);
+                let _ =
+                    memset(string.start as *mut libc::c_void, 0, 16);
             } else {
                 {
-                    ::core::panicking::panic_fmt(
-                        format_args!("Failed to allocate memory for string"),
-                    );
+                    ::core::panicking::panic_fmt(format_args!(
+                        "Failed to allocate memory for string"
+                    ));
                 };
             }
             string.pointer = string.start;
@@ -13341,38 +15791,58 @@ mod scanner {
         {
             leading_break.start = yaml_malloc(16) as *mut yaml_char_t;
             if !leading_break.start.is_null() {
-                let _ = memset(leading_break.start as *mut libc::c_void, 0, 16);
+                let _ = memset(
+                    leading_break.start as *mut libc::c_void,
+                    0,
+                    16,
+                );
             } else {
                 {
-                    ::core::panicking::panic_fmt(
-                        format_args!("Failed to allocate memory for string"),
-                    );
+                    ::core::panicking::panic_fmt(format_args!(
+                        "Failed to allocate memory for string"
+                    ));
                 };
             }
             leading_break.pointer = leading_break.start;
             leading_break.end = leading_break.start.wrapping_add(16);
-            let _ = memset(leading_break.start as *mut libc::c_void, 0, 16);
+            let _ =
+                memset(leading_break.start as *mut libc::c_void, 0, 16);
         };
         {
             trailing_breaks.start = yaml_malloc(16) as *mut yaml_char_t;
             if !trailing_breaks.start.is_null() {
-                let _ = memset(trailing_breaks.start as *mut libc::c_void, 0, 16);
+                let _ = memset(
+                    trailing_breaks.start as *mut libc::c_void,
+                    0,
+                    16,
+                );
             } else {
                 {
-                    ::core::panicking::panic_fmt(
-                        format_args!("Failed to allocate memory for string"),
-                    );
+                    ::core::panicking::panic_fmt(format_args!(
+                        "Failed to allocate memory for string"
+                    ));
                 };
             }
             trailing_breaks.pointer = trailing_breaks.start;
-            trailing_breaks.end = trailing_breaks.start.wrapping_add(16);
-            let _ = memset(trailing_breaks.start as *mut libc::c_void, 0, 16);
+            trailing_breaks.end =
+                trailing_breaks.start.wrapping_add(16);
+            let _ = memset(
+                trailing_breaks.start as *mut libc::c_void,
+                0,
+                16,
+            );
         };
         let start_mark: YamlMarkT = (*parser).mark;
         skip(parser);
         if cache(parser, 1_u64).ok {
-            if *(*parser).buffer.pointer == b'+' || *(*parser).buffer.pointer == b'-' {
-                chomping = if *(*parser).buffer.pointer == b'+' { 1 } else { -1 };
+            if *(*parser).buffer.pointer == b'+'
+                || *(*parser).buffer.pointer == b'-'
+            {
+                chomping = if *(*parser).buffer.pointer == b'+' {
+                    1
+                } else {
+                    -1
+                };
                 skip(parser);
                 if cache(parser, 1_u64).fail {
                     current_block = 14984465786483313892;
@@ -13390,7 +15860,8 @@ mod scanner {
                         );
                         current_block = 14984465786483313892;
                     } else {
-                        increment = (*(*parser).buffer.pointer - b'0') as libc::c_int;
+                        increment = (*(*parser).buffer.pointer - b'0')
+                            as libc::c_int;
                         skip(parser);
                         current_block = 11913429853522160501;
                     }
@@ -13406,12 +15877,14 @@ mod scanner {
                         b"while scanning a block scalar\0" as *const u8
                             as *const libc::c_char,
                         start_mark,
-                        b"found an indentation indicator equal to 0\0" as *const u8
+                        b"found an indentation indicator equal to 0\0"
+                            as *const u8
                             as *const libc::c_char,
                     );
                     current_block = 14984465786483313892;
                 } else {
-                    increment = (*(*parser).buffer.pointer - b'0') as libc::c_int;
+                    increment = (*(*parser).buffer.pointer - b'0')
+                        as libc::c_int;
                     skip(parser);
                     if cache(parser, 1_u64).fail {
                         current_block = 14984465786483313892;
@@ -13419,11 +15892,12 @@ mod scanner {
                         if *(*parser).buffer.pointer == b'+'
                             || *(*parser).buffer.pointer == b'-'
                         {
-                            chomping = if *(*parser).buffer.pointer == b'+' {
-                                1
-                            } else {
-                                -1
-                            };
+                            chomping =
+                                if *(*parser).buffer.pointer == b'+' {
+                                    1
+                                } else {
+                                    -1
+                                };
                             skip(parser);
                         }
                         current_block = 11913429853522160501;
@@ -13432,7 +15906,9 @@ mod scanner {
             } else {
                 current_block = 11913429853522160501;
             }
-            if current_block != 14984465786483313892 && cache(parser, 1_u64).ok {
+            if current_block != 14984465786483313892
+                && cache(parser, 1_u64).ok
+            {
                 loop {
                     if !(*(*parser).buffer.pointer.offset(0) == b' '
                         || *(*parser).buffer.pointer.offset(0) == b'\t')
@@ -13449,32 +15925,33 @@ mod scanner {
                 if current_block != 14984465786483313892 {
                     if *(*parser).buffer.pointer == b'#' {
                         loop {
-                            if *(*parser).buffer.pointer.offset(0) == b'\r'
-                                || *(*parser).buffer.pointer.offset(0) == b'\n'
-                                || *(*parser).buffer.pointer.offset(0) == b'\xC2'
-                                    && *(*parser)
-                                        .buffer
-                                        .pointer
-                                        .offset((0 + 1).try_into().unwrap()) == b'\x85'
-                                || *(*parser).buffer.pointer.offset(0) == b'\xE2'
-                                    && *(*parser)
-                                        .buffer
-                                        .pointer
-                                        .offset((0 + 1).try_into().unwrap()) == b'\x80'
-                                    && *(*parser)
-                                        .buffer
-                                        .pointer
-                                        .offset((0 + 2).try_into().unwrap()) == b'\xA8'
-                                || *(*parser).buffer.pointer.offset(0) == b'\xE2'
-                                    && *(*parser)
-                                        .buffer
-                                        .pointer
-                                        .offset((0 + 1).try_into().unwrap()) == b'\x80'
-                                    && *(*parser)
-                                        .buffer
-                                        .pointer
-                                        .offset((0 + 2).try_into().unwrap()) == b'\xA9'
-                                || *(*parser).buffer.pointer.offset(0) == b'\0'
+                            if *(*parser).buffer.pointer.offset(0)
+                                == b'\r'
+                                || *(*parser).buffer.pointer.offset(0)
+                                    == b'\n'
+                                || *(*parser).buffer.pointer.offset(0)
+                                    == b'\xC2'
+                                    && *(*parser).buffer.pointer.offset(
+                                        (0 + 1).try_into().unwrap(),
+                                    ) == b'\x85'
+                                || *(*parser).buffer.pointer.offset(0)
+                                    == b'\xE2'
+                                    && *(*parser).buffer.pointer.offset(
+                                        (0 + 1).try_into().unwrap(),
+                                    ) == b'\x80'
+                                    && *(*parser).buffer.pointer.offset(
+                                        (0 + 2).try_into().unwrap(),
+                                    ) == b'\xA8'
+                                || *(*parser).buffer.pointer.offset(0)
+                                    == b'\xE2'
+                                    && *(*parser).buffer.pointer.offset(
+                                        (0 + 1).try_into().unwrap(),
+                                    ) == b'\x80'
+                                    && *(*parser).buffer.pointer.offset(
+                                        (0 + 2).try_into().unwrap(),
+                                    ) == b'\xA9'
+                                || *(*parser).buffer.pointer.offset(0)
+                                    == b'\0'
                             {
                                 current_block = 12997042908615822766;
                                 break;
@@ -13489,32 +15966,33 @@ mod scanner {
                         current_block = 12997042908615822766;
                     }
                     if current_block != 14984465786483313892 {
-                        if !(*(*parser).buffer.pointer.offset(0) == b'\r'
-                            || *(*parser).buffer.pointer.offset(0) == b'\n'
-                            || *(*parser).buffer.pointer.offset(0) == b'\xC2'
-                                && *(*parser)
-                                    .buffer
-                                    .pointer
-                                    .offset((0 + 1).try_into().unwrap()) == b'\x85'
-                            || *(*parser).buffer.pointer.offset(0) == b'\xE2'
-                                && *(*parser)
-                                    .buffer
-                                    .pointer
-                                    .offset((0 + 1).try_into().unwrap()) == b'\x80'
-                                && *(*parser)
-                                    .buffer
-                                    .pointer
-                                    .offset((0 + 2).try_into().unwrap()) == b'\xA8'
-                            || *(*parser).buffer.pointer.offset(0) == b'\xE2'
-                                && *(*parser)
-                                    .buffer
-                                    .pointer
-                                    .offset((0 + 1).try_into().unwrap()) == b'\x80'
-                                && *(*parser)
-                                    .buffer
-                                    .pointer
-                                    .offset((0 + 2).try_into().unwrap()) == b'\xA9'
-                            || *(*parser).buffer.pointer.offset(0) == b'\0')
+                        if !(*(*parser).buffer.pointer.offset(0)
+                            == b'\r'
+                            || *(*parser).buffer.pointer.offset(0)
+                                == b'\n'
+                            || *(*parser).buffer.pointer.offset(0)
+                                == b'\xC2'
+                                && *(*parser).buffer.pointer.offset(
+                                    (0 + 1).try_into().unwrap(),
+                                ) == b'\x85'
+                            || *(*parser).buffer.pointer.offset(0)
+                                == b'\xE2'
+                                && *(*parser).buffer.pointer.offset(
+                                    (0 + 1).try_into().unwrap(),
+                                ) == b'\x80'
+                                && *(*parser).buffer.pointer.offset(
+                                    (0 + 2).try_into().unwrap(),
+                                ) == b'\xA8'
+                            || *(*parser).buffer.pointer.offset(0)
+                                == b'\xE2'
+                                && *(*parser).buffer.pointer.offset(
+                                    (0 + 1).try_into().unwrap(),
+                                ) == b'\x80'
+                                && *(*parser).buffer.pointer.offset(
+                                    (0 + 2).try_into().unwrap(),
+                                ) == b'\xA9'
+                            || *(*parser).buffer.pointer.offset(0)
+                                == b'\0')
                         {
                             yaml_parser_set_scanner_error(
                                 parser,
@@ -13525,37 +16003,39 @@ mod scanner {
                                     as *const u8 as *const libc::c_char,
                             );
                         } else {
-                            if *(*parser).buffer.pointer.offset(0) == b'\r'
-                                || *(*parser).buffer.pointer.offset(0) == b'\n'
-                                || *(*parser).buffer.pointer.offset(0) == b'\xC2'
-                                    && *(*parser)
-                                        .buffer
-                                        .pointer
-                                        .offset((0 + 1).try_into().unwrap()) == b'\x85'
-                                || *(*parser).buffer.pointer.offset(0) == b'\xE2'
-                                    && *(*parser)
-                                        .buffer
-                                        .pointer
-                                        .offset((0 + 1).try_into().unwrap()) == b'\x80'
-                                    && *(*parser)
-                                        .buffer
-                                        .pointer
-                                        .offset((0 + 2).try_into().unwrap()) == b'\xA8'
-                                || *(*parser).buffer.pointer.offset(0) == b'\xE2'
-                                    && *(*parser)
-                                        .buffer
-                                        .pointer
-                                        .offset((0 + 1).try_into().unwrap()) == b'\x80'
-                                    && *(*parser)
-                                        .buffer
-                                        .pointer
-                                        .offset((0 + 2).try_into().unwrap()) == b'\xA9'
+                            if *(*parser).buffer.pointer.offset(0)
+                                == b'\r'
+                                || *(*parser).buffer.pointer.offset(0)
+                                    == b'\n'
+                                || *(*parser).buffer.pointer.offset(0)
+                                    == b'\xC2'
+                                    && *(*parser).buffer.pointer.offset(
+                                        (0 + 1).try_into().unwrap(),
+                                    ) == b'\x85'
+                                || *(*parser).buffer.pointer.offset(0)
+                                    == b'\xE2'
+                                    && *(*parser).buffer.pointer.offset(
+                                        (0 + 1).try_into().unwrap(),
+                                    ) == b'\x80'
+                                    && *(*parser).buffer.pointer.offset(
+                                        (0 + 2).try_into().unwrap(),
+                                    ) == b'\xA8'
+                                || *(*parser).buffer.pointer.offset(0)
+                                    == b'\xE2'
+                                    && *(*parser).buffer.pointer.offset(
+                                        (0 + 1).try_into().unwrap(),
+                                    ) == b'\x80'
+                                    && *(*parser).buffer.pointer.offset(
+                                        (0 + 2).try_into().unwrap(),
+                                    ) == b'\xA9'
                             {
                                 if cache(parser, 2_u64).fail {
-                                    current_block = 14984465786483313892;
+                                    current_block =
+                                        14984465786483313892;
                                 } else {
                                     skip_line(parser);
-                                    current_block = 13619784596304402172;
+                                    current_block =
+                                        13619784596304402172;
                                 }
                             } else {
                                 current_block = 13619784596304402172;
@@ -13570,42 +16050,72 @@ mod scanner {
                                     };
                                 }
                                 if yaml_parser_scan_block_scalar_breaks(
-                                        parser,
-                                        &raw mut indent,
-                                        &raw mut trailing_breaks,
-                                        start_mark,
-                                        &raw mut end_mark,
-                                    )
-                                    .ok && cache(parser, 1_u64).ok
+                                    parser,
+                                    &raw mut indent,
+                                    &raw mut trailing_breaks,
+                                    start_mark,
+                                    &raw mut end_mark,
+                                )
+                                .ok && cache(parser, 1_u64).ok
                                 {
                                     's_281: loop {
-                                        if (*parser).mark.column as libc::c_int != indent
-                                            || *(*parser).buffer.pointer.offset(0) == b'\0'
+                                        if (*parser).mark.column
+                                            as libc::c_int
+                                            != indent
+                                            || *(*parser)
+                                                .buffer
+                                                .pointer
+                                                .offset(0)
+                                                == b'\0'
                                         {
-                                            current_block = 5793491756164225964;
+                                            current_block =
+                                                5793491756164225964;
                                             break;
                                         }
-                                        trailing_blank = (*(*parser).buffer.pointer.offset(0)
-                                            == b' ' || *(*parser).buffer.pointer.offset(0) == b'\t')
+                                        trailing_blank = (*(*parser)
+                                            .buffer
+                                            .pointer
+                                            .offset(0)
+                                            == b' '
+                                            || *(*parser)
+                                                .buffer
+                                                .pointer
+                                                .offset(0)
+                                                == b'\t')
                                             as libc::c_int;
-                                        if !literal && *leading_break.start == b'\n'
-                                            && leading_blank == 0 && trailing_blank == 0
+                                        if !literal
+                                            && *leading_break.start
+                                                == b'\n'
+                                            && leading_blank == 0
+                                            && trailing_blank == 0
                                         {
-                                            if *trailing_breaks.start == b'\0' {
-                                                let new_end = string.pointer.wrapping_add(5);
-                                                if new_end >= string.end {
+                                            if *trailing_breaks.start
+                                                == b'\0'
+                                            {
+                                                let new_end = string
+                                                    .pointer
+                                                    .wrapping_add(5);
+                                                if new_end >= string.end
+                                                {
                                                     yaml_string_extend(
-                                                        &raw mut string.start,
-                                                        &raw mut string.pointer,
-                                                        &raw mut string.end,
+                                                        &raw mut string
+                                                            .start,
+                                                        &raw mut string
+                                                            .pointer,
+                                                        &raw mut string
+                                                            .end,
                                                     );
                                                 }
-                                                let fresh418 = string.pointer;
-                                                string.pointer = string.pointer.wrapping_offset(1);
+                                                let fresh418 =
+                                                    string.pointer;
+                                                string.pointer = string
+                                                    .pointer
+                                                    .wrapping_offset(1);
                                                 *fresh418 = b' ';
                                             }
                                             {
-                                                leading_break.pointer = leading_break.start;
+                                                leading_break.pointer =
+                                                    leading_break.start;
                                                 let _ = memset(
                                                     leading_break.start as *mut libc::c_void,
                                                     0,
@@ -13615,13 +16125,22 @@ mod scanner {
                                             };
                                         } else {
                                             {
-                                                let a_len = string.pointer.offset_from(string.start)
+                                                let a_len = string
+                                                    .pointer
+                                                    .offset_from(
+                                                        string.start,
+                                                    )
                                                     as usize;
                                                 let b_len = leading_break
                                                     .pointer
                                                     .offset_from(leading_break.start) as usize;
-                                                if a_len.checked_add(b_len).is_some()
-                                                    && string.pointer.add(b_len) <= string.end
+                                                if a_len
+                                                    .checked_add(b_len)
+                                                    .is_some()
+                                                    && string
+                                                        .pointer
+                                                        .add(b_len)
+                                                        <= string.end
                                                 {
                                                     yaml_string_join(
                                                         &raw mut string.start,
@@ -13631,7 +16150,10 @@ mod scanner {
                                                         &raw mut leading_break.pointer,
                                                         &raw mut leading_break.end,
                                                     );
-                                                    leading_break.pointer = leading_break.start;
+                                                    leading_break
+                                                        .pointer =
+                                                        leading_break
+                                                            .start;
                                                 } else {
                                                     {
                                                         ::core::panicking::panic_fmt(
@@ -13641,7 +16163,8 @@ mod scanner {
                                                 }
                                             };
                                             {
-                                                leading_break.pointer = leading_break.start;
+                                                leading_break.pointer =
+                                                    leading_break.start;
                                                 let _ = memset(
                                                     leading_break.start as *mut libc::c_void,
                                                     0,
@@ -13651,13 +16174,26 @@ mod scanner {
                                             };
                                         }
                                         {
-                                            let a_len = string.pointer.offset_from(string.start)
+                                            let a_len = string
+                                                .pointer
+                                                .offset_from(
+                                                    string.start,
+                                                )
                                                 as usize;
                                             let b_len = trailing_breaks
                                                 .pointer
-                                                .offset_from(trailing_breaks.start) as usize;
-                                            if a_len.checked_add(b_len).is_some()
-                                                && string.pointer.add(b_len) <= string.end
+                                                .offset_from(
+                                                    trailing_breaks
+                                                        .start,
+                                                )
+                                                as usize;
+                                            if a_len
+                                                .checked_add(b_len)
+                                                .is_some()
+                                                && string
+                                                    .pointer
+                                                    .add(b_len)
+                                                    <= string.end
                                             {
                                                 yaml_string_join(
                                                     &raw mut string.start,
@@ -13667,7 +16203,10 @@ mod scanner {
                                                     &raw mut trailing_breaks.pointer,
                                                     &raw mut trailing_breaks.end,
                                                 );
-                                                trailing_breaks.pointer = trailing_breaks.start;
+                                                trailing_breaks
+                                                    .pointer =
+                                                    trailing_breaks
+                                                        .start;
                                             } else {
                                                 {
                                                     ::core::panicking::panic_fmt(
@@ -13677,7 +16216,8 @@ mod scanner {
                                             }
                                         };
                                         {
-                                            trailing_breaks.pointer = trailing_breaks.start;
+                                            trailing_breaks.pointer =
+                                                trailing_breaks.start;
                                             let _ = memset(
                                                 trailing_breaks.start as *mut libc::c_void,
                                                 0,
@@ -13685,47 +16225,112 @@ mod scanner {
                                                     as libc::c_ulong,
                                             );
                                         };
-                                        leading_blank = (*(*parser).buffer.pointer.offset(0) == b' '
-                                            || *(*parser).buffer.pointer.offset(0) == b'\t')
+                                        leading_blank = (*(*parser)
+                                            .buffer
+                                            .pointer
+                                            .offset(0)
+                                            == b' '
+                                            || *(*parser)
+                                                .buffer
+                                                .pointer
+                                                .offset(0)
+                                                == b'\t')
                                             as libc::c_int;
-                                        while !(*(*parser).buffer.pointer.offset(0) == b'\r'
-                                            || *(*parser).buffer.pointer.offset(0) == b'\n'
-                                            || *(*parser).buffer.pointer.offset(0) == b'\xC2'
+                                        while !(*(*parser)
+                                            .buffer
+                                            .pointer
+                                            .offset(0)
+                                            == b'\r'
+                                            || *(*parser)
+                                                .buffer
+                                                .pointer
+                                                .offset(0)
+                                                == b'\n'
+                                            || *(*parser)
+                                                .buffer
+                                                .pointer
+                                                .offset(0)
+                                                == b'\xC2'
                                                 && *(*parser)
                                                     .buffer
                                                     .pointer
-                                                    .offset((0 + 1).try_into().unwrap()) == b'\x85'
-                                            || *(*parser).buffer.pointer.offset(0) == b'\xE2'
+                                                    .offset(
+                                                        (0 + 1)
+                                                            .try_into()
+                                                            .unwrap(),
+                                                    )
+                                                    == b'\x85'
+                                            || *(*parser)
+                                                .buffer
+                                                .pointer
+                                                .offset(0)
+                                                == b'\xE2'
                                                 && *(*parser)
                                                     .buffer
                                                     .pointer
-                                                    .offset((0 + 1).try_into().unwrap()) == b'\x80'
+                                                    .offset(
+                                                        (0 + 1)
+                                                            .try_into()
+                                                            .unwrap(),
+                                                    )
+                                                    == b'\x80'
                                                 && *(*parser)
                                                     .buffer
                                                     .pointer
-                                                    .offset((0 + 2).try_into().unwrap()) == b'\xA8'
-                                            || *(*parser).buffer.pointer.offset(0) == b'\xE2'
+                                                    .offset(
+                                                        (0 + 2)
+                                                            .try_into()
+                                                            .unwrap(),
+                                                    )
+                                                    == b'\xA8'
+                                            || *(*parser)
+                                                .buffer
+                                                .pointer
+                                                .offset(0)
+                                                == b'\xE2'
                                                 && *(*parser)
                                                     .buffer
                                                     .pointer
-                                                    .offset((0 + 1).try_into().unwrap()) == b'\x80'
+                                                    .offset(
+                                                        (0 + 1)
+                                                            .try_into()
+                                                            .unwrap(),
+                                                    )
+                                                    == b'\x80'
                                                 && *(*parser)
                                                     .buffer
                                                     .pointer
-                                                    .offset((0 + 2).try_into().unwrap()) == b'\xA9'
-                                            || *(*parser).buffer.pointer.offset(0) == b'\0')
+                                                    .offset(
+                                                        (0 + 2)
+                                                            .try_into()
+                                                            .unwrap(),
+                                                    )
+                                                    == b'\xA9'
+                                            || *(*parser)
+                                                .buffer
+                                                .pointer
+                                                .offset(0)
+                                                == b'\0')
                                         {
-                                            read(parser, &raw mut string);
-                                            if cache(parser, 1_u64).fail {
+                                            read(
+                                                parser,
+                                                &raw mut string,
+                                            );
+                                            if cache(parser, 1_u64).fail
+                                            {
                                                 current_block = 14984465786483313892;
                                                 break 's_281;
                                             }
                                         }
                                         if cache(parser, 2_u64).fail {
-                                            current_block = 14984465786483313892;
+                                            current_block =
+                                                14984465786483313892;
                                             break;
                                         }
-                                        read_line(parser, &raw mut leading_break);
+                                        read_line(
+                                            parser,
+                                            &raw mut leading_break,
+                                        );
                                         if yaml_parser_scan_block_scalar_breaks(
                                                 parser,
                                                 &raw mut indent,
@@ -13739,16 +16344,27 @@ mod scanner {
                                             break;
                                         }
                                     }
-                                    if current_block != 14984465786483313892 {
+                                    if current_block
+                                        != 14984465786483313892
+                                    {
                                         if chomping != -1 {
                                             {
-                                                let a_len = string.pointer.offset_from(string.start)
+                                                let a_len = string
+                                                    .pointer
+                                                    .offset_from(
+                                                        string.start,
+                                                    )
                                                     as usize;
                                                 let b_len = leading_break
                                                     .pointer
                                                     .offset_from(leading_break.start) as usize;
-                                                if a_len.checked_add(b_len).is_some()
-                                                    && string.pointer.add(b_len) <= string.end
+                                                if a_len
+                                                    .checked_add(b_len)
+                                                    .is_some()
+                                                    && string
+                                                        .pointer
+                                                        .add(b_len)
+                                                        <= string.end
                                                 {
                                                     yaml_string_join(
                                                         &raw mut string.start,
@@ -13758,7 +16374,10 @@ mod scanner {
                                                         &raw mut leading_break.pointer,
                                                         &raw mut leading_break.end,
                                                     );
-                                                    leading_break.pointer = leading_break.start;
+                                                    leading_break
+                                                        .pointer =
+                                                        leading_break
+                                                            .start;
                                                 } else {
                                                     {
                                                         ::core::panicking::panic_fmt(
@@ -13767,20 +16386,37 @@ mod scanner {
                                                     };
                                                 }
                                             };
-                                            current_block = 17787701279558130514;
+                                            current_block =
+                                                17787701279558130514;
                                         } else {
-                                            current_block = 17787701279558130514;
+                                            current_block =
+                                                17787701279558130514;
                                         }
-                                        if current_block != 14984465786483313892 {
+                                        if current_block
+                                            != 14984465786483313892
+                                        {
                                             if chomping == 1 {
                                                 {
-                                                    let a_len = string.pointer.offset_from(string.start)
+                                                    let a_len = string
+                                                        .pointer
+                                                        .offset_from(
+                                                            string
+                                                                .start,
+                                                        )
                                                         as usize;
                                                     let b_len = trailing_breaks
                                                         .pointer
                                                         .offset_from(trailing_breaks.start) as usize;
-                                                    if a_len.checked_add(b_len).is_some()
-                                                        && string.pointer.add(b_len) <= string.end
+                                                    if a_len
+                                                        .checked_add(
+                                                            b_len,
+                                                        )
+                                                        .is_some()
+                                                        && string
+                                                            .pointer
+                                                            .add(b_len)
+                                                            <= string
+                                                                .end
                                                     {
                                                         yaml_string_join(
                                                             &raw mut string.start,
@@ -13805,30 +16441,61 @@ mod scanner {
                                                 0,
                                                 size_of::<YamlTokenT>() as libc::c_ulong,
                                             );
-                                            (*token).type_ = YamlScalarToken;
-                                            (*token).start_mark = start_mark;
-                                            (*token).end_mark = end_mark;
-                                            let fresh479 = &raw mut (*token).data.scalar.value;
+                                            (*token).type_ =
+                                                YamlScalarToken;
+                                            (*token).start_mark =
+                                                start_mark;
+                                            (*token).end_mark =
+                                                end_mark;
+                                            let fresh479 =
+                                                &raw mut (*token)
+                                                    .data
+                                                    .scalar
+                                                    .value;
                                             *fresh479 = string.start;
-                                            (*token).data.scalar.length = string
+                                            (*token)
+                                                .data
+                                                .scalar
+                                                .length = string
                                                 .pointer
-                                                .c_offset_from(string.start) as size_t;
-                                            (*token).data.scalar.style = if literal {
+                                                .c_offset_from(
+                                                    string.start,
+                                                )
+                                                as size_t;
+                                            (*token)
+                                                .data
+                                                .scalar
+                                                .style = if literal {
                                                 YamlLiteralScalarStyle
                                             } else {
                                                 YamlFoldedScalarStyle
                                             };
                                             {
                                                 yaml_free(leading_break.start as *mut libc::c_void);
-                                                leading_break.end = ptr::null_mut::<yaml_char_t>();
-                                                leading_break.pointer = leading_break.end;
-                                                leading_break.start = leading_break.pointer;
+                                                leading_break.end =
+                                                    ptr::null_mut::<
+                                                        yaml_char_t,
+                                                    >(
+                                                    );
+                                                leading_break.pointer =
+                                                    leading_break.end;
+                                                leading_break.start =
+                                                    leading_break
+                                                        .pointer;
                                             };
                                             {
                                                 yaml_free(trailing_breaks.start as *mut libc::c_void);
-                                                trailing_breaks.end = ptr::null_mut::<yaml_char_t>();
-                                                trailing_breaks.pointer = trailing_breaks.end;
-                                                trailing_breaks.start = trailing_breaks.pointer;
+                                                trailing_breaks.end =
+                                                    ptr::null_mut::<
+                                                        yaml_char_t,
+                                                    >(
+                                                    );
+                                                trailing_breaks
+                                                    .pointer =
+                                                    trailing_breaks.end;
+                                                trailing_breaks.start =
+                                                    trailing_breaks
+                                                        .pointer;
                                             };
                                             return OK;
                                         }
@@ -13873,7 +16540,8 @@ mod scanner {
             if cache(parser, 1_u64).fail {
                 return FAIL;
             }
-            while (*indent == 0 || ((*parser).mark.column as libc::c_int) < *indent)
+            while (*indent == 0
+                || ((*parser).mark.column as libc::c_int) < *indent)
                 && *(*parser).buffer.pointer.offset(0) == b' '
             {
                 skip(parser);
@@ -13884,7 +16552,8 @@ mod scanner {
             if (*parser).mark.column as libc::c_int > max_indent {
                 max_indent = (*parser).mark.column as libc::c_int;
             }
-            if (*indent == 0 || ((*parser).mark.column as libc::c_int) < *indent)
+            if (*indent == 0
+                || ((*parser).mark.column as libc::c_int) < *indent)
                 && *(*parser).buffer.pointer.offset(0) == b'\t'
             {
                 yaml_parser_set_scanner_error(
@@ -13900,17 +16569,32 @@ mod scanner {
             if !(*(*parser).buffer.pointer.offset(0) == b'\r'
                 || *(*parser).buffer.pointer.offset(0) == b'\n'
                 || *(*parser).buffer.pointer.offset(0) == b'\xC2'
-                    && *(*parser).buffer.pointer.offset((0 + 1).try_into().unwrap())
+                    && *(*parser)
+                        .buffer
+                        .pointer
+                        .offset((0 + 1).try_into().unwrap())
                         == b'\x85'
                 || *(*parser).buffer.pointer.offset(0) == b'\xE2'
-                    && *(*parser).buffer.pointer.offset((0 + 1).try_into().unwrap())
+                    && *(*parser)
+                        .buffer
+                        .pointer
+                        .offset((0 + 1).try_into().unwrap())
                         == b'\x80'
-                    && *(*parser).buffer.pointer.offset((0 + 2).try_into().unwrap())
+                    && *(*parser)
+                        .buffer
+                        .pointer
+                        .offset((0 + 2).try_into().unwrap())
                         == b'\xA8'
                 || *(*parser).buffer.pointer.offset(0) == b'\xE2'
-                    && *(*parser).buffer.pointer.offset((0 + 1).try_into().unwrap())
+                    && *(*parser)
+                        .buffer
+                        .pointer
+                        .offset((0 + 1).try_into().unwrap())
                         == b'\x80'
-                    && *(*parser).buffer.pointer.offset((0 + 2).try_into().unwrap())
+                    && *(*parser)
+                        .buffer
+                        .pointer
+                        .offset((0 + 2).try_into().unwrap())
                         == b'\xA9')
             {
                 break;
@@ -13947,12 +16631,13 @@ mod scanner {
         {
             string.start = yaml_malloc(16) as *mut yaml_char_t;
             if !string.start.is_null() {
-                let _ = memset(string.start as *mut libc::c_void, 0, 16);
+                let _ =
+                    memset(string.start as *mut libc::c_void, 0, 16);
             } else {
                 {
-                    ::core::panicking::panic_fmt(
-                        format_args!("Failed to allocate memory for string"),
-                    );
+                    ::core::panicking::panic_fmt(format_args!(
+                        "Failed to allocate memory for string"
+                    ));
                 };
             }
             string.pointer = string.start;
@@ -13962,47 +16647,66 @@ mod scanner {
         {
             leading_break.start = yaml_malloc(16) as *mut yaml_char_t;
             if !leading_break.start.is_null() {
-                let _ = memset(leading_break.start as *mut libc::c_void, 0, 16);
+                let _ = memset(
+                    leading_break.start as *mut libc::c_void,
+                    0,
+                    16,
+                );
             } else {
                 {
-                    ::core::panicking::panic_fmt(
-                        format_args!("Failed to allocate memory for string"),
-                    );
+                    ::core::panicking::panic_fmt(format_args!(
+                        "Failed to allocate memory for string"
+                    ));
                 };
             }
             leading_break.pointer = leading_break.start;
             leading_break.end = leading_break.start.wrapping_add(16);
-            let _ = memset(leading_break.start as *mut libc::c_void, 0, 16);
+            let _ =
+                memset(leading_break.start as *mut libc::c_void, 0, 16);
         };
         {
             trailing_breaks.start = yaml_malloc(16) as *mut yaml_char_t;
             if !trailing_breaks.start.is_null() {
-                let _ = memset(trailing_breaks.start as *mut libc::c_void, 0, 16);
+                let _ = memset(
+                    trailing_breaks.start as *mut libc::c_void,
+                    0,
+                    16,
+                );
             } else {
                 {
-                    ::core::panicking::panic_fmt(
-                        format_args!("Failed to allocate memory for string"),
-                    );
+                    ::core::panicking::panic_fmt(format_args!(
+                        "Failed to allocate memory for string"
+                    ));
                 };
             }
             trailing_breaks.pointer = trailing_breaks.start;
-            trailing_breaks.end = trailing_breaks.start.wrapping_add(16);
-            let _ = memset(trailing_breaks.start as *mut libc::c_void, 0, 16);
+            trailing_breaks.end =
+                trailing_breaks.start.wrapping_add(16);
+            let _ = memset(
+                trailing_breaks.start as *mut libc::c_void,
+                0,
+                16,
+            );
         };
         {
             whitespaces.start = yaml_malloc(16) as *mut yaml_char_t;
             if !whitespaces.start.is_null() {
-                let _ = memset(whitespaces.start as *mut libc::c_void, 0, 16);
+                let _ = memset(
+                    whitespaces.start as *mut libc::c_void,
+                    0,
+                    16,
+                );
             } else {
                 {
-                    ::core::panicking::panic_fmt(
-                        format_args!("Failed to allocate memory for string"),
-                    );
+                    ::core::panicking::panic_fmt(format_args!(
+                        "Failed to allocate memory for string"
+                    ));
                 };
             }
             whitespaces.pointer = whitespaces.start;
             whitespaces.end = whitespaces.start.wrapping_add(16);
-            let _ = memset(whitespaces.start as *mut libc::c_void, 0, 16);
+            let _ =
+                memset(whitespaces.start as *mut libc::c_void, 0, 16);
         };
         let start_mark: YamlMarkT = (*parser).mark;
         skip(parser);
@@ -14021,38 +16725,49 @@ mod scanner {
                 && (*(*parser).buffer.pointer.offset(3) == b' '
                     || *(*parser).buffer.pointer.offset(3) == b'\t'
                     || (*(*parser).buffer.pointer.offset(3) == b'\r'
-                        || *(*parser).buffer.pointer.offset(3) == b'\n'
-                        || *(*parser).buffer.pointer.offset(3) == b'\xC2'
+                        || *(*parser).buffer.pointer.offset(3)
+                            == b'\n'
+                        || *(*parser).buffer.pointer.offset(3)
+                            == b'\xC2'
                             && *(*parser)
                                 .buffer
                                 .pointer
-                                .offset((3 + 1).try_into().unwrap()) == b'\x85'
-                        || *(*parser).buffer.pointer.offset(3) == b'\xE2'
+                                .offset((3 + 1).try_into().unwrap())
+                                == b'\x85'
+                        || *(*parser).buffer.pointer.offset(3)
+                            == b'\xE2'
                             && *(*parser)
                                 .buffer
                                 .pointer
-                                .offset((3 + 1).try_into().unwrap()) == b'\x80'
+                                .offset((3 + 1).try_into().unwrap())
+                                == b'\x80'
                             && *(*parser)
                                 .buffer
                                 .pointer
-                                .offset((3 + 2).try_into().unwrap()) == b'\xA8'
-                        || *(*parser).buffer.pointer.offset(3) == b'\xE2'
+                                .offset((3 + 2).try_into().unwrap())
+                                == b'\xA8'
+                        || *(*parser).buffer.pointer.offset(3)
+                            == b'\xE2'
                             && *(*parser)
                                 .buffer
                                 .pointer
-                                .offset((3 + 1).try_into().unwrap()) == b'\x80'
+                                .offset((3 + 1).try_into().unwrap())
+                                == b'\x80'
                             && *(*parser)
                                 .buffer
                                 .pointer
-                                .offset((3 + 2).try_into().unwrap()) == b'\xA9'
-                        || *(*parser).buffer.pointer.offset(3) == b'\0'))
+                                .offset((3 + 2).try_into().unwrap())
+                                == b'\xA9'
+                        || *(*parser).buffer.pointer.offset(3)
+                            == b'\0'))
             {
                 yaml_parser_set_scanner_error(
                     parser,
                     b"while scanning a quoted scalar\0" as *const u8
                         as *const libc::c_char,
                     start_mark,
-                    b"found unexpected document indicator\0" as *const u8
+                    b"found unexpected document indicator\0"
+                        as *const u8
                         as *const libc::c_char,
                 );
                 current_block = 8114179180390253173;
@@ -14077,33 +16792,44 @@ mod scanner {
                 while !(*(*parser).buffer.pointer.offset(0) == b' '
                     || *(*parser).buffer.pointer.offset(0) == b'\t'
                     || (*(*parser).buffer.pointer.offset(0) == b'\r'
-                        || *(*parser).buffer.pointer.offset(0) == b'\n'
-                        || *(*parser).buffer.pointer.offset(0) == b'\xC2'
+                        || *(*parser).buffer.pointer.offset(0)
+                            == b'\n'
+                        || *(*parser).buffer.pointer.offset(0)
+                            == b'\xC2'
                             && *(*parser)
                                 .buffer
                                 .pointer
-                                .offset((0 + 1).try_into().unwrap()) == b'\x85'
-                        || *(*parser).buffer.pointer.offset(0) == b'\xE2'
+                                .offset((0 + 1).try_into().unwrap())
+                                == b'\x85'
+                        || *(*parser).buffer.pointer.offset(0)
+                            == b'\xE2'
                             && *(*parser)
                                 .buffer
                                 .pointer
-                                .offset((0 + 1).try_into().unwrap()) == b'\x80'
+                                .offset((0 + 1).try_into().unwrap())
+                                == b'\x80'
                             && *(*parser)
                                 .buffer
                                 .pointer
-                                .offset((0 + 2).try_into().unwrap()) == b'\xA8'
-                        || *(*parser).buffer.pointer.offset(0) == b'\xE2'
+                                .offset((0 + 2).try_into().unwrap())
+                                == b'\xA8'
+                        || *(*parser).buffer.pointer.offset(0)
+                            == b'\xE2'
                             && *(*parser)
                                 .buffer
                                 .pointer
-                                .offset((0 + 1).try_into().unwrap()) == b'\x80'
+                                .offset((0 + 1).try_into().unwrap())
+                                == b'\x80'
                             && *(*parser)
                                 .buffer
                                 .pointer
-                                .offset((0 + 2).try_into().unwrap()) == b'\xA9'
-                        || *(*parser).buffer.pointer.offset(0) == b'\0'))
+                                .offset((0 + 2).try_into().unwrap())
+                                == b'\xA9'
+                        || *(*parser).buffer.pointer.offset(0)
+                            == b'\0'))
                 {
-                    if single && *(*parser).buffer.pointer.offset(0) == b'\''
+                    if single
+                        && *(*parser).buffer.pointer.offset(0) == b'\''
                         && *(*parser).buffer.pointer.offset(1) == b'\''
                     {
                         let new_end = string.pointer.wrapping_add(5);
@@ -14115,41 +16841,64 @@ mod scanner {
                             );
                         }
                         let fresh521 = string.pointer;
-                        string.pointer = string.pointer.wrapping_offset(1);
+                        string.pointer =
+                            string.pointer.wrapping_offset(1);
                         *fresh521 = b'\'';
                         skip(parser);
                         skip(parser);
                     } else {
-                        if *(*parser).buffer.pointer == if single { b'\'' } else { b'"' }
+                        if *(*parser).buffer.pointer
+                            == if single { b'\'' } else { b'"' }
                         {
                             break;
                         }
-                        if !single && *(*parser).buffer.pointer == b'\\'
-                            && (*(*parser).buffer.pointer.offset(1) == b'\r'
-                                || *(*parser).buffer.pointer.offset(1) == b'\n'
-                                || *(*parser).buffer.pointer.offset(1) == b'\xC2'
+                        if !single
+                            && *(*parser).buffer.pointer == b'\\'
+                            && (*(*parser).buffer.pointer.offset(1)
+                                == b'\r'
+                                || *(*parser).buffer.pointer.offset(1)
+                                    == b'\n'
+                                || *(*parser).buffer.pointer.offset(1)
+                                    == b'\xC2'
                                     && *(*parser)
                                         .buffer
                                         .pointer
-                                        .offset((1 + 1).try_into().unwrap()) == b'\x85'
-                                || *(*parser).buffer.pointer.offset(1) == b'\xE2'
+                                        .offset(
+                                            (1 + 1).try_into().unwrap(),
+                                        )
+                                        == b'\x85'
+                                || *(*parser).buffer.pointer.offset(1)
+                                    == b'\xE2'
                                     && *(*parser)
                                         .buffer
                                         .pointer
-                                        .offset((1 + 1).try_into().unwrap()) == b'\x80'
+                                        .offset(
+                                            (1 + 1).try_into().unwrap(),
+                                        )
+                                        == b'\x80'
                                     && *(*parser)
                                         .buffer
                                         .pointer
-                                        .offset((1 + 2).try_into().unwrap()) == b'\xA8'
-                                || *(*parser).buffer.pointer.offset(1) == b'\xE2'
+                                        .offset(
+                                            (1 + 2).try_into().unwrap(),
+                                        )
+                                        == b'\xA8'
+                                || *(*parser).buffer.pointer.offset(1)
+                                    == b'\xE2'
                                     && *(*parser)
                                         .buffer
                                         .pointer
-                                        .offset((1 + 1).try_into().unwrap()) == b'\x80'
+                                        .offset(
+                                            (1 + 1).try_into().unwrap(),
+                                        )
+                                        == b'\x80'
                                     && *(*parser)
                                         .buffer
                                         .pointer
-                                        .offset((1 + 2).try_into().unwrap()) == b'\xA9')
+                                        .offset(
+                                            (1 + 2).try_into().unwrap(),
+                                        )
+                                        == b'\xA9')
                         {
                             if cache(parser, 3_u64).fail {
                                 current_block = 8114179180390253173;
@@ -14159,9 +16908,12 @@ mod scanner {
                             skip_line(parser);
                             leading_blanks = true;
                             break;
-                        } else if !single && *(*parser).buffer.pointer == b'\\' {
+                        } else if !single
+                            && *(*parser).buffer.pointer == b'\\'
+                        {
                             let mut code_length: size_t = 0_u64;
-                            let new_end = string.pointer.wrapping_add(5);
+                            let new_end =
+                                string.pointer.wrapping_add(5);
                             if new_end >= string.end {
                                 yaml_string_extend(
                                     &raw mut string.start,
@@ -14169,108 +16921,158 @@ mod scanner {
                                     &raw mut string.end,
                                 );
                             }
-                            match *(*parser).buffer.pointer.wrapping_offset(1_isize) {
+                            match *(*parser)
+                                .buffer
+                                .pointer
+                                .wrapping_offset(1_isize)
+                            {
                                 b'0' => {
                                     let fresh542 = string.pointer;
-                                    string.pointer = string.pointer.wrapping_offset(1);
+                                    string.pointer = string
+                                        .pointer
+                                        .wrapping_offset(1);
                                     *fresh542 = b'\0';
                                 }
                                 b'a' => {
                                     let fresh543 = string.pointer;
-                                    string.pointer = string.pointer.wrapping_offset(1);
+                                    string.pointer = string
+                                        .pointer
+                                        .wrapping_offset(1);
                                     *fresh543 = b'\x07';
                                 }
                                 b'b' => {
                                     let fresh544 = string.pointer;
-                                    string.pointer = string.pointer.wrapping_offset(1);
+                                    string.pointer = string
+                                        .pointer
+                                        .wrapping_offset(1);
                                     *fresh544 = b'\x08';
                                 }
                                 b't' | b'\t' => {
                                     let fresh545 = string.pointer;
-                                    string.pointer = string.pointer.wrapping_offset(1);
+                                    string.pointer = string
+                                        .pointer
+                                        .wrapping_offset(1);
                                     *fresh545 = b'\t';
                                 }
                                 b'n' => {
                                     let fresh546 = string.pointer;
-                                    string.pointer = string.pointer.wrapping_offset(1);
+                                    string.pointer = string
+                                        .pointer
+                                        .wrapping_offset(1);
                                     *fresh546 = b'\n';
                                 }
                                 b'v' => {
                                     let fresh547 = string.pointer;
-                                    string.pointer = string.pointer.wrapping_offset(1);
+                                    string.pointer = string
+                                        .pointer
+                                        .wrapping_offset(1);
                                     *fresh547 = b'\x0B';
                                 }
                                 b'f' => {
                                     let fresh548 = string.pointer;
-                                    string.pointer = string.pointer.wrapping_offset(1);
+                                    string.pointer = string
+                                        .pointer
+                                        .wrapping_offset(1);
                                     *fresh548 = b'\x0C';
                                 }
                                 b'r' => {
                                     let fresh549 = string.pointer;
-                                    string.pointer = string.pointer.wrapping_offset(1);
+                                    string.pointer = string
+                                        .pointer
+                                        .wrapping_offset(1);
                                     *fresh549 = b'\r';
                                 }
                                 b'e' => {
                                     let fresh550 = string.pointer;
-                                    string.pointer = string.pointer.wrapping_offset(1);
+                                    string.pointer = string
+                                        .pointer
+                                        .wrapping_offset(1);
                                     *fresh550 = b'\x1B';
                                 }
                                 b' ' => {
                                     let fresh551 = string.pointer;
-                                    string.pointer = string.pointer.wrapping_offset(1);
+                                    string.pointer = string
+                                        .pointer
+                                        .wrapping_offset(1);
                                     *fresh551 = b' ';
                                 }
                                 b'"' => {
                                     let fresh552 = string.pointer;
-                                    string.pointer = string.pointer.wrapping_offset(1);
+                                    string.pointer = string
+                                        .pointer
+                                        .wrapping_offset(1);
                                     *fresh552 = b'"';
                                 }
                                 b'/' => {
                                     let fresh553 = string.pointer;
-                                    string.pointer = string.pointer.wrapping_offset(1);
+                                    string.pointer = string
+                                        .pointer
+                                        .wrapping_offset(1);
                                     *fresh553 = b'/';
                                 }
                                 b'\\' => {
                                     let fresh554 = string.pointer;
-                                    string.pointer = string.pointer.wrapping_offset(1);
+                                    string.pointer = string
+                                        .pointer
+                                        .wrapping_offset(1);
                                     *fresh554 = b'\\';
                                 }
                                 b'N' => {
                                     let fresh555 = string.pointer;
-                                    string.pointer = string.pointer.wrapping_offset(1);
+                                    string.pointer = string
+                                        .pointer
+                                        .wrapping_offset(1);
                                     *fresh555 = b'\xC2';
                                     let fresh556 = string.pointer;
-                                    string.pointer = string.pointer.wrapping_offset(1);
+                                    string.pointer = string
+                                        .pointer
+                                        .wrapping_offset(1);
                                     *fresh556 = b'\x85';
                                 }
                                 b'_' => {
                                     let fresh557 = string.pointer;
-                                    string.pointer = string.pointer.wrapping_offset(1);
+                                    string.pointer = string
+                                        .pointer
+                                        .wrapping_offset(1);
                                     *fresh557 = b'\xC2';
                                     let fresh558 = string.pointer;
-                                    string.pointer = string.pointer.wrapping_offset(1);
+                                    string.pointer = string
+                                        .pointer
+                                        .wrapping_offset(1);
                                     *fresh558 = b'\xA0';
                                 }
                                 b'L' => {
                                     let fresh559 = string.pointer;
-                                    string.pointer = string.pointer.wrapping_offset(1);
+                                    string.pointer = string
+                                        .pointer
+                                        .wrapping_offset(1);
                                     *fresh559 = b'\xE2';
                                     let fresh560 = string.pointer;
-                                    string.pointer = string.pointer.wrapping_offset(1);
+                                    string.pointer = string
+                                        .pointer
+                                        .wrapping_offset(1);
                                     *fresh560 = b'\x80';
                                     let fresh561 = string.pointer;
-                                    string.pointer = string.pointer.wrapping_offset(1);
+                                    string.pointer = string
+                                        .pointer
+                                        .wrapping_offset(1);
                                     *fresh561 = b'\xA8';
                                 }
                                 b'P' => {
                                     let fresh562 = string.pointer;
-                                    string.pointer = string.pointer.wrapping_offset(1);
+                                    string.pointer = string
+                                        .pointer
+                                        .wrapping_offset(1);
                                     *fresh562 = b'\xE2';
                                     let fresh563 = string.pointer;
-                                    string.pointer = string.pointer.wrapping_offset(1);
+                                    string.pointer = string
+                                        .pointer
+                                        .wrapping_offset(1);
                                     *fresh563 = b'\x80';
                                     let fresh564 = string.pointer;
-                                    string.pointer = string.pointer.wrapping_offset(1);
+                                    string.pointer = string
+                                        .pointer
+                                        .wrapping_offset(1);
                                     *fresh564 = b'\xA9';
                                 }
                                 b'x' => {
@@ -14306,17 +17108,45 @@ mod scanner {
                                 }
                                 k = 0_u64;
                                 while k < code_length {
-                                    if !(*(*parser).buffer.pointer.wrapping_offset(k as isize)
+                                    if !(*(*parser)
+                                        .buffer
+                                        .pointer
+                                        .wrapping_offset(k as isize)
                                         >= b'0'
-                                        && *(*parser).buffer.pointer.wrapping_offset(k as isize)
+                                        && *(*parser)
+                                            .buffer
+                                            .pointer
+                                            .wrapping_offset(
+                                                k as isize,
+                                            )
                                             <= b'9'
-                                        || *(*parser).buffer.pointer.wrapping_offset(k as isize)
+                                        || *(*parser)
+                                            .buffer
+                                            .pointer
+                                            .wrapping_offset(
+                                                k as isize,
+                                            )
                                             >= b'A'
-                                            && *(*parser).buffer.pointer.wrapping_offset(k as isize)
+                                            && *(*parser)
+                                                .buffer
+                                                .pointer
+                                                .wrapping_offset(
+                                                    k as isize,
+                                                )
                                                 <= b'F'
-                                        || *(*parser).buffer.pointer.wrapping_offset(k as isize)
+                                        || *(*parser)
+                                            .buffer
+                                            .pointer
+                                            .wrapping_offset(
+                                                k as isize,
+                                            )
                                             >= b'a'
-                                            && *(*parser).buffer.pointer.wrapping_offset(k as isize)
+                                            && *(*parser)
+                                                .buffer
+                                                .pointer
+                                                .wrapping_offset(
+                                                    k as isize,
+                                                )
                                                 <= b'f')
                                     {
                                         yaml_parser_set_scanner_error(
@@ -14327,35 +17157,75 @@ mod scanner {
                                             b"did not find expected hexadecimal number\0" as *const u8
                                                 as *const libc::c_char,
                                         );
-                                        current_block = 8114179180390253173;
+                                        current_block =
+                                            8114179180390253173;
                                         break 's_58;
                                     } else {
-                                        value = (value << 4)
-                                            .force_add(
-                                                if *(*parser).buffer.pointer.wrapping_offset(k as isize)
-                                                    >= b'A'
-                                                    && *(*parser).buffer.pointer.wrapping_offset(k as isize)
-                                                        <= b'F'
-                                                {
-                                                    *(*parser).buffer.pointer.wrapping_offset(k as isize) - b'A'
-                                                        + 10
-                                                } else if *(*parser)
+                                        value =
+                                            (value << 4)
+                                                .force_add(if *(*parser)
+                                                .buffer
+                                                .pointer
+                                                .wrapping_offset(
+                                                    k as isize,
+                                                )
+                                                >= b'A'
+                                                && *(*parser)
                                                     .buffer
                                                     .pointer
-                                                    .wrapping_offset(k as isize) >= b'a'
-                                                    && *(*parser).buffer.pointer.wrapping_offset(k as isize)
-                                                        <= b'f'
-                                                {
-                                                    *(*parser).buffer.pointer.wrapping_offset(k as isize) - b'a'
-                                                        + 10
-                                                } else {
-                                                    *(*parser).buffer.pointer.wrapping_offset(k as isize) - b'0'
-                                                } as libc::c_int as libc::c_uint,
-                                            );
+                                                    .wrapping_offset(
+                                                        k as isize,
+                                                    )
+                                                    <= b'F'
+                                            {
+                                                *(*parser)
+                                                    .buffer
+                                                    .pointer
+                                                    .wrapping_offset(
+                                                        k as isize,
+                                                    )
+                                                    - b'A'
+                                                    + 10
+                                            } else if *(*parser)
+                                                .buffer
+                                                .pointer
+                                                .wrapping_offset(
+                                                    k as isize,
+                                                )
+                                                >= b'a'
+                                                && *(*parser)
+                                                    .buffer
+                                                    .pointer
+                                                    .wrapping_offset(
+                                                        k as isize,
+                                                    )
+                                                    <= b'f'
+                                            {
+                                                *(*parser)
+                                                    .buffer
+                                                    .pointer
+                                                    .wrapping_offset(
+                                                        k as isize,
+                                                    )
+                                                    - b'a'
+                                                    + 10
+                                            } else {
+                                                *(*parser)
+                                                    .buffer
+                                                    .pointer
+                                                    .wrapping_offset(
+                                                        k as isize,
+                                                    )
+                                                    - b'0'
+                                            }
+                                                as libc::c_int
+                                                as libc::c_uint);
                                         k = k.force_add(1);
                                     }
                                 }
-                                if (0xD800..=0xDFFF).contains(&value) || value > 0x10FFFF {
+                                if (0xD800..=0xDFFF).contains(&value)
+                                    || value > 0x10FFFF
+                                {
                                     yaml_parser_set_scanner_error(
                                         parser,
                                         b"while parsing a quoted scalar\0" as *const u8
@@ -14369,41 +17239,80 @@ mod scanner {
                                 } else {
                                     if value <= 0x7F {
                                         let fresh573 = string.pointer;
-                                        string.pointer = string.pointer.wrapping_offset(1);
-                                        *fresh573 = value as yaml_char_t;
+                                        string.pointer = string
+                                            .pointer
+                                            .wrapping_offset(1);
+                                        *fresh573 =
+                                            value as yaml_char_t;
                                     } else if value <= 0x7FF {
                                         let fresh574 = string.pointer;
-                                        string.pointer = string.pointer.wrapping_offset(1);
-                                        *fresh574 = 0xC0_u32.force_add(value >> 6) as yaml_char_t;
+                                        string.pointer = string
+                                            .pointer
+                                            .wrapping_offset(1);
+                                        *fresh574 = 0xC0_u32
+                                            .force_add(value >> 6)
+                                            as yaml_char_t;
                                         let fresh575 = string.pointer;
-                                        string.pointer = string.pointer.wrapping_offset(1);
-                                        *fresh575 = 0x80_u32.force_add(value & 0x3F) as yaml_char_t;
+                                        string.pointer = string
+                                            .pointer
+                                            .wrapping_offset(1);
+                                        *fresh575 = 0x80_u32
+                                            .force_add(value & 0x3F)
+                                            as yaml_char_t;
                                     } else if value <= 0xFFFF {
                                         let fresh576 = string.pointer;
-                                        string.pointer = string.pointer.wrapping_offset(1);
-                                        *fresh576 = 0xE0_u32.force_add(value >> 12) as yaml_char_t;
+                                        string.pointer = string
+                                            .pointer
+                                            .wrapping_offset(1);
+                                        *fresh576 = 0xE0_u32
+                                            .force_add(value >> 12)
+                                            as yaml_char_t;
                                         let fresh577 = string.pointer;
-                                        string.pointer = string.pointer.wrapping_offset(1);
-                                        *fresh577 = 0x80_u32.force_add(value >> 6 & 0x3F)
+                                        string.pointer = string
+                                            .pointer
+                                            .wrapping_offset(1);
+                                        *fresh577 = 0x80_u32.force_add(
+                                            value >> 6 & 0x3F,
+                                        )
                                             as yaml_char_t;
                                         let fresh578 = string.pointer;
-                                        string.pointer = string.pointer.wrapping_offset(1);
-                                        *fresh578 = 0x80_u32.force_add(value & 0x3F) as yaml_char_t;
+                                        string.pointer = string
+                                            .pointer
+                                            .wrapping_offset(1);
+                                        *fresh578 = 0x80_u32
+                                            .force_add(value & 0x3F)
+                                            as yaml_char_t;
                                     } else {
                                         let fresh579 = string.pointer;
-                                        string.pointer = string.pointer.wrapping_offset(1);
-                                        *fresh579 = 0xF0_u32.force_add(value >> 18) as yaml_char_t;
+                                        string.pointer = string
+                                            .pointer
+                                            .wrapping_offset(1);
+                                        *fresh579 = 0xF0_u32
+                                            .force_add(value >> 18)
+                                            as yaml_char_t;
                                         let fresh580 = string.pointer;
-                                        string.pointer = string.pointer.wrapping_offset(1);
-                                        *fresh580 = 0x80_u32.force_add(value >> 12 & 0x3F)
+                                        string.pointer = string
+                                            .pointer
+                                            .wrapping_offset(1);
+                                        *fresh580 = 0x80_u32.force_add(
+                                            value >> 12 & 0x3F,
+                                        )
                                             as yaml_char_t;
                                         let fresh581 = string.pointer;
-                                        string.pointer = string.pointer.wrapping_offset(1);
-                                        *fresh581 = 0x80_u32.force_add(value >> 6 & 0x3F)
+                                        string.pointer = string
+                                            .pointer
+                                            .wrapping_offset(1);
+                                        *fresh581 = 0x80_u32.force_add(
+                                            value >> 6 & 0x3F,
+                                        )
                                             as yaml_char_t;
                                         let fresh582 = string.pointer;
-                                        string.pointer = string.pointer.wrapping_offset(1);
-                                        *fresh582 = 0x80_u32.force_add(value & 0x3F) as yaml_char_t;
+                                        string.pointer = string
+                                            .pointer
+                                            .wrapping_offset(1);
+                                        *fresh582 = 0x80_u32
+                                            .force_add(value & 0x3F)
+                                            as yaml_char_t;
                                     }
                                     k = 0_u64;
                                     while k < code_length {
@@ -14425,7 +17334,9 @@ mod scanner {
                     current_block = 8114179180390253173;
                     break;
                 }
-                if *(*parser).buffer.pointer == if single { b'\'' } else { b'"' } {
+                if *(*parser).buffer.pointer
+                    == if single { b'\'' } else { b'"' }
+                {
                     current_block = 7468767852762055642;
                     break;
                 }
@@ -14437,29 +17348,37 @@ mod scanner {
                     || *(*parser).buffer.pointer.offset(0) == b'\t'
                     || (*(*parser).buffer.pointer.offset(0) == b'\r'
                         || *(*parser).buffer.pointer.offset(0) == b'\n'
-                        || *(*parser).buffer.pointer.offset(0) == b'\xC2'
+                        || *(*parser).buffer.pointer.offset(0)
+                            == b'\xC2'
                             && *(*parser)
                                 .buffer
                                 .pointer
-                                .offset((0 + 1).try_into().unwrap()) == b'\x85'
-                        || *(*parser).buffer.pointer.offset(0) == b'\xE2'
+                                .offset((0 + 1).try_into().unwrap())
+                                == b'\x85'
+                        || *(*parser).buffer.pointer.offset(0)
+                            == b'\xE2'
                             && *(*parser)
                                 .buffer
                                 .pointer
-                                .offset((0 + 1).try_into().unwrap()) == b'\x80'
+                                .offset((0 + 1).try_into().unwrap())
+                                == b'\x80'
                             && *(*parser)
                                 .buffer
                                 .pointer
-                                .offset((0 + 2).try_into().unwrap()) == b'\xA8'
-                        || *(*parser).buffer.pointer.offset(0) == b'\xE2'
+                                .offset((0 + 2).try_into().unwrap())
+                                == b'\xA8'
+                        || *(*parser).buffer.pointer.offset(0)
+                            == b'\xE2'
                             && *(*parser)
                                 .buffer
                                 .pointer
-                                .offset((0 + 1).try_into().unwrap()) == b'\x80'
+                                .offset((0 + 1).try_into().unwrap())
+                                == b'\x80'
                             && *(*parser)
                                 .buffer
                                 .pointer
-                                .offset((0 + 2).try_into().unwrap()) == b'\xA9')
+                                .offset((0 + 2).try_into().unwrap())
+                                == b'\xA9')
                 {
                     if *(*parser).buffer.pointer.offset(0) == b' '
                         || *(*parser).buffer.pointer.offset(0) == b'\t'
@@ -14478,9 +17397,12 @@ mod scanner {
                             {
                                 whitespaces.pointer = whitespaces.start;
                                 let _ = memset(
-                                    whitespaces.start as *mut libc::c_void,
+                                    whitespaces.start
+                                        as *mut libc::c_void,
                                     0,
-                                    whitespaces.end.offset_from(whitespaces.start)
+                                    whitespaces
+                                        .end
+                                        .offset_from(whitespaces.start)
                                         as libc::c_ulong,
                                 );
                             };
@@ -14498,7 +17420,8 @@ mod scanner {
                 if leading_blanks {
                     if *leading_break.start == b'\n' {
                         if *trailing_breaks.start == b'\0' {
-                            let new_end = string.pointer.wrapping_add(5);
+                            let new_end =
+                                string.pointer.wrapping_add(5);
                             if new_end >= string.end {
                                 yaml_string_extend(
                                     &raw mut string.start,
@@ -14507,27 +17430,34 @@ mod scanner {
                                 );
                             }
                             let fresh711 = string.pointer;
-                            string.pointer = string.pointer.wrapping_offset(1);
+                            string.pointer =
+                                string.pointer.wrapping_offset(1);
                             *fresh711 = b' ';
                         } else {
                             {
-                                let a_len = string.pointer.offset_from(string.start)
+                                let a_len = string
+                                    .pointer
+                                    .offset_from(string.start)
                                     as usize;
                                 let b_len = trailing_breaks
                                     .pointer
-                                    .offset_from(trailing_breaks.start) as usize;
+                                    .offset_from(trailing_breaks.start)
+                                    as usize;
                                 if a_len.checked_add(b_len).is_some()
-                                    && string.pointer.add(b_len) <= string.end
+                                    && string.pointer.add(b_len)
+                                        <= string.end
                                 {
                                     yaml_string_join(
                                         &raw mut string.start,
                                         &raw mut string.pointer,
                                         &raw mut string.end,
                                         &raw mut trailing_breaks.start,
-                                        &raw mut trailing_breaks.pointer,
+                                        &raw mut trailing_breaks
+                                            .pointer,
                                         &raw mut trailing_breaks.end,
                                     );
-                                    trailing_breaks.pointer = trailing_breaks.start;
+                                    trailing_breaks.pointer =
+                                        trailing_breaks.start;
                                 } else {
                                     {
                                         ::core::panicking::panic_fmt(
@@ -14537,11 +17467,15 @@ mod scanner {
                                 }
                             };
                             {
-                                trailing_breaks.pointer = trailing_breaks.start;
+                                trailing_breaks.pointer =
+                                    trailing_breaks.start;
                                 let _ = memset(
-                                    trailing_breaks.start as *mut libc::c_void,
+                                    trailing_breaks.start
+                                        as *mut libc::c_void,
                                     0,
-                                    trailing_breaks.end.offset_from(trailing_breaks.start)
+                                    trailing_breaks.end.offset_from(
+                                        trailing_breaks.start,
+                                    )
                                         as libc::c_ulong,
                                 );
                             };
@@ -14549,21 +17483,28 @@ mod scanner {
                         {
                             leading_break.pointer = leading_break.start;
                             let _ = memset(
-                                leading_break.start as *mut libc::c_void,
+                                leading_break.start
+                                    as *mut libc::c_void,
                                 0,
-                                leading_break.end.offset_from(leading_break.start)
+                                leading_break
+                                    .end
+                                    .offset_from(leading_break.start)
                                     as libc::c_ulong,
                             );
                         };
                     } else {
                         {
-                            let a_len = string.pointer.offset_from(string.start)
+                            let a_len = string
+                                .pointer
+                                .offset_from(string.start)
                                 as usize;
                             let b_len = leading_break
                                 .pointer
-                                .offset_from(leading_break.start) as usize;
+                                .offset_from(leading_break.start)
+                                as usize;
                             if a_len.checked_add(b_len).is_some()
-                                && string.pointer.add(b_len) <= string.end
+                                && string.pointer.add(b_len)
+                                    <= string.end
                             {
                                 yaml_string_join(
                                     &raw mut string.start,
@@ -14573,7 +17514,8 @@ mod scanner {
                                     &raw mut leading_break.pointer,
                                     &raw mut leading_break.end,
                                 );
-                                leading_break.pointer = leading_break.start;
+                                leading_break.pointer =
+                                    leading_break.start;
                             } else {
                                 {
                                     ::core::panicking::panic_fmt(
@@ -14583,13 +17525,17 @@ mod scanner {
                             }
                         };
                         {
-                            let a_len = string.pointer.offset_from(string.start)
+                            let a_len = string
+                                .pointer
+                                .offset_from(string.start)
                                 as usize;
                             let b_len = trailing_breaks
                                 .pointer
-                                .offset_from(trailing_breaks.start) as usize;
+                                .offset_from(trailing_breaks.start)
+                                as usize;
                             if a_len.checked_add(b_len).is_some()
-                                && string.pointer.add(b_len) <= string.end
+                                && string.pointer.add(b_len)
+                                    <= string.end
                             {
                                 yaml_string_join(
                                     &raw mut string.start,
@@ -14599,7 +17545,8 @@ mod scanner {
                                     &raw mut trailing_breaks.pointer,
                                     &raw mut trailing_breaks.end,
                                 );
-                                trailing_breaks.pointer = trailing_breaks.start;
+                                trailing_breaks.pointer =
+                                    trailing_breaks.start;
                             } else {
                                 {
                                     ::core::panicking::panic_fmt(
@@ -14611,26 +17558,37 @@ mod scanner {
                         {
                             leading_break.pointer = leading_break.start;
                             let _ = memset(
-                                leading_break.start as *mut libc::c_void,
+                                leading_break.start
+                                    as *mut libc::c_void,
                                 0,
-                                leading_break.end.offset_from(leading_break.start)
+                                leading_break
+                                    .end
+                                    .offset_from(leading_break.start)
                                     as libc::c_ulong,
                             );
                         };
                         {
-                            trailing_breaks.pointer = trailing_breaks.start;
+                            trailing_breaks.pointer =
+                                trailing_breaks.start;
                             let _ = memset(
-                                trailing_breaks.start as *mut libc::c_void,
+                                trailing_breaks.start
+                                    as *mut libc::c_void,
                                 0,
-                                trailing_breaks.end.offset_from(trailing_breaks.start)
+                                trailing_breaks
+                                    .end
+                                    .offset_from(trailing_breaks.start)
                                     as libc::c_ulong,
                             );
                         };
                     }
                 } else {
                     {
-                        let a_len = string.pointer.offset_from(string.start) as usize;
-                        let b_len = whitespaces.pointer.offset_from(whitespaces.start)
+                        let a_len =
+                            string.pointer.offset_from(string.start)
+                                as usize;
+                        let b_len = whitespaces
+                            .pointer
+                            .offset_from(whitespaces.start)
                             as usize;
                         if a_len.checked_add(b_len).is_some()
                             && string.pointer.add(b_len) <= string.end
@@ -14657,7 +17615,9 @@ mod scanner {
                         let _ = memset(
                             whitespaces.start as *mut libc::c_void,
                             0,
-                            whitespaces.end.offset_from(whitespaces.start)
+                            whitespaces
+                                .end
+                                .offset_from(whitespaces.start)
                                 as libc::c_ulong,
                         );
                     };
@@ -14677,8 +17637,8 @@ mod scanner {
             (*token).end_mark = end_mark;
             let fresh716 = &raw mut (*token).data.scalar.value;
             *fresh716 = string.start;
-            (*token).data.scalar.length = string.pointer.c_offset_from(string.start)
-                as size_t;
+            (*token).data.scalar.length =
+                string.pointer.c_offset_from(string.start) as size_t;
             (*token).data.scalar.style = if single {
                 YamlSingleQuotedScalarStyle
             } else {
@@ -14745,12 +17705,13 @@ mod scanner {
         {
             string.start = yaml_malloc(16) as *mut yaml_char_t;
             if !string.start.is_null() {
-                let _ = memset(string.start as *mut libc::c_void, 0, 16);
+                let _ =
+                    memset(string.start as *mut libc::c_void, 0, 16);
             } else {
                 {
-                    ::core::panicking::panic_fmt(
-                        format_args!("Failed to allocate memory for string"),
-                    );
+                    ::core::panicking::panic_fmt(format_args!(
+                        "Failed to allocate memory for string"
+                    ));
                 };
             }
             string.pointer = string.start;
@@ -14760,47 +17721,66 @@ mod scanner {
         {
             leading_break.start = yaml_malloc(16) as *mut yaml_char_t;
             if !leading_break.start.is_null() {
-                let _ = memset(leading_break.start as *mut libc::c_void, 0, 16);
+                let _ = memset(
+                    leading_break.start as *mut libc::c_void,
+                    0,
+                    16,
+                );
             } else {
                 {
-                    ::core::panicking::panic_fmt(
-                        format_args!("Failed to allocate memory for string"),
-                    );
+                    ::core::panicking::panic_fmt(format_args!(
+                        "Failed to allocate memory for string"
+                    ));
                 };
             }
             leading_break.pointer = leading_break.start;
             leading_break.end = leading_break.start.wrapping_add(16);
-            let _ = memset(leading_break.start as *mut libc::c_void, 0, 16);
+            let _ =
+                memset(leading_break.start as *mut libc::c_void, 0, 16);
         };
         {
             trailing_breaks.start = yaml_malloc(16) as *mut yaml_char_t;
             if !trailing_breaks.start.is_null() {
-                let _ = memset(trailing_breaks.start as *mut libc::c_void, 0, 16);
+                let _ = memset(
+                    trailing_breaks.start as *mut libc::c_void,
+                    0,
+                    16,
+                );
             } else {
                 {
-                    ::core::panicking::panic_fmt(
-                        format_args!("Failed to allocate memory for string"),
-                    );
+                    ::core::panicking::panic_fmt(format_args!(
+                        "Failed to allocate memory for string"
+                    ));
                 };
             }
             trailing_breaks.pointer = trailing_breaks.start;
-            trailing_breaks.end = trailing_breaks.start.wrapping_add(16);
-            let _ = memset(trailing_breaks.start as *mut libc::c_void, 0, 16);
+            trailing_breaks.end =
+                trailing_breaks.start.wrapping_add(16);
+            let _ = memset(
+                trailing_breaks.start as *mut libc::c_void,
+                0,
+                16,
+            );
         };
         {
             whitespaces.start = yaml_malloc(16) as *mut yaml_char_t;
             if !whitespaces.start.is_null() {
-                let _ = memset(whitespaces.start as *mut libc::c_void, 0, 16);
+                let _ = memset(
+                    whitespaces.start as *mut libc::c_void,
+                    0,
+                    16,
+                );
             } else {
                 {
-                    ::core::panicking::panic_fmt(
-                        format_args!("Failed to allocate memory for string"),
-                    );
+                    ::core::panicking::panic_fmt(format_args!(
+                        "Failed to allocate memory for string"
+                    ));
                 };
             }
             whitespaces.pointer = whitespaces.start;
             whitespaces.end = whitespaces.start.wrapping_add(16);
-            let _ = memset(whitespaces.start as *mut libc::c_void, 0, 16);
+            let _ =
+                memset(whitespaces.start as *mut libc::c_void, 0, 16);
         };
         end_mark = (*parser).mark;
         let start_mark: YamlMarkT = end_mark;
@@ -14819,31 +17799,41 @@ mod scanner {
                 && (*(*parser).buffer.pointer.offset(3) == b' '
                     || *(*parser).buffer.pointer.offset(3) == b'\t'
                     || (*(*parser).buffer.pointer.offset(3) == b'\r'
-                        || *(*parser).buffer.pointer.offset(3) == b'\n'
-                        || *(*parser).buffer.pointer.offset(3) == b'\xC2'
+                        || *(*parser).buffer.pointer.offset(3)
+                            == b'\n'
+                        || *(*parser).buffer.pointer.offset(3)
+                            == b'\xC2'
                             && *(*parser)
                                 .buffer
                                 .pointer
-                                .offset((3 + 1).try_into().unwrap()) == b'\x85'
-                        || *(*parser).buffer.pointer.offset(3) == b'\xE2'
+                                .offset((3 + 1).try_into().unwrap())
+                                == b'\x85'
+                        || *(*parser).buffer.pointer.offset(3)
+                            == b'\xE2'
                             && *(*parser)
                                 .buffer
                                 .pointer
-                                .offset((3 + 1).try_into().unwrap()) == b'\x80'
+                                .offset((3 + 1).try_into().unwrap())
+                                == b'\x80'
                             && *(*parser)
                                 .buffer
                                 .pointer
-                                .offset((3 + 2).try_into().unwrap()) == b'\xA8'
-                        || *(*parser).buffer.pointer.offset(3) == b'\xE2'
+                                .offset((3 + 2).try_into().unwrap())
+                                == b'\xA8'
+                        || *(*parser).buffer.pointer.offset(3)
+                            == b'\xE2'
                             && *(*parser)
                                 .buffer
                                 .pointer
-                                .offset((3 + 1).try_into().unwrap()) == b'\x80'
+                                .offset((3 + 1).try_into().unwrap())
+                                == b'\x80'
                             && *(*parser)
                                 .buffer
                                 .pointer
-                                .offset((3 + 2).try_into().unwrap()) == b'\xA9'
-                        || *(*parser).buffer.pointer.offset(3) == b'\0'))
+                                .offset((3 + 2).try_into().unwrap())
+                                == b'\xA9'
+                        || *(*parser).buffer.pointer.offset(3)
+                            == b'\0'))
             {
                 current_block = 6281126495347172768;
                 break;
@@ -14857,20 +17847,37 @@ mod scanner {
                 || (*(*parser).buffer.pointer.offset(0) == b'\r'
                     || *(*parser).buffer.pointer.offset(0) == b'\n'
                     || *(*parser).buffer.pointer.offset(0) == b'\xC2'
-                        && *(*parser).buffer.pointer.offset((0 + 1).try_into().unwrap())
+                        && *(*parser)
+                            .buffer
+                            .pointer
+                            .offset((0 + 1).try_into().unwrap())
                             == b'\x85'
                     || *(*parser).buffer.pointer.offset(0) == b'\xE2'
-                        && *(*parser).buffer.pointer.offset((0 + 1).try_into().unwrap())
+                        && *(*parser)
+                            .buffer
+                            .pointer
+                            .offset((0 + 1).try_into().unwrap())
                             == b'\x80'
-                        && *(*parser).buffer.pointer.offset((0 + 2).try_into().unwrap())
+                        && *(*parser)
+                            .buffer
+                            .pointer
+                            .offset((0 + 2).try_into().unwrap())
                             == b'\xA8'
                     || *(*parser).buffer.pointer.offset(0) == b'\xE2'
-                        && *(*parser).buffer.pointer.offset((0 + 1).try_into().unwrap())
+                        && *(*parser)
+                            .buffer
+                            .pointer
+                            .offset((0 + 1).try_into().unwrap())
                             == b'\x80'
-                        && *(*parser).buffer.pointer.offset((0 + 2).try_into().unwrap())
-                            == b'\xA9' || *(*parser).buffer.pointer.offset(0) == b'\0'))
+                        && *(*parser)
+                            .buffer
+                            .pointer
+                            .offset((0 + 2).try_into().unwrap())
+                            == b'\xA9'
+                    || *(*parser).buffer.pointer.offset(0) == b'\0'))
             {
-                if (*parser).flow_level != 0 && *(*parser).buffer.pointer == b':'
+                if (*parser).flow_level != 0
+                    && *(*parser).buffer.pointer == b':'
                     && (*(*parser).buffer.pointer.offset(1) == b','
                         || *(*parser).buffer.pointer.offset(1) == b'?'
                         || *(*parser).buffer.pointer.offset(1) == b'['
@@ -14883,40 +17890,63 @@ mod scanner {
                         b"while scanning a plain scalar\0" as *const u8
                             as *const libc::c_char,
                         start_mark,
-                        b"found unexpected ':'\0" as *const u8 as *const libc::c_char,
+                        b"found unexpected ':'\0" as *const u8
+                            as *const libc::c_char,
                     );
                     current_block = 16642808987012640029;
                     break 's_57;
                 } else {
                     if *(*parser).buffer.pointer == b':'
                         && (*(*parser).buffer.pointer.offset(1) == b' '
-                            || *(*parser).buffer.pointer.offset(1) == b'\t'
-                            || (*(*parser).buffer.pointer.offset(1) == b'\r'
-                                || *(*parser).buffer.pointer.offset(1) == b'\n'
-                                || *(*parser).buffer.pointer.offset(1) == b'\xC2'
+                            || *(*parser).buffer.pointer.offset(1)
+                                == b'\t'
+                            || (*(*parser).buffer.pointer.offset(1)
+                                == b'\r'
+                                || *(*parser).buffer.pointer.offset(1)
+                                    == b'\n'
+                                || *(*parser).buffer.pointer.offset(1)
+                                    == b'\xC2'
                                     && *(*parser)
                                         .buffer
                                         .pointer
-                                        .offset((1 + 1).try_into().unwrap()) == b'\x85'
-                                || *(*parser).buffer.pointer.offset(1) == b'\xE2'
+                                        .offset(
+                                            (1 + 1).try_into().unwrap(),
+                                        )
+                                        == b'\x85'
+                                || *(*parser).buffer.pointer.offset(1)
+                                    == b'\xE2'
                                     && *(*parser)
                                         .buffer
                                         .pointer
-                                        .offset((1 + 1).try_into().unwrap()) == b'\x80'
+                                        .offset(
+                                            (1 + 1).try_into().unwrap(),
+                                        )
+                                        == b'\x80'
                                     && *(*parser)
                                         .buffer
                                         .pointer
-                                        .offset((1 + 2).try_into().unwrap()) == b'\xA8'
-                                || *(*parser).buffer.pointer.offset(1) == b'\xE2'
+                                        .offset(
+                                            (1 + 2).try_into().unwrap(),
+                                        )
+                                        == b'\xA8'
+                                || *(*parser).buffer.pointer.offset(1)
+                                    == b'\xE2'
                                     && *(*parser)
                                         .buffer
                                         .pointer
-                                        .offset((1 + 1).try_into().unwrap()) == b'\x80'
+                                        .offset(
+                                            (1 + 1).try_into().unwrap(),
+                                        )
+                                        == b'\x80'
                                     && *(*parser)
                                         .buffer
                                         .pointer
-                                        .offset((1 + 2).try_into().unwrap()) == b'\xA9'
-                                || *(*parser).buffer.pointer.offset(1) == b'\0'))
+                                        .offset(
+                                            (1 + 2).try_into().unwrap(),
+                                        )
+                                        == b'\xA9'
+                                || *(*parser).buffer.pointer.offset(1)
+                                    == b'\0'))
                         || (*parser).flow_level != 0
                             && (*(*parser).buffer.pointer == b','
                                 || *(*parser).buffer.pointer == b'['
@@ -14926,11 +17956,14 @@ mod scanner {
                     {
                         break;
                     }
-                    if leading_blanks || whitespaces.start != whitespaces.pointer {
+                    if leading_blanks
+                        || whitespaces.start != whitespaces.pointer
+                    {
                         if leading_blanks {
                             if *leading_break.start == b'\n' {
                                 if *trailing_breaks.start == b'\0' {
-                                    let new_end = string.pointer.wrapping_add(5);
+                                    let new_end =
+                                        string.pointer.wrapping_add(5);
                                     if new_end >= string.end {
                                         yaml_string_extend(
                                             &raw mut string.start,
@@ -14939,17 +17972,27 @@ mod scanner {
                                         );
                                     }
                                     let fresh717 = string.pointer;
-                                    string.pointer = string.pointer.wrapping_offset(1);
+                                    string.pointer = string
+                                        .pointer
+                                        .wrapping_offset(1);
                                     *fresh717 = b' ';
                                 } else {
                                     {
-                                        let a_len = string.pointer.offset_from(string.start)
+                                        let a_len = string
+                                            .pointer
+                                            .offset_from(string.start)
                                             as usize;
                                         let b_len = trailing_breaks
                                             .pointer
-                                            .offset_from(trailing_breaks.start) as usize;
-                                        if a_len.checked_add(b_len).is_some()
-                                            && string.pointer.add(b_len) <= string.end
+                                            .offset_from(
+                                                trailing_breaks.start,
+                                            )
+                                            as usize;
+                                        if a_len
+                                            .checked_add(b_len)
+                                            .is_some()
+                                            && string.pointer.add(b_len)
+                                                <= string.end
                                         {
                                             yaml_string_join(
                                                 &raw mut string.start,
@@ -14959,7 +18002,8 @@ mod scanner {
                                                 &raw mut trailing_breaks.pointer,
                                                 &raw mut trailing_breaks.end,
                                             );
-                                            trailing_breaks.pointer = trailing_breaks.start;
+                                            trailing_breaks.pointer =
+                                                trailing_breaks.start;
                                         } else {
                                             {
                                                 ::core::panicking::panic_fmt(
@@ -14969,43 +18013,65 @@ mod scanner {
                                         }
                                     };
                                     {
-                                        trailing_breaks.pointer = trailing_breaks.start;
+                                        trailing_breaks.pointer =
+                                            trailing_breaks.start;
                                         let _ = memset(
-                                            trailing_breaks.start as *mut libc::c_void,
+                                            trailing_breaks.start
+                                                as *mut libc::c_void,
                                             0,
-                                            trailing_breaks.end.offset_from(trailing_breaks.start)
+                                            trailing_breaks
+                                                .end
+                                                .offset_from(
+                                                    trailing_breaks
+                                                        .start,
+                                                )
                                                 as libc::c_ulong,
                                         );
                                     };
                                 }
                                 {
-                                    leading_break.pointer = leading_break.start;
+                                    leading_break.pointer =
+                                        leading_break.start;
                                     let _ = memset(
-                                        leading_break.start as *mut libc::c_void,
+                                        leading_break.start
+                                            as *mut libc::c_void,
                                         0,
-                                        leading_break.end.offset_from(leading_break.start)
+                                        leading_break.end.offset_from(
+                                            leading_break.start,
+                                        )
                                             as libc::c_ulong,
                                     );
                                 };
                             } else {
                                 {
-                                    let a_len = string.pointer.offset_from(string.start)
+                                    let a_len = string
+                                        .pointer
+                                        .offset_from(string.start)
                                         as usize;
                                     let b_len = leading_break
                                         .pointer
-                                        .offset_from(leading_break.start) as usize;
-                                    if a_len.checked_add(b_len).is_some()
-                                        && string.pointer.add(b_len) <= string.end
+                                        .offset_from(
+                                            leading_break.start,
+                                        )
+                                        as usize;
+                                    if a_len
+                                        .checked_add(b_len)
+                                        .is_some()
+                                        && string.pointer.add(b_len)
+                                            <= string.end
                                     {
                                         yaml_string_join(
                                             &raw mut string.start,
                                             &raw mut string.pointer,
                                             &raw mut string.end,
-                                            &raw mut leading_break.start,
-                                            &raw mut leading_break.pointer,
+                                            &raw mut leading_break
+                                                .start,
+                                            &raw mut leading_break
+                                                .pointer,
                                             &raw mut leading_break.end,
                                         );
-                                        leading_break.pointer = leading_break.start;
+                                        leading_break.pointer =
+                                            leading_break.start;
                                     } else {
                                         {
                                             ::core::panicking::panic_fmt(
@@ -15015,23 +18081,35 @@ mod scanner {
                                     }
                                 };
                                 {
-                                    let a_len = string.pointer.offset_from(string.start)
+                                    let a_len = string
+                                        .pointer
+                                        .offset_from(string.start)
                                         as usize;
                                     let b_len = trailing_breaks
                                         .pointer
-                                        .offset_from(trailing_breaks.start) as usize;
-                                    if a_len.checked_add(b_len).is_some()
-                                        && string.pointer.add(b_len) <= string.end
+                                        .offset_from(
+                                            trailing_breaks.start,
+                                        )
+                                        as usize;
+                                    if a_len
+                                        .checked_add(b_len)
+                                        .is_some()
+                                        && string.pointer.add(b_len)
+                                            <= string.end
                                     {
                                         yaml_string_join(
                                             &raw mut string.start,
                                             &raw mut string.pointer,
                                             &raw mut string.end,
-                                            &raw mut trailing_breaks.start,
-                                            &raw mut trailing_breaks.pointer,
-                                            &raw mut trailing_breaks.end,
+                                            &raw mut trailing_breaks
+                                                .start,
+                                            &raw mut trailing_breaks
+                                                .pointer,
+                                            &raw mut trailing_breaks
+                                                .end,
                                         );
-                                        trailing_breaks.pointer = trailing_breaks.start;
+                                        trailing_breaks.pointer =
+                                            trailing_breaks.start;
                                     } else {
                                         {
                                             ::core::panicking::panic_fmt(
@@ -15041,20 +18119,28 @@ mod scanner {
                                     }
                                 };
                                 {
-                                    leading_break.pointer = leading_break.start;
+                                    leading_break.pointer =
+                                        leading_break.start;
                                     let _ = memset(
-                                        leading_break.start as *mut libc::c_void,
+                                        leading_break.start
+                                            as *mut libc::c_void,
                                         0,
-                                        leading_break.end.offset_from(leading_break.start)
+                                        leading_break.end.offset_from(
+                                            leading_break.start,
+                                        )
                                             as libc::c_ulong,
                                     );
                                 };
                                 {
-                                    trailing_breaks.pointer = trailing_breaks.start;
+                                    trailing_breaks.pointer =
+                                        trailing_breaks.start;
                                     let _ = memset(
-                                        trailing_breaks.start as *mut libc::c_void,
+                                        trailing_breaks.start
+                                            as *mut libc::c_void,
                                         0,
-                                        trailing_breaks.end.offset_from(trailing_breaks.start)
+                                        trailing_breaks.end.offset_from(
+                                            trailing_breaks.start,
+                                        )
                                             as libc::c_ulong,
                                     );
                                 };
@@ -15062,13 +18148,17 @@ mod scanner {
                             leading_blanks = false;
                         } else {
                             {
-                                let a_len = string.pointer.offset_from(string.start)
+                                let a_len = string
+                                    .pointer
+                                    .offset_from(string.start)
                                     as usize;
                                 let b_len = whitespaces
                                     .pointer
-                                    .offset_from(whitespaces.start) as usize;
+                                    .offset_from(whitespaces.start)
+                                    as usize;
                                 if a_len.checked_add(b_len).is_some()
-                                    && string.pointer.add(b_len) <= string.end
+                                    && string.pointer.add(b_len)
+                                        <= string.end
                                 {
                                     yaml_string_join(
                                         &raw mut string.start,
@@ -15078,7 +18168,8 @@ mod scanner {
                                         &raw mut whitespaces.pointer,
                                         &raw mut whitespaces.end,
                                     );
-                                    whitespaces.pointer = whitespaces.start;
+                                    whitespaces.pointer =
+                                        whitespaces.start;
                                 } else {
                                     {
                                         ::core::panicking::panic_fmt(
@@ -15090,9 +18181,12 @@ mod scanner {
                             {
                                 whitespaces.pointer = whitespaces.start;
                                 let _ = memset(
-                                    whitespaces.start as *mut libc::c_void,
+                                    whitespaces.start
+                                        as *mut libc::c_void,
                                     0,
-                                    whitespaces.end.offset_from(whitespaces.start)
+                                    whitespaces
+                                        .end
+                                        .offset_from(whitespaces.start)
                                         as libc::c_ulong,
                                 );
                             };
@@ -15111,17 +18205,32 @@ mod scanner {
                 || (*(*parser).buffer.pointer.offset(0) == b'\r'
                     || *(*parser).buffer.pointer.offset(0) == b'\n'
                     || *(*parser).buffer.pointer.offset(0) == b'\xC2'
-                        && *(*parser).buffer.pointer.offset((0 + 1).try_into().unwrap())
+                        && *(*parser)
+                            .buffer
+                            .pointer
+                            .offset((0 + 1).try_into().unwrap())
                             == b'\x85'
                     || *(*parser).buffer.pointer.offset(0) == b'\xE2'
-                        && *(*parser).buffer.pointer.offset((0 + 1).try_into().unwrap())
+                        && *(*parser)
+                            .buffer
+                            .pointer
+                            .offset((0 + 1).try_into().unwrap())
                             == b'\x80'
-                        && *(*parser).buffer.pointer.offset((0 + 2).try_into().unwrap())
+                        && *(*parser)
+                            .buffer
+                            .pointer
+                            .offset((0 + 2).try_into().unwrap())
                             == b'\xA8'
                     || *(*parser).buffer.pointer.offset(0) == b'\xE2'
-                        && *(*parser).buffer.pointer.offset((0 + 1).try_into().unwrap())
+                        && *(*parser)
+                            .buffer
+                            .pointer
+                            .offset((0 + 1).try_into().unwrap())
                             == b'\x80'
-                        && *(*parser).buffer.pointer.offset((0 + 2).try_into().unwrap())
+                        && *(*parser)
+                            .buffer
+                            .pointer
+                            .offset((0 + 2).try_into().unwrap())
                             == b'\xA9'))
             {
                 current_block = 6281126495347172768;
@@ -15136,23 +18245,40 @@ mod scanner {
                 || (*(*parser).buffer.pointer.offset(0) == b'\r'
                     || *(*parser).buffer.pointer.offset(0) == b'\n'
                     || *(*parser).buffer.pointer.offset(0) == b'\xC2'
-                        && *(*parser).buffer.pointer.offset((0 + 1).try_into().unwrap())
+                        && *(*parser)
+                            .buffer
+                            .pointer
+                            .offset((0 + 1).try_into().unwrap())
                             == b'\x85'
                     || *(*parser).buffer.pointer.offset(0) == b'\xE2'
-                        && *(*parser).buffer.pointer.offset((0 + 1).try_into().unwrap())
+                        && *(*parser)
+                            .buffer
+                            .pointer
+                            .offset((0 + 1).try_into().unwrap())
                             == b'\x80'
-                        && *(*parser).buffer.pointer.offset((0 + 2).try_into().unwrap())
+                        && *(*parser)
+                            .buffer
+                            .pointer
+                            .offset((0 + 2).try_into().unwrap())
                             == b'\xA8'
                     || *(*parser).buffer.pointer.offset(0) == b'\xE2'
-                        && *(*parser).buffer.pointer.offset((0 + 1).try_into().unwrap())
+                        && *(*parser)
+                            .buffer
+                            .pointer
+                            .offset((0 + 1).try_into().unwrap())
                             == b'\x80'
-                        && *(*parser).buffer.pointer.offset((0 + 2).try_into().unwrap())
+                        && *(*parser)
+                            .buffer
+                            .pointer
+                            .offset((0 + 2).try_into().unwrap())
                             == b'\xA9')
             {
                 if *(*parser).buffer.pointer.offset(0) == b' '
                     || *(*parser).buffer.pointer.offset(0) == b'\t'
                 {
-                    if leading_blanks && ((*parser).mark.column as libc::c_int) < indent
+                    if leading_blanks
+                        && ((*parser).mark.column as libc::c_int)
+                            < indent
                         && *(*parser).buffer.pointer.offset(0) == b'\t'
                     {
                         yaml_parser_set_scanner_error(
@@ -15181,7 +18307,9 @@ mod scanner {
                             let _ = memset(
                                 whitespaces.start as *mut libc::c_void,
                                 0,
-                                whitespaces.end.offset_from(whitespaces.start)
+                                whitespaces
+                                    .end
+                                    .offset_from(whitespaces.start)
                                     as libc::c_ulong,
                             );
                         };
@@ -15214,8 +18342,8 @@ mod scanner {
             (*token).end_mark = end_mark;
             let fresh842 = &raw mut (*token).data.scalar.value;
             *fresh842 = string.start;
-            (*token).data.scalar.length = string.pointer.c_offset_from(string.start)
-                as size_t;
+            (*token).data.scalar.length =
+                string.pointer.c_offset_from(string.start) as size_t;
             (*token).data.scalar.style = YamlPlainScalarStyle;
             if leading_blanks {
                 (*parser).simple_key_allowed = true;
@@ -15295,12 +18423,12 @@ pub mod success {
     #[automatically_derived]
     impl ::core::fmt::Debug for Success {
         #[inline]
-        fn fmt(&self, f: &mut ::core::fmt::Formatter) -> ::core::fmt::Result {
+        fn fmt(
+            &self,
+            f: &mut ::core::fmt::Formatter,
+        ) -> ::core::fmt::Result {
             ::core::fmt::Formatter::debug_struct_field1_finish(
-                f,
-                "Success",
-                "ok",
-                &&self.ok,
+                f, "Success", "ok", &&self.ok,
             )
         }
     }
@@ -15340,7 +18468,10 @@ pub mod success {
     #[automatically_derived]
     impl ::core::fmt::Debug for Failure {
         #[inline]
-        fn fmt(&self, f: &mut ::core::fmt::Formatter) -> ::core::fmt::Result {
+        fn fmt(
+            &self,
+            f: &mut ::core::fmt::Formatter,
+        ) -> ::core::fmt::Result {
             ::core::fmt::Formatter::debug_struct_field1_finish(
                 f,
                 "Failure",
@@ -15371,7 +18502,11 @@ pub mod success {
         type Target = Failure;
         /// Returns a reference to the corresponding `Failure` instance based on the success state.
         fn deref(&self) -> &Self::Target {
-            if self.ok { &Failure { fail: false } } else { &Failure { fail: true } }
+            if self.ok {
+                &Failure { fail: false }
+            } else {
+                &Failure { fail: true }
+            }
         }
     }
     /// Checks if the given `Success` result indicates a successful operation.
@@ -15403,8 +18538,11 @@ pub mod success {
 }
 mod writer {
     use crate::{
-        libc, ops::ForceAdd as _, success::{Success, FAIL, OK},
-        yaml::size_t, PointerExt, YamlAnyEncoding, YamlEmitterT, YamlUtf16leEncoding,
+        libc,
+        ops::ForceAdd as _,
+        success::{Success, FAIL, OK},
+        yaml::size_t,
+        PointerExt, YamlAnyEncoding, YamlEmitterT, YamlUtf16leEncoding,
         YamlUtf8Encoding, YamlWriterError,
     };
     use core::ptr::addr_of_mut;
@@ -15468,9 +18606,15 @@ mod writer {
     /// * The caller must ensure that the encoding is not YamlAnyEncoding.
     /// * The caller must ensure that the write handler is a valid function pointer.
     ///
-    pub unsafe fn yaml_emitter_flush(emitter: *mut YamlEmitterT) -> Success {
+    pub unsafe fn yaml_emitter_flush(
+        emitter: *mut YamlEmitterT,
+    ) -> Success {
         if !!emitter.is_null() {
-            crate::externs::__assert_fail("!emitter.is_null()", "src/writer.rs", 75u32);
+            crate::externs::__assert_fail(
+                "!emitter.is_null()",
+                "src/writer.rs",
+                75u32,
+            );
         }
         if !((*emitter).write_handler).is_some() {
             crate::externs::__assert_fail(
@@ -15496,12 +18640,14 @@ mod writer {
         if (*emitter).encoding == YamlUtf8Encoding {
             if (*emitter)
                 .write_handler
-                .expect(
-                    "non-null function pointer",
-                )(
+                .expect("non-null function pointer")(
                 (*emitter).write_handler_data,
                 (*emitter).buffer.start,
-                (*emitter).buffer.last.c_offset_from((*emitter).buffer.start) as size_t,
+                (*emitter)
+                    .buffer
+                    .last
+                    .c_offset_from((*emitter).buffer.start)
+                    as size_t,
             ) != 0
             {
                 let fresh3 = &raw mut (*emitter).buffer.last;
@@ -15512,20 +18658,23 @@ mod writer {
             } else {
                 return yaml_emitter_set_writer_error(
                     emitter,
-                    b"write error\0" as *const u8 as *const libc::c_char,
+                    b"write error\0" as *const u8
+                        as *const libc::c_char,
                 );
             }
         }
-        let low: libc::c_int = if (*emitter).encoding == YamlUtf16leEncoding {
-            0
-        } else {
-            1
-        };
-        let high: libc::c_int = if (*emitter).encoding == YamlUtf16leEncoding {
-            1
-        } else {
-            0
-        };
+        let low: libc::c_int =
+            if (*emitter).encoding == YamlUtf16leEncoding {
+                0
+            } else {
+                1
+            };
+        let high: libc::c_int =
+            if (*emitter).encoding == YamlUtf16leEncoding {
+                1
+            } else {
+                0
+            };
         while (*emitter).buffer.pointer != (*emitter).buffer.last {
             let mut octet: libc::c_uchar;
             let mut value: libc::c_uint;
@@ -15555,41 +18704,63 @@ mod writer {
             } as libc::c_uint;
             k = 1_u64;
             while k < width as libc::c_ulong {
-                octet = *(*emitter).buffer.pointer.wrapping_offset(k as isize);
-                value = (value << 6).force_add((octet & 0x3F) as libc::c_uint);
+                octet = *(*emitter)
+                    .buffer
+                    .pointer
+                    .wrapping_offset(k as isize);
+                value = (value << 6)
+                    .force_add((octet & 0x3F) as libc::c_uint);
                 k = k.force_add(1);
             }
             let fresh5 = &raw mut (*emitter).buffer.pointer;
             *fresh5 = (*fresh5).wrapping_offset(width as isize);
             if value < 0x10000 {
-                *(*emitter).raw_buffer.last.wrapping_offset(high as isize) = (value >> 8)
-                    as libc::c_uchar;
-                *(*emitter).raw_buffer.last.wrapping_offset(low as isize) = (value
-                    & 0xFF) as libc::c_uchar;
+                *(*emitter)
+                    .raw_buffer
+                    .last
+                    .wrapping_offset(high as isize) =
+                    (value >> 8) as libc::c_uchar;
+                *(*emitter)
+                    .raw_buffer
+                    .last
+                    .wrapping_offset(low as isize) =
+                    (value & 0xFF) as libc::c_uchar;
                 let fresh6 = &raw mut (*emitter).raw_buffer.last;
                 *fresh6 = (*fresh6).wrapping_offset(2_isize);
             } else {
                 value = value.wrapping_sub(0x10000);
-                *(*emitter).raw_buffer.last.wrapping_offset(high as isize) = 0xD8_u32
-                    .force_add(value >> 18) as libc::c_uchar;
-                *(*emitter).raw_buffer.last.wrapping_offset(low as isize) = (value >> 10
-                    & 0xFF) as libc::c_uchar;
-                *(*emitter).raw_buffer.last.wrapping_offset((high + 2) as isize) = 0xDC_u32
-                    .force_add(value >> 8 & 0xFF) as libc::c_uchar;
-                *(*emitter).raw_buffer.last.wrapping_offset((low + 2) as isize) = (value
-                    & 0xFF) as libc::c_uchar;
+                *(*emitter)
+                    .raw_buffer
+                    .last
+                    .wrapping_offset(high as isize) =
+                    0xD8_u32.force_add(value >> 18) as libc::c_uchar;
+                *(*emitter)
+                    .raw_buffer
+                    .last
+                    .wrapping_offset(low as isize) =
+                    (value >> 10 & 0xFF) as libc::c_uchar;
+                *(*emitter)
+                    .raw_buffer
+                    .last
+                    .wrapping_offset((high + 2) as isize) = 0xDC_u32
+                    .force_add(value >> 8 & 0xFF)
+                    as libc::c_uchar;
+                *(*emitter)
+                    .raw_buffer
+                    .last
+                    .wrapping_offset((low + 2) as isize) =
+                    (value & 0xFF) as libc::c_uchar;
                 let fresh7 = &raw mut (*emitter).raw_buffer.last;
                 *fresh7 = (*fresh7).wrapping_offset(4_isize);
             }
         }
-        if (*emitter)
-            .write_handler
-            .expect(
-                "non-null function pointer",
-            )(
+        if (*emitter).write_handler.expect("non-null function pointer")(
             (*emitter).write_handler_data,
             (*emitter).raw_buffer.start,
-            (*emitter).raw_buffer.last.c_offset_from((*emitter).raw_buffer.start)
+            (*emitter)
+                .raw_buffer
+                .last
+                .c_offset_from((*emitter).raw_buffer.start)
                 as size_t,
         ) != 0
         {
@@ -15614,12 +18785,16 @@ mod writer {
 ///
 /// This module provides functions and types for working directly with YAML data structures.
 pub mod yaml {
+    pub(crate) use self::{
+        YamlEncodingT::*, YamlEventTypeT::*, YamlNodeTypeT::*,
+    };
     use crate::libc;
     use crate::memory::yaml_free;
     use core::ops::Deref;
+    pub use core::primitive::{
+        i64 as ptrdiff_t, u64 as size_t, u8 as yaml_char_t,
+    };
     use core::ptr::{self, addr_of};
-    pub(crate) use self::{YamlEncodingT::*, YamlEventTypeT::*, YamlNodeTypeT::*};
-    pub use core::primitive::{i64 as ptrdiff_t, u64 as size_t, u8 as yaml_char_t};
     /// The version directive data.
     #[repr(C)]
     #[non_exhaustive]
@@ -15643,7 +18818,10 @@ pub mod yaml {
     #[automatically_derived]
     impl ::core::fmt::Debug for YamlVersionDirectiveT {
         #[inline]
-        fn fmt(&self, f: &mut ::core::fmt::Formatter) -> ::core::fmt::Result {
+        fn fmt(
+            &self,
+            f: &mut ::core::fmt::Formatter,
+        ) -> ::core::fmt::Result {
             ::core::fmt::Formatter::debug_struct_field2_finish(
                 f,
                 "YamlVersionDirectiveT",
@@ -15667,10 +18845,7 @@ pub mod yaml {
     impl YamlVersionDirectiveT {
         /// Constructor for `YamlVersionDirectiveT`.
         pub fn new(major: libc::c_int, minor: libc::c_int) -> Self {
-            YamlVersionDirectiveT {
-                major,
-                minor,
-            }
+            YamlVersionDirectiveT { major, minor }
         }
     }
     /// The tag directive data.
@@ -15696,7 +18871,10 @@ pub mod yaml {
     #[automatically_derived]
     impl ::core::fmt::Debug for YamlTagDirectiveT {
         #[inline]
-        fn fmt(&self, f: &mut ::core::fmt::Formatter) -> ::core::fmt::Result {
+        fn fmt(
+            &self,
+            f: &mut ::core::fmt::Formatter,
+        ) -> ::core::fmt::Result {
             ::core::fmt::Formatter::debug_struct_field2_finish(
                 f,
                 "YamlTagDirectiveT",
@@ -15735,8 +18913,10 @@ pub mod yaml {
     impl ::core::cmp::PartialEq for YamlEncodingT {
         #[inline]
         fn eq(&self, other: &YamlEncodingT) -> bool {
-            let __self_discr = ::core::intrinsics::discriminant_value(self);
-            let __arg1_discr = ::core::intrinsics::discriminant_value(other);
+            let __self_discr =
+                ::core::intrinsics::discriminant_value(self);
+            let __arg1_discr =
+                ::core::intrinsics::discriminant_value(other);
             __self_discr == __arg1_discr
         }
     }
@@ -15754,39 +18934,59 @@ pub mod yaml {
             &self,
             other: &YamlEncodingT,
         ) -> ::core::option::Option<::core::cmp::Ordering> {
-            let __self_discr = ::core::intrinsics::discriminant_value(self);
-            let __arg1_discr = ::core::intrinsics::discriminant_value(other);
-            ::core::cmp::PartialOrd::partial_cmp(&__self_discr, &__arg1_discr)
+            let __self_discr =
+                ::core::intrinsics::discriminant_value(self);
+            let __arg1_discr =
+                ::core::intrinsics::discriminant_value(other);
+            ::core::cmp::PartialOrd::partial_cmp(
+                &__self_discr,
+                &__arg1_discr,
+            )
         }
     }
     #[automatically_derived]
     impl ::core::cmp::Ord for YamlEncodingT {
         #[inline]
         fn cmp(&self, other: &YamlEncodingT) -> ::core::cmp::Ordering {
-            let __self_discr = ::core::intrinsics::discriminant_value(self);
-            let __arg1_discr = ::core::intrinsics::discriminant_value(other);
+            let __self_discr =
+                ::core::intrinsics::discriminant_value(self);
+            let __arg1_discr =
+                ::core::intrinsics::discriminant_value(other);
             ::core::cmp::Ord::cmp(&__self_discr, &__arg1_discr)
         }
     }
     #[automatically_derived]
     impl ::core::hash::Hash for YamlEncodingT {
         #[inline]
-        fn hash<__H: ::core::hash::Hasher>(&self, state: &mut __H) -> () {
-            let __self_discr = ::core::intrinsics::discriminant_value(self);
+        fn hash<__H: ::core::hash::Hasher>(
+            &self,
+            state: &mut __H,
+        ) -> () {
+            let __self_discr =
+                ::core::intrinsics::discriminant_value(self);
             ::core::hash::Hash::hash(&__self_discr, state)
         }
     }
     #[automatically_derived]
     impl ::core::fmt::Debug for YamlEncodingT {
         #[inline]
-        fn fmt(&self, f: &mut ::core::fmt::Formatter) -> ::core::fmt::Result {
+        fn fmt(
+            &self,
+            f: &mut ::core::fmt::Formatter,
+        ) -> ::core::fmt::Result {
             ::core::fmt::Formatter::write_str(
                 f,
                 match self {
                     YamlEncodingT::YamlAnyEncoding => "YamlAnyEncoding",
-                    YamlEncodingT::YamlUtf8Encoding => "YamlUtf8Encoding",
-                    YamlEncodingT::YamlUtf16leEncoding => "YamlUtf16leEncoding",
-                    YamlEncodingT::YamlUtf16beEncoding => "YamlUtf16beEncoding",
+                    YamlEncodingT::YamlUtf8Encoding => {
+                        "YamlUtf8Encoding"
+                    }
+                    YamlEncodingT::YamlUtf16leEncoding => {
+                        "YamlUtf16leEncoding"
+                    }
+                    YamlEncodingT::YamlUtf16beEncoding => {
+                        "YamlUtf16beEncoding"
+                    }
                 },
             )
         }
@@ -15819,8 +19019,10 @@ pub mod yaml {
     impl ::core::cmp::PartialEq for YamlBreakT {
         #[inline]
         fn eq(&self, other: &YamlBreakT) -> bool {
-            let __self_discr = ::core::intrinsics::discriminant_value(self);
-            let __arg1_discr = ::core::intrinsics::discriminant_value(other);
+            let __self_discr =
+                ::core::intrinsics::discriminant_value(self);
+            let __arg1_discr =
+                ::core::intrinsics::discriminant_value(other);
             __self_discr == __arg1_discr
         }
     }
@@ -15838,32 +19040,46 @@ pub mod yaml {
             &self,
             other: &YamlBreakT,
         ) -> ::core::option::Option<::core::cmp::Ordering> {
-            let __self_discr = ::core::intrinsics::discriminant_value(self);
-            let __arg1_discr = ::core::intrinsics::discriminant_value(other);
-            ::core::cmp::PartialOrd::partial_cmp(&__self_discr, &__arg1_discr)
+            let __self_discr =
+                ::core::intrinsics::discriminant_value(self);
+            let __arg1_discr =
+                ::core::intrinsics::discriminant_value(other);
+            ::core::cmp::PartialOrd::partial_cmp(
+                &__self_discr,
+                &__arg1_discr,
+            )
         }
     }
     #[automatically_derived]
     impl ::core::cmp::Ord for YamlBreakT {
         #[inline]
         fn cmp(&self, other: &YamlBreakT) -> ::core::cmp::Ordering {
-            let __self_discr = ::core::intrinsics::discriminant_value(self);
-            let __arg1_discr = ::core::intrinsics::discriminant_value(other);
+            let __self_discr =
+                ::core::intrinsics::discriminant_value(self);
+            let __arg1_discr =
+                ::core::intrinsics::discriminant_value(other);
             ::core::cmp::Ord::cmp(&__self_discr, &__arg1_discr)
         }
     }
     #[automatically_derived]
     impl ::core::hash::Hash for YamlBreakT {
         #[inline]
-        fn hash<__H: ::core::hash::Hasher>(&self, state: &mut __H) -> () {
-            let __self_discr = ::core::intrinsics::discriminant_value(self);
+        fn hash<__H: ::core::hash::Hasher>(
+            &self,
+            state: &mut __H,
+        ) -> () {
+            let __self_discr =
+                ::core::intrinsics::discriminant_value(self);
             ::core::hash::Hash::hash(&__self_discr, state)
         }
     }
     #[automatically_derived]
     impl ::core::fmt::Debug for YamlBreakT {
         #[inline]
-        fn fmt(&self, f: &mut ::core::fmt::Formatter) -> ::core::fmt::Result {
+        fn fmt(
+            &self,
+            f: &mut ::core::fmt::Formatter,
+        ) -> ::core::fmt::Result {
             ::core::fmt::Formatter::write_str(
                 f,
                 match self {
@@ -15911,8 +19127,10 @@ pub mod yaml {
     impl ::core::cmp::PartialEq for YamlErrorTypeT {
         #[inline]
         fn eq(&self, other: &YamlErrorTypeT) -> bool {
-            let __self_discr = ::core::intrinsics::discriminant_value(self);
-            let __arg1_discr = ::core::intrinsics::discriminant_value(other);
+            let __self_discr =
+                ::core::intrinsics::discriminant_value(self);
+            let __arg1_discr =
+                ::core::intrinsics::discriminant_value(other);
             __self_discr == __arg1_discr
         }
     }
@@ -15930,43 +19148,71 @@ pub mod yaml {
             &self,
             other: &YamlErrorTypeT,
         ) -> ::core::option::Option<::core::cmp::Ordering> {
-            let __self_discr = ::core::intrinsics::discriminant_value(self);
-            let __arg1_discr = ::core::intrinsics::discriminant_value(other);
-            ::core::cmp::PartialOrd::partial_cmp(&__self_discr, &__arg1_discr)
+            let __self_discr =
+                ::core::intrinsics::discriminant_value(self);
+            let __arg1_discr =
+                ::core::intrinsics::discriminant_value(other);
+            ::core::cmp::PartialOrd::partial_cmp(
+                &__self_discr,
+                &__arg1_discr,
+            )
         }
     }
     #[automatically_derived]
     impl ::core::cmp::Ord for YamlErrorTypeT {
         #[inline]
         fn cmp(&self, other: &YamlErrorTypeT) -> ::core::cmp::Ordering {
-            let __self_discr = ::core::intrinsics::discriminant_value(self);
-            let __arg1_discr = ::core::intrinsics::discriminant_value(other);
+            let __self_discr =
+                ::core::intrinsics::discriminant_value(self);
+            let __arg1_discr =
+                ::core::intrinsics::discriminant_value(other);
             ::core::cmp::Ord::cmp(&__self_discr, &__arg1_discr)
         }
     }
     #[automatically_derived]
     impl ::core::hash::Hash for YamlErrorTypeT {
         #[inline]
-        fn hash<__H: ::core::hash::Hasher>(&self, state: &mut __H) -> () {
-            let __self_discr = ::core::intrinsics::discriminant_value(self);
+        fn hash<__H: ::core::hash::Hasher>(
+            &self,
+            state: &mut __H,
+        ) -> () {
+            let __self_discr =
+                ::core::intrinsics::discriminant_value(self);
             ::core::hash::Hash::hash(&__self_discr, state)
         }
     }
     #[automatically_derived]
     impl ::core::fmt::Debug for YamlErrorTypeT {
         #[inline]
-        fn fmt(&self, f: &mut ::core::fmt::Formatter) -> ::core::fmt::Result {
+        fn fmt(
+            &self,
+            f: &mut ::core::fmt::Formatter,
+        ) -> ::core::fmt::Result {
             ::core::fmt::Formatter::write_str(
                 f,
                 match self {
                     YamlErrorTypeT::YamlNoError => "YamlNoError",
-                    YamlErrorTypeT::YamlMemoryError => "YamlMemoryError",
-                    YamlErrorTypeT::YamlReaderError => "YamlReaderError",
-                    YamlErrorTypeT::YamlScannerError => "YamlScannerError",
-                    YamlErrorTypeT::YamlParserError => "YamlParserError",
-                    YamlErrorTypeT::YamlComposerError => "YamlComposerError",
-                    YamlErrorTypeT::YamlWriterError => "YamlWriterError",
-                    YamlErrorTypeT::YamlEmitterError => "YamlEmitterError",
+                    YamlErrorTypeT::YamlMemoryError => {
+                        "YamlMemoryError"
+                    }
+                    YamlErrorTypeT::YamlReaderError => {
+                        "YamlReaderError"
+                    }
+                    YamlErrorTypeT::YamlScannerError => {
+                        "YamlScannerError"
+                    }
+                    YamlErrorTypeT::YamlParserError => {
+                        "YamlParserError"
+                    }
+                    YamlErrorTypeT::YamlComposerError => {
+                        "YamlComposerError"
+                    }
+                    YamlErrorTypeT::YamlWriterError => {
+                        "YamlWriterError"
+                    }
+                    YamlErrorTypeT::YamlEmitterError => {
+                        "YamlEmitterError"
+                    }
                 },
             )
         }
@@ -16000,7 +19246,10 @@ pub mod yaml {
     #[automatically_derived]
     impl ::core::fmt::Debug for YamlMarkT {
         #[inline]
-        fn fmt(&self, f: &mut ::core::fmt::Formatter) -> ::core::fmt::Result {
+        fn fmt(
+            &self,
+            f: &mut ::core::fmt::Formatter,
+        ) -> ::core::fmt::Result {
             ::core::fmt::Formatter::debug_struct_field3_finish(
                 f,
                 "YamlMarkT",
@@ -16056,8 +19305,10 @@ pub mod yaml {
     impl ::core::cmp::PartialEq for YamlScalarStyleT {
         #[inline]
         fn eq(&self, other: &YamlScalarStyleT) -> bool {
-            let __self_discr = ::core::intrinsics::discriminant_value(self);
-            let __arg1_discr = ::core::intrinsics::discriminant_value(other);
+            let __self_discr =
+                ::core::intrinsics::discriminant_value(self);
+            let __arg1_discr =
+                ::core::intrinsics::discriminant_value(other);
             __self_discr == __arg1_discr
         }
     }
@@ -16075,45 +19326,70 @@ pub mod yaml {
             &self,
             other: &YamlScalarStyleT,
         ) -> ::core::option::Option<::core::cmp::Ordering> {
-            let __self_discr = ::core::intrinsics::discriminant_value(self);
-            let __arg1_discr = ::core::intrinsics::discriminant_value(other);
-            ::core::cmp::PartialOrd::partial_cmp(&__self_discr, &__arg1_discr)
+            let __self_discr =
+                ::core::intrinsics::discriminant_value(self);
+            let __arg1_discr =
+                ::core::intrinsics::discriminant_value(other);
+            ::core::cmp::PartialOrd::partial_cmp(
+                &__self_discr,
+                &__arg1_discr,
+            )
         }
     }
     #[automatically_derived]
     impl ::core::cmp::Ord for YamlScalarStyleT {
         #[inline]
-        fn cmp(&self, other: &YamlScalarStyleT) -> ::core::cmp::Ordering {
-            let __self_discr = ::core::intrinsics::discriminant_value(self);
-            let __arg1_discr = ::core::intrinsics::discriminant_value(other);
+        fn cmp(
+            &self,
+            other: &YamlScalarStyleT,
+        ) -> ::core::cmp::Ordering {
+            let __self_discr =
+                ::core::intrinsics::discriminant_value(self);
+            let __arg1_discr =
+                ::core::intrinsics::discriminant_value(other);
             ::core::cmp::Ord::cmp(&__self_discr, &__arg1_discr)
         }
     }
     #[automatically_derived]
     impl ::core::hash::Hash for YamlScalarStyleT {
         #[inline]
-        fn hash<__H: ::core::hash::Hasher>(&self, state: &mut __H) -> () {
-            let __self_discr = ::core::intrinsics::discriminant_value(self);
+        fn hash<__H: ::core::hash::Hasher>(
+            &self,
+            state: &mut __H,
+        ) -> () {
+            let __self_discr =
+                ::core::intrinsics::discriminant_value(self);
             ::core::hash::Hash::hash(&__self_discr, state)
         }
     }
     #[automatically_derived]
     impl ::core::fmt::Debug for YamlScalarStyleT {
         #[inline]
-        fn fmt(&self, f: &mut ::core::fmt::Formatter) -> ::core::fmt::Result {
+        fn fmt(
+            &self,
+            f: &mut ::core::fmt::Formatter,
+        ) -> ::core::fmt::Result {
             ::core::fmt::Formatter::write_str(
                 f,
                 match self {
-                    YamlScalarStyleT::YamlAnyScalarStyle => "YamlAnyScalarStyle",
-                    YamlScalarStyleT::YamlPlainScalarStyle => "YamlPlainScalarStyle",
+                    YamlScalarStyleT::YamlAnyScalarStyle => {
+                        "YamlAnyScalarStyle"
+                    }
+                    YamlScalarStyleT::YamlPlainScalarStyle => {
+                        "YamlPlainScalarStyle"
+                    }
                     YamlScalarStyleT::YamlSingleQuotedScalarStyle => {
                         "YamlSingleQuotedScalarStyle"
                     }
                     YamlScalarStyleT::YamlDoubleQuotedScalarStyle => {
                         "YamlDoubleQuotedScalarStyle"
                     }
-                    YamlScalarStyleT::YamlLiteralScalarStyle => "YamlLiteralScalarStyle",
-                    YamlScalarStyleT::YamlFoldedScalarStyle => "YamlFoldedScalarStyle",
+                    YamlScalarStyleT::YamlLiteralScalarStyle => {
+                        "YamlLiteralScalarStyle"
+                    }
+                    YamlScalarStyleT::YamlFoldedScalarStyle => {
+                        "YamlFoldedScalarStyle"
+                    }
                 },
             )
         }
@@ -16144,8 +19420,10 @@ pub mod yaml {
     impl ::core::cmp::PartialEq for YamlSequenceStyleT {
         #[inline]
         fn eq(&self, other: &YamlSequenceStyleT) -> bool {
-            let __self_discr = ::core::intrinsics::discriminant_value(self);
-            let __arg1_discr = ::core::intrinsics::discriminant_value(other);
+            let __self_discr =
+                ::core::intrinsics::discriminant_value(self);
+            let __arg1_discr =
+                ::core::intrinsics::discriminant_value(other);
             __self_discr == __arg1_discr
         }
     }
@@ -16163,40 +19441,61 @@ pub mod yaml {
             &self,
             other: &YamlSequenceStyleT,
         ) -> ::core::option::Option<::core::cmp::Ordering> {
-            let __self_discr = ::core::intrinsics::discriminant_value(self);
-            let __arg1_discr = ::core::intrinsics::discriminant_value(other);
-            ::core::cmp::PartialOrd::partial_cmp(&__self_discr, &__arg1_discr)
+            let __self_discr =
+                ::core::intrinsics::discriminant_value(self);
+            let __arg1_discr =
+                ::core::intrinsics::discriminant_value(other);
+            ::core::cmp::PartialOrd::partial_cmp(
+                &__self_discr,
+                &__arg1_discr,
+            )
         }
     }
     #[automatically_derived]
     impl ::core::cmp::Ord for YamlSequenceStyleT {
         #[inline]
-        fn cmp(&self, other: &YamlSequenceStyleT) -> ::core::cmp::Ordering {
-            let __self_discr = ::core::intrinsics::discriminant_value(self);
-            let __arg1_discr = ::core::intrinsics::discriminant_value(other);
+        fn cmp(
+            &self,
+            other: &YamlSequenceStyleT,
+        ) -> ::core::cmp::Ordering {
+            let __self_discr =
+                ::core::intrinsics::discriminant_value(self);
+            let __arg1_discr =
+                ::core::intrinsics::discriminant_value(other);
             ::core::cmp::Ord::cmp(&__self_discr, &__arg1_discr)
         }
     }
     #[automatically_derived]
     impl ::core::hash::Hash for YamlSequenceStyleT {
         #[inline]
-        fn hash<__H: ::core::hash::Hasher>(&self, state: &mut __H) -> () {
-            let __self_discr = ::core::intrinsics::discriminant_value(self);
+        fn hash<__H: ::core::hash::Hasher>(
+            &self,
+            state: &mut __H,
+        ) -> () {
+            let __self_discr =
+                ::core::intrinsics::discriminant_value(self);
             ::core::hash::Hash::hash(&__self_discr, state)
         }
     }
     #[automatically_derived]
     impl ::core::fmt::Debug for YamlSequenceStyleT {
         #[inline]
-        fn fmt(&self, f: &mut ::core::fmt::Formatter) -> ::core::fmt::Result {
+        fn fmt(
+            &self,
+            f: &mut ::core::fmt::Formatter,
+        ) -> ::core::fmt::Result {
             ::core::fmt::Formatter::write_str(
                 f,
                 match self {
-                    YamlSequenceStyleT::YamlAnySequenceStyle => "YamlAnySequenceStyle",
+                    YamlSequenceStyleT::YamlAnySequenceStyle => {
+                        "YamlAnySequenceStyle"
+                    }
                     YamlSequenceStyleT::YamlBlockSequenceStyle => {
                         "YamlBlockSequenceStyle"
                     }
-                    YamlSequenceStyleT::YamlFlowSequenceStyle => "YamlFlowSequenceStyle",
+                    YamlSequenceStyleT::YamlFlowSequenceStyle => {
+                        "YamlFlowSequenceStyle"
+                    }
                 },
             )
         }
@@ -16227,8 +19526,10 @@ pub mod yaml {
     impl ::core::cmp::PartialEq for YamlMappingStyleT {
         #[inline]
         fn eq(&self, other: &YamlMappingStyleT) -> bool {
-            let __self_discr = ::core::intrinsics::discriminant_value(self);
-            let __arg1_discr = ::core::intrinsics::discriminant_value(other);
+            let __self_discr =
+                ::core::intrinsics::discriminant_value(self);
+            let __arg1_discr =
+                ::core::intrinsics::discriminant_value(other);
             __self_discr == __arg1_discr
         }
     }
@@ -16246,38 +19547,61 @@ pub mod yaml {
             &self,
             other: &YamlMappingStyleT,
         ) -> ::core::option::Option<::core::cmp::Ordering> {
-            let __self_discr = ::core::intrinsics::discriminant_value(self);
-            let __arg1_discr = ::core::intrinsics::discriminant_value(other);
-            ::core::cmp::PartialOrd::partial_cmp(&__self_discr, &__arg1_discr)
+            let __self_discr =
+                ::core::intrinsics::discriminant_value(self);
+            let __arg1_discr =
+                ::core::intrinsics::discriminant_value(other);
+            ::core::cmp::PartialOrd::partial_cmp(
+                &__self_discr,
+                &__arg1_discr,
+            )
         }
     }
     #[automatically_derived]
     impl ::core::cmp::Ord for YamlMappingStyleT {
         #[inline]
-        fn cmp(&self, other: &YamlMappingStyleT) -> ::core::cmp::Ordering {
-            let __self_discr = ::core::intrinsics::discriminant_value(self);
-            let __arg1_discr = ::core::intrinsics::discriminant_value(other);
+        fn cmp(
+            &self,
+            other: &YamlMappingStyleT,
+        ) -> ::core::cmp::Ordering {
+            let __self_discr =
+                ::core::intrinsics::discriminant_value(self);
+            let __arg1_discr =
+                ::core::intrinsics::discriminant_value(other);
             ::core::cmp::Ord::cmp(&__self_discr, &__arg1_discr)
         }
     }
     #[automatically_derived]
     impl ::core::hash::Hash for YamlMappingStyleT {
         #[inline]
-        fn hash<__H: ::core::hash::Hasher>(&self, state: &mut __H) -> () {
-            let __self_discr = ::core::intrinsics::discriminant_value(self);
+        fn hash<__H: ::core::hash::Hasher>(
+            &self,
+            state: &mut __H,
+        ) -> () {
+            let __self_discr =
+                ::core::intrinsics::discriminant_value(self);
             ::core::hash::Hash::hash(&__self_discr, state)
         }
     }
     #[automatically_derived]
     impl ::core::fmt::Debug for YamlMappingStyleT {
         #[inline]
-        fn fmt(&self, f: &mut ::core::fmt::Formatter) -> ::core::fmt::Result {
+        fn fmt(
+            &self,
+            f: &mut ::core::fmt::Formatter,
+        ) -> ::core::fmt::Result {
             ::core::fmt::Formatter::write_str(
                 f,
                 match self {
-                    YamlMappingStyleT::YamlAnyMappingStyle => "YamlAnyMappingStyle",
-                    YamlMappingStyleT::YamlBlockMappingStyle => "YamlBlockMappingStyle",
-                    YamlMappingStyleT::YamlFlowMappingStyle => "YamlFlowMappingStyle",
+                    YamlMappingStyleT::YamlAnyMappingStyle => {
+                        "YamlAnyMappingStyle"
+                    }
+                    YamlMappingStyleT::YamlBlockMappingStyle => {
+                        "YamlBlockMappingStyle"
+                    }
+                    YamlMappingStyleT::YamlFlowMappingStyle => {
+                        "YamlFlowMappingStyle"
+                    }
                 },
             )
         }
@@ -16346,8 +19670,10 @@ pub mod yaml {
     impl ::core::cmp::PartialEq for YamlTokenTypeT {
         #[inline]
         fn eq(&self, other: &YamlTokenTypeT) -> bool {
-            let __self_discr = ::core::intrinsics::discriminant_value(self);
-            let __arg1_discr = ::core::intrinsics::discriminant_value(other);
+            let __self_discr =
+                ::core::intrinsics::discriminant_value(self);
+            let __arg1_discr =
+                ::core::intrinsics::discriminant_value(other);
             __self_discr == __arg1_discr
         }
     }
@@ -16365,51 +19691,77 @@ pub mod yaml {
             &self,
             other: &YamlTokenTypeT,
         ) -> ::core::option::Option<::core::cmp::Ordering> {
-            let __self_discr = ::core::intrinsics::discriminant_value(self);
-            let __arg1_discr = ::core::intrinsics::discriminant_value(other);
-            ::core::cmp::PartialOrd::partial_cmp(&__self_discr, &__arg1_discr)
+            let __self_discr =
+                ::core::intrinsics::discriminant_value(self);
+            let __arg1_discr =
+                ::core::intrinsics::discriminant_value(other);
+            ::core::cmp::PartialOrd::partial_cmp(
+                &__self_discr,
+                &__arg1_discr,
+            )
         }
     }
     #[automatically_derived]
     impl ::core::cmp::Ord for YamlTokenTypeT {
         #[inline]
         fn cmp(&self, other: &YamlTokenTypeT) -> ::core::cmp::Ordering {
-            let __self_discr = ::core::intrinsics::discriminant_value(self);
-            let __arg1_discr = ::core::intrinsics::discriminant_value(other);
+            let __self_discr =
+                ::core::intrinsics::discriminant_value(self);
+            let __arg1_discr =
+                ::core::intrinsics::discriminant_value(other);
             ::core::cmp::Ord::cmp(&__self_discr, &__arg1_discr)
         }
     }
     #[automatically_derived]
     impl ::core::hash::Hash for YamlTokenTypeT {
         #[inline]
-        fn hash<__H: ::core::hash::Hasher>(&self, state: &mut __H) -> () {
-            let __self_discr = ::core::intrinsics::discriminant_value(self);
+        fn hash<__H: ::core::hash::Hasher>(
+            &self,
+            state: &mut __H,
+        ) -> () {
+            let __self_discr =
+                ::core::intrinsics::discriminant_value(self);
             ::core::hash::Hash::hash(&__self_discr, state)
         }
     }
     #[automatically_derived]
     impl ::core::fmt::Debug for YamlTokenTypeT {
         #[inline]
-        fn fmt(&self, f: &mut ::core::fmt::Formatter) -> ::core::fmt::Result {
+        fn fmt(
+            &self,
+            f: &mut ::core::fmt::Formatter,
+        ) -> ::core::fmt::Result {
             ::core::fmt::Formatter::write_str(
                 f,
                 match self {
                     YamlTokenTypeT::YamlNoToken => "YamlNoToken",
-                    YamlTokenTypeT::YamlStreamStartToken => "YamlStreamStartToken",
-                    YamlTokenTypeT::YamlStreamEndToken => "YamlStreamEndToken",
+                    YamlTokenTypeT::YamlStreamStartToken => {
+                        "YamlStreamStartToken"
+                    }
+                    YamlTokenTypeT::YamlStreamEndToken => {
+                        "YamlStreamEndToken"
+                    }
                     YamlTokenTypeT::YamlVersionDirectiveToken => {
                         "YamlVersionDirectiveToken"
                     }
-                    YamlTokenTypeT::YamlTagDirectiveToken => "YamlTagDirectiveToken",
-                    YamlTokenTypeT::YamlDocumentStartToken => "YamlDocumentStartToken",
-                    YamlTokenTypeT::YamlDocumentEndToken => "YamlDocumentEndToken",
+                    YamlTokenTypeT::YamlTagDirectiveToken => {
+                        "YamlTagDirectiveToken"
+                    }
+                    YamlTokenTypeT::YamlDocumentStartToken => {
+                        "YamlDocumentStartToken"
+                    }
+                    YamlTokenTypeT::YamlDocumentEndToken => {
+                        "YamlDocumentEndToken"
+                    }
                     YamlTokenTypeT::YamlBlockSequenceStartToken => {
                         "YamlBlockSequenceStartToken"
                     }
                     YamlTokenTypeT::YamlBlockMappingStartToken => {
                         "YamlBlockMappingStartToken"
                     }
-                    YamlTokenTypeT::YamlBlockEndToken => "YamlBlockEndToken",
+                    YamlTokenTypeT::YamlBlockEndToken => {
+                        "YamlBlockEndToken"
+                    }
                     YamlTokenTypeT::YamlFlowSequenceStartToken => {
                         "YamlFlowSequenceStartToken"
                     }
@@ -16419,15 +19771,25 @@ pub mod yaml {
                     YamlTokenTypeT::YamlFlowMappingStartToken => {
                         "YamlFlowMappingStartToken"
                     }
-                    YamlTokenTypeT::YamlFlowMappingEndToken => "YamlFlowMappingEndToken",
-                    YamlTokenTypeT::YamlBlockEntryToken => "YamlBlockEntryToken",
-                    YamlTokenTypeT::YamlFlowEntryToken => "YamlFlowEntryToken",
+                    YamlTokenTypeT::YamlFlowMappingEndToken => {
+                        "YamlFlowMappingEndToken"
+                    }
+                    YamlTokenTypeT::YamlBlockEntryToken => {
+                        "YamlBlockEntryToken"
+                    }
+                    YamlTokenTypeT::YamlFlowEntryToken => {
+                        "YamlFlowEntryToken"
+                    }
                     YamlTokenTypeT::YamlKeyToken => "YamlKeyToken",
                     YamlTokenTypeT::YamlValueToken => "YamlValueToken",
                     YamlTokenTypeT::YamlAliasToken => "YamlAliasToken",
-                    YamlTokenTypeT::YamlAnchorToken => "YamlAnchorToken",
+                    YamlTokenTypeT::YamlAnchorToken => {
+                        "YamlAnchorToken"
+                    }
                     YamlTokenTypeT::YamlTagToken => "YamlTagToken",
-                    YamlTokenTypeT::YamlScalarToken => "YamlScalarToken",
+                    YamlTokenTypeT::YamlScalarToken => {
+                        "YamlScalarToken"
+                    }
                 },
             )
         }
@@ -16452,7 +19814,9 @@ pub mod yaml {
         #[inline]
         fn clone(&self) -> YamlTokenT {
             let _: ::core::clone::AssertParamIsClone<YamlTokenTypeT>;
-            let _: ::core::clone::AssertParamIsClone<UnnamedYamlTokenTData>;
+            let _: ::core::clone::AssertParamIsClone<
+                UnnamedYamlTokenTData,
+            >;
             let _: ::core::clone::AssertParamIsClone<YamlMarkT>;
             *self
         }
@@ -16460,7 +19824,10 @@ pub mod yaml {
     #[automatically_derived]
     impl ::core::fmt::Debug for YamlTokenT {
         #[inline]
-        fn fmt(&self, f: &mut ::core::fmt::Formatter) -> ::core::fmt::Result {
+        fn fmt(
+            &self,
+            f: &mut ::core::fmt::Formatter,
+        ) -> ::core::fmt::Result {
             ::core::fmt::Formatter::debug_struct_field4_finish(
                 f,
                 "YamlTokenT",
@@ -16499,22 +19866,37 @@ pub mod yaml {
     impl ::core::clone::Clone for UnnamedYamlTokenTData {
         #[inline]
         fn clone(&self) -> UnnamedYamlTokenTData {
-            let _: ::core::clone::AssertParamIsClone<UnnamedYamlTokenTdataStreamStart>;
-            let _: ::core::clone::AssertParamIsClone<UnnamedYamlTokenTdataAlias>;
-            let _: ::core::clone::AssertParamIsClone<UnnamedYamlTokenTdataAnchor>;
-            let _: ::core::clone::AssertParamIsClone<UnnamedYamlTokenTdataTag>;
-            let _: ::core::clone::AssertParamIsClone<UnnamedYamlTokenTdataScalar>;
+            let _: ::core::clone::AssertParamIsClone<
+                UnnamedYamlTokenTdataStreamStart,
+            >;
+            let _: ::core::clone::AssertParamIsClone<
+                UnnamedYamlTokenTdataAlias,
+            >;
+            let _: ::core::clone::AssertParamIsClone<
+                UnnamedYamlTokenTdataAnchor,
+            >;
+            let _: ::core::clone::AssertParamIsClone<
+                UnnamedYamlTokenTdataTag,
+            >;
+            let _: ::core::clone::AssertParamIsClone<
+                UnnamedYamlTokenTdataScalar,
+            >;
             let _: ::core::clone::AssertParamIsClone<
                 UnnamedYamlTokenTdataVersionDirective,
             >;
-            let _: ::core::clone::AssertParamIsClone<UnnamedYamlTokenTdataTagDirective>;
+            let _: ::core::clone::AssertParamIsClone<
+                UnnamedYamlTokenTdataTagDirective,
+            >;
             *self
         }
     }
     #[automatically_derived]
     impl ::core::fmt::Debug for UnnamedYamlTokenTData {
         #[inline]
-        fn fmt(&self, f: &mut ::core::fmt::Formatter) -> ::core::fmt::Result {
+        fn fmt(
+            &self,
+            f: &mut ::core::fmt::Formatter,
+        ) -> ::core::fmt::Result {
             let names: &'static _ = &[
                 "stream_start",
                 "alias",
@@ -16576,7 +19958,10 @@ pub mod yaml {
     #[automatically_derived]
     impl ::core::fmt::Debug for UnnamedYamlTokenTdataStreamStart {
         #[inline]
-        fn fmt(&self, f: &mut ::core::fmt::Formatter) -> ::core::fmt::Result {
+        fn fmt(
+            &self,
+            f: &mut ::core::fmt::Formatter,
+        ) -> ::core::fmt::Result {
             ::core::fmt::Formatter::debug_struct_field1_finish(
                 f,
                 "UnnamedYamlTokenTdataStreamStart",
@@ -16605,7 +19990,10 @@ pub mod yaml {
     #[automatically_derived]
     impl ::core::fmt::Debug for UnnamedYamlTokenTdataAlias {
         #[inline]
-        fn fmt(&self, f: &mut ::core::fmt::Formatter) -> ::core::fmt::Result {
+        fn fmt(
+            &self,
+            f: &mut ::core::fmt::Formatter,
+        ) -> ::core::fmt::Result {
             ::core::fmt::Formatter::debug_struct_field1_finish(
                 f,
                 "UnnamedYamlTokenTdataAlias",
@@ -16634,7 +20022,10 @@ pub mod yaml {
     #[automatically_derived]
     impl ::core::fmt::Debug for UnnamedYamlTokenTdataAnchor {
         #[inline]
-        fn fmt(&self, f: &mut ::core::fmt::Formatter) -> ::core::fmt::Result {
+        fn fmt(
+            &self,
+            f: &mut ::core::fmt::Formatter,
+        ) -> ::core::fmt::Result {
             ::core::fmt::Formatter::debug_struct_field1_finish(
                 f,
                 "UnnamedYamlTokenTdataAnchor",
@@ -16666,7 +20057,10 @@ pub mod yaml {
     #[automatically_derived]
     impl ::core::fmt::Debug for UnnamedYamlTokenTdataTag {
         #[inline]
-        fn fmt(&self, f: &mut ::core::fmt::Formatter) -> ::core::fmt::Result {
+        fn fmt(
+            &self,
+            f: &mut ::core::fmt::Formatter,
+        ) -> ::core::fmt::Result {
             ::core::fmt::Formatter::debug_struct_field2_finish(
                 f,
                 "UnnamedYamlTokenTdataTag",
@@ -16703,7 +20097,10 @@ pub mod yaml {
     #[automatically_derived]
     impl ::core::fmt::Debug for UnnamedYamlTokenTdataScalar {
         #[inline]
-        fn fmt(&self, f: &mut ::core::fmt::Formatter) -> ::core::fmt::Result {
+        fn fmt(
+            &self,
+            f: &mut ::core::fmt::Formatter,
+        ) -> ::core::fmt::Result {
             ::core::fmt::Formatter::debug_struct_field3_finish(
                 f,
                 "UnnamedYamlTokenTdataScalar",
@@ -16739,7 +20136,10 @@ pub mod yaml {
     #[automatically_derived]
     impl ::core::fmt::Debug for UnnamedYamlTokenTdataVersionDirective {
         #[inline]
-        fn fmt(&self, f: &mut ::core::fmt::Formatter) -> ::core::fmt::Result {
+        fn fmt(
+            &self,
+            f: &mut ::core::fmt::Formatter,
+        ) -> ::core::fmt::Result {
             ::core::fmt::Formatter::debug_struct_field2_finish(
                 f,
                 "UnnamedYamlTokenTdataVersionDirective",
@@ -16751,7 +20151,9 @@ pub mod yaml {
         }
     }
     #[automatically_derived]
-    impl ::core::default::Default for UnnamedYamlTokenTdataVersionDirective {
+    impl ::core::default::Default
+        for UnnamedYamlTokenTdataVersionDirective
+    {
         #[inline]
         fn default() -> UnnamedYamlTokenTdataVersionDirective {
             UnnamedYamlTokenTdataVersionDirective {
@@ -16783,7 +20185,10 @@ pub mod yaml {
     #[automatically_derived]
     impl ::core::fmt::Debug for UnnamedYamlTokenTdataTagDirective {
         #[inline]
-        fn fmt(&self, f: &mut ::core::fmt::Formatter) -> ::core::fmt::Result {
+        fn fmt(
+            &self,
+            f: &mut ::core::fmt::Formatter,
+        ) -> ::core::fmt::Result {
             ::core::fmt::Formatter::debug_struct_field2_finish(
                 f,
                 "UnnamedYamlTokenTdataTagDirective",
@@ -16836,8 +20241,10 @@ pub mod yaml {
     impl ::core::cmp::PartialEq for YamlEventTypeT {
         #[inline]
         fn eq(&self, other: &YamlEventTypeT) -> bool {
-            let __self_discr = ::core::intrinsics::discriminant_value(self);
-            let __arg1_discr = ::core::intrinsics::discriminant_value(other);
+            let __self_discr =
+                ::core::intrinsics::discriminant_value(self);
+            let __arg1_discr =
+                ::core::intrinsics::discriminant_value(other);
             __self_discr == __arg1_discr
         }
     }
@@ -16855,46 +20262,78 @@ pub mod yaml {
             &self,
             other: &YamlEventTypeT,
         ) -> ::core::option::Option<::core::cmp::Ordering> {
-            let __self_discr = ::core::intrinsics::discriminant_value(self);
-            let __arg1_discr = ::core::intrinsics::discriminant_value(other);
-            ::core::cmp::PartialOrd::partial_cmp(&__self_discr, &__arg1_discr)
+            let __self_discr =
+                ::core::intrinsics::discriminant_value(self);
+            let __arg1_discr =
+                ::core::intrinsics::discriminant_value(other);
+            ::core::cmp::PartialOrd::partial_cmp(
+                &__self_discr,
+                &__arg1_discr,
+            )
         }
     }
     #[automatically_derived]
     impl ::core::cmp::Ord for YamlEventTypeT {
         #[inline]
         fn cmp(&self, other: &YamlEventTypeT) -> ::core::cmp::Ordering {
-            let __self_discr = ::core::intrinsics::discriminant_value(self);
-            let __arg1_discr = ::core::intrinsics::discriminant_value(other);
+            let __self_discr =
+                ::core::intrinsics::discriminant_value(self);
+            let __arg1_discr =
+                ::core::intrinsics::discriminant_value(other);
             ::core::cmp::Ord::cmp(&__self_discr, &__arg1_discr)
         }
     }
     #[automatically_derived]
     impl ::core::hash::Hash for YamlEventTypeT {
         #[inline]
-        fn hash<__H: ::core::hash::Hasher>(&self, state: &mut __H) -> () {
-            let __self_discr = ::core::intrinsics::discriminant_value(self);
+        fn hash<__H: ::core::hash::Hasher>(
+            &self,
+            state: &mut __H,
+        ) -> () {
+            let __self_discr =
+                ::core::intrinsics::discriminant_value(self);
             ::core::hash::Hash::hash(&__self_discr, state)
         }
     }
     #[automatically_derived]
     impl ::core::fmt::Debug for YamlEventTypeT {
         #[inline]
-        fn fmt(&self, f: &mut ::core::fmt::Formatter) -> ::core::fmt::Result {
+        fn fmt(
+            &self,
+            f: &mut ::core::fmt::Formatter,
+        ) -> ::core::fmt::Result {
             ::core::fmt::Formatter::write_str(
                 f,
                 match self {
                     YamlEventTypeT::YamlNoEvent => "YamlNoEvent",
-                    YamlEventTypeT::YamlStreamStartEvent => "YamlStreamStartEvent",
-                    YamlEventTypeT::YamlStreamEndEvent => "YamlStreamEndEvent",
-                    YamlEventTypeT::YamlDocumentStartEvent => "YamlDocumentStartEvent",
-                    YamlEventTypeT::YamlDocumentEndEvent => "YamlDocumentEndEvent",
+                    YamlEventTypeT::YamlStreamStartEvent => {
+                        "YamlStreamStartEvent"
+                    }
+                    YamlEventTypeT::YamlStreamEndEvent => {
+                        "YamlStreamEndEvent"
+                    }
+                    YamlEventTypeT::YamlDocumentStartEvent => {
+                        "YamlDocumentStartEvent"
+                    }
+                    YamlEventTypeT::YamlDocumentEndEvent => {
+                        "YamlDocumentEndEvent"
+                    }
                     YamlEventTypeT::YamlAliasEvent => "YamlAliasEvent",
-                    YamlEventTypeT::YamlScalarEvent => "YamlScalarEvent",
-                    YamlEventTypeT::YamlSequenceStartEvent => "YamlSequenceStartEvent",
-                    YamlEventTypeT::YamlSequenceEndEvent => "YamlSequenceEndEvent",
-                    YamlEventTypeT::YamlMappingStartEvent => "YamlMappingStartEvent",
-                    YamlEventTypeT::YamlMappingEndEvent => "YamlMappingEndEvent",
+                    YamlEventTypeT::YamlScalarEvent => {
+                        "YamlScalarEvent"
+                    }
+                    YamlEventTypeT::YamlSequenceStartEvent => {
+                        "YamlSequenceStartEvent"
+                    }
+                    YamlEventTypeT::YamlSequenceEndEvent => {
+                        "YamlSequenceEndEvent"
+                    }
+                    YamlEventTypeT::YamlMappingStartEvent => {
+                        "YamlMappingStartEvent"
+                    }
+                    YamlEventTypeT::YamlMappingEndEvent => {
+                        "YamlMappingEndEvent"
+                    }
                 },
             )
         }
@@ -16919,7 +20358,9 @@ pub mod yaml {
         #[inline]
         fn clone(&self) -> YamlEventT {
             let _: ::core::clone::AssertParamIsClone<YamlEventTypeT>;
-            let _: ::core::clone::AssertParamIsClone<UnnamedYamlEventTData>;
+            let _: ::core::clone::AssertParamIsClone<
+                UnnamedYamlEventTData,
+            >;
             let _: ::core::clone::AssertParamIsClone<YamlMarkT>;
             *self
         }
@@ -16927,7 +20368,10 @@ pub mod yaml {
     #[automatically_derived]
     impl ::core::fmt::Debug for YamlEventT {
         #[inline]
-        fn fmt(&self, f: &mut ::core::fmt::Formatter) -> ::core::fmt::Result {
+        fn fmt(
+            &self,
+            f: &mut ::core::fmt::Formatter,
+        ) -> ::core::fmt::Result {
             ::core::fmt::Formatter::debug_struct_field4_finish(
                 f,
                 "YamlEventT",
@@ -16966,20 +20410,37 @@ pub mod yaml {
     impl ::core::clone::Clone for UnnamedYamlEventTData {
         #[inline]
         fn clone(&self) -> UnnamedYamlEventTData {
-            let _: ::core::clone::AssertParamIsClone<UnnamedYamlEventTdataStreamStart>;
-            let _: ::core::clone::AssertParamIsClone<UnnamedYamlEventTdataDocumentStart>;
-            let _: ::core::clone::AssertParamIsClone<UnnamedYamlEventTdataDocumentEnd>;
-            let _: ::core::clone::AssertParamIsClone<UnnamedYamlEventTdataAlias>;
-            let _: ::core::clone::AssertParamIsClone<UnnamedYamlEventTdataScalar>;
-            let _: ::core::clone::AssertParamIsClone<UnnamedYamlEventTdataSequenceStart>;
-            let _: ::core::clone::AssertParamIsClone<UnnamedYamlEventTdataMappingStart>;
+            let _: ::core::clone::AssertParamIsClone<
+                UnnamedYamlEventTdataStreamStart,
+            >;
+            let _: ::core::clone::AssertParamIsClone<
+                UnnamedYamlEventTdataDocumentStart,
+            >;
+            let _: ::core::clone::AssertParamIsClone<
+                UnnamedYamlEventTdataDocumentEnd,
+            >;
+            let _: ::core::clone::AssertParamIsClone<
+                UnnamedYamlEventTdataAlias,
+            >;
+            let _: ::core::clone::AssertParamIsClone<
+                UnnamedYamlEventTdataScalar,
+            >;
+            let _: ::core::clone::AssertParamIsClone<
+                UnnamedYamlEventTdataSequenceStart,
+            >;
+            let _: ::core::clone::AssertParamIsClone<
+                UnnamedYamlEventTdataMappingStart,
+            >;
             *self
         }
     }
     #[automatically_derived]
     impl ::core::fmt::Debug for UnnamedYamlEventTData {
         #[inline]
-        fn fmt(&self, f: &mut ::core::fmt::Formatter) -> ::core::fmt::Result {
+        fn fmt(
+            &self,
+            f: &mut ::core::fmt::Formatter,
+        ) -> ::core::fmt::Result {
             let names: &'static _ = &[
                 "stream_start",
                 "document_start",
@@ -17026,7 +20487,10 @@ pub mod yaml {
     #[automatically_derived]
     impl ::core::fmt::Debug for UnnamedYamlEventTdataStreamStart {
         #[inline]
-        fn fmt(&self, f: &mut ::core::fmt::Formatter) -> ::core::fmt::Result {
+        fn fmt(
+            &self,
+            f: &mut ::core::fmt::Formatter,
+        ) -> ::core::fmt::Result {
             ::core::fmt::Formatter::debug_struct_field1_finish(
                 f,
                 "UnnamedYamlEventTdataStreamStart",
@@ -17042,7 +20506,8 @@ pub mod yaml {
         /// The version directive.
         pub version_directive: *mut YamlVersionDirectiveT,
         /// The list of tag directives.
-        pub tag_directives: UnnamedYamlEventTdataDocumentStartTagDirectives,
+        pub tag_directives:
+            UnnamedYamlEventTdataDocumentStartTagDirectives,
         /// Is the document indicator implicit?
         pub implicit: bool,
     }
@@ -17052,7 +20517,9 @@ pub mod yaml {
     impl ::core::clone::Clone for UnnamedYamlEventTdataDocumentStart {
         #[inline]
         fn clone(&self) -> UnnamedYamlEventTdataDocumentStart {
-            let _: ::core::clone::AssertParamIsClone<*mut YamlVersionDirectiveT>;
+            let _: ::core::clone::AssertParamIsClone<
+                *mut YamlVersionDirectiveT,
+            >;
             let _: ::core::clone::AssertParamIsClone<
                 UnnamedYamlEventTdataDocumentStartTagDirectives,
             >;
@@ -17063,7 +20530,10 @@ pub mod yaml {
     #[automatically_derived]
     impl ::core::fmt::Debug for UnnamedYamlEventTdataDocumentStart {
         #[inline]
-        fn fmt(&self, f: &mut ::core::fmt::Formatter) -> ::core::fmt::Result {
+        fn fmt(
+            &self,
+            f: &mut ::core::fmt::Formatter,
+        ) -> ::core::fmt::Result {
             ::core::fmt::Formatter::debug_struct_field3_finish(
                 f,
                 "UnnamedYamlEventTdataDocumentStart",
@@ -17086,20 +20556,36 @@ pub mod yaml {
         pub end: *mut YamlTagDirectiveT,
     }
     #[automatically_derived]
-    impl ::core::marker::Copy for UnnamedYamlEventTdataDocumentStartTagDirectives {}
+    impl ::core::marker::Copy
+        for UnnamedYamlEventTdataDocumentStartTagDirectives
+    {
+    }
     #[automatically_derived]
-    impl ::core::clone::Clone for UnnamedYamlEventTdataDocumentStartTagDirectives {
+    impl ::core::clone::Clone
+        for UnnamedYamlEventTdataDocumentStartTagDirectives
+    {
         #[inline]
-        fn clone(&self) -> UnnamedYamlEventTdataDocumentStartTagDirectives {
-            let _: ::core::clone::AssertParamIsClone<*mut YamlTagDirectiveT>;
-            let _: ::core::clone::AssertParamIsClone<*mut YamlTagDirectiveT>;
+        fn clone(
+            &self,
+        ) -> UnnamedYamlEventTdataDocumentStartTagDirectives {
+            let _: ::core::clone::AssertParamIsClone<
+                *mut YamlTagDirectiveT,
+            >;
+            let _: ::core::clone::AssertParamIsClone<
+                *mut YamlTagDirectiveT,
+            >;
             *self
         }
     }
     #[automatically_derived]
-    impl ::core::fmt::Debug for UnnamedYamlEventTdataDocumentStartTagDirectives {
+    impl ::core::fmt::Debug
+        for UnnamedYamlEventTdataDocumentStartTagDirectives
+    {
         #[inline]
-        fn fmt(&self, f: &mut ::core::fmt::Formatter) -> ::core::fmt::Result {
+        fn fmt(
+            &self,
+            f: &mut ::core::fmt::Formatter,
+        ) -> ::core::fmt::Result {
             ::core::fmt::Formatter::debug_struct_field2_finish(
                 f,
                 "UnnamedYamlEventTdataDocumentStartTagDirectives",
@@ -17130,7 +20616,10 @@ pub mod yaml {
     #[automatically_derived]
     impl ::core::fmt::Debug for UnnamedYamlEventTdataDocumentEnd {
         #[inline]
-        fn fmt(&self, f: &mut ::core::fmt::Formatter) -> ::core::fmt::Result {
+        fn fmt(
+            &self,
+            f: &mut ::core::fmt::Formatter,
+        ) -> ::core::fmt::Result {
             ::core::fmt::Formatter::debug_struct_field1_finish(
                 f,
                 "UnnamedYamlEventTdataDocumentEnd",
@@ -17159,7 +20648,10 @@ pub mod yaml {
     #[automatically_derived]
     impl ::core::fmt::Debug for UnnamedYamlEventTdataAlias {
         #[inline]
-        fn fmt(&self, f: &mut ::core::fmt::Formatter) -> ::core::fmt::Result {
+        fn fmt(
+            &self,
+            f: &mut ::core::fmt::Formatter,
+        ) -> ::core::fmt::Result {
             ::core::fmt::Formatter::debug_struct_field1_finish(
                 f,
                 "UnnamedYamlEventTdataAlias",
@@ -17205,7 +20697,10 @@ pub mod yaml {
     #[automatically_derived]
     impl ::core::fmt::Debug for UnnamedYamlEventTdataScalar {
         #[inline]
-        fn fmt(&self, f: &mut ::core::fmt::Formatter) -> ::core::fmt::Result {
+        fn fmt(
+            &self,
+            f: &mut ::core::fmt::Formatter,
+        ) -> ::core::fmt::Result {
             let names: &'static _ = &[
                 "anchor",
                 "tag",
@@ -17254,14 +20749,19 @@ pub mod yaml {
             let _: ::core::clone::AssertParamIsClone<*mut yaml_char_t>;
             let _: ::core::clone::AssertParamIsClone<*mut yaml_char_t>;
             let _: ::core::clone::AssertParamIsClone<bool>;
-            let _: ::core::clone::AssertParamIsClone<YamlSequenceStyleT>;
+            let _: ::core::clone::AssertParamIsClone<
+                YamlSequenceStyleT,
+            >;
             *self
         }
     }
     #[automatically_derived]
     impl ::core::fmt::Debug for UnnamedYamlEventTdataSequenceStart {
         #[inline]
-        fn fmt(&self, f: &mut ::core::fmt::Formatter) -> ::core::fmt::Result {
+        fn fmt(
+            &self,
+            f: &mut ::core::fmt::Formatter,
+        ) -> ::core::fmt::Result {
             ::core::fmt::Formatter::debug_struct_field4_finish(
                 f,
                 "UnnamedYamlEventTdataSequenceStart",
@@ -17298,14 +20798,19 @@ pub mod yaml {
             let _: ::core::clone::AssertParamIsClone<*mut yaml_char_t>;
             let _: ::core::clone::AssertParamIsClone<*mut yaml_char_t>;
             let _: ::core::clone::AssertParamIsClone<bool>;
-            let _: ::core::clone::AssertParamIsClone<YamlMappingStyleT>;
+            let _: ::core::clone::AssertParamIsClone<
+                YamlMappingStyleT,
+            >;
             *self
         }
     }
     #[automatically_derived]
     impl ::core::fmt::Debug for UnnamedYamlEventTdataMappingStart {
         #[inline]
-        fn fmt(&self, f: &mut ::core::fmt::Formatter) -> ::core::fmt::Result {
+        fn fmt(
+            &self,
+            f: &mut ::core::fmt::Formatter,
+        ) -> ::core::fmt::Result {
             ::core::fmt::Formatter::debug_struct_field4_finish(
                 f,
                 "UnnamedYamlEventTdataMappingStart",
@@ -17348,8 +20853,10 @@ pub mod yaml {
     impl ::core::cmp::PartialEq for YamlNodeTypeT {
         #[inline]
         fn eq(&self, other: &YamlNodeTypeT) -> bool {
-            let __self_discr = ::core::intrinsics::discriminant_value(self);
-            let __arg1_discr = ::core::intrinsics::discriminant_value(other);
+            let __self_discr =
+                ::core::intrinsics::discriminant_value(self);
+            let __arg1_discr =
+                ::core::intrinsics::discriminant_value(other);
             __self_discr == __arg1_discr
         }
     }
@@ -17367,38 +20874,54 @@ pub mod yaml {
             &self,
             other: &YamlNodeTypeT,
         ) -> ::core::option::Option<::core::cmp::Ordering> {
-            let __self_discr = ::core::intrinsics::discriminant_value(self);
-            let __arg1_discr = ::core::intrinsics::discriminant_value(other);
-            ::core::cmp::PartialOrd::partial_cmp(&__self_discr, &__arg1_discr)
+            let __self_discr =
+                ::core::intrinsics::discriminant_value(self);
+            let __arg1_discr =
+                ::core::intrinsics::discriminant_value(other);
+            ::core::cmp::PartialOrd::partial_cmp(
+                &__self_discr,
+                &__arg1_discr,
+            )
         }
     }
     #[automatically_derived]
     impl ::core::cmp::Ord for YamlNodeTypeT {
         #[inline]
         fn cmp(&self, other: &YamlNodeTypeT) -> ::core::cmp::Ordering {
-            let __self_discr = ::core::intrinsics::discriminant_value(self);
-            let __arg1_discr = ::core::intrinsics::discriminant_value(other);
+            let __self_discr =
+                ::core::intrinsics::discriminant_value(self);
+            let __arg1_discr =
+                ::core::intrinsics::discriminant_value(other);
             ::core::cmp::Ord::cmp(&__self_discr, &__arg1_discr)
         }
     }
     #[automatically_derived]
     impl ::core::hash::Hash for YamlNodeTypeT {
         #[inline]
-        fn hash<__H: ::core::hash::Hasher>(&self, state: &mut __H) -> () {
-            let __self_discr = ::core::intrinsics::discriminant_value(self);
+        fn hash<__H: ::core::hash::Hasher>(
+            &self,
+            state: &mut __H,
+        ) -> () {
+            let __self_discr =
+                ::core::intrinsics::discriminant_value(self);
             ::core::hash::Hash::hash(&__self_discr, state)
         }
     }
     #[automatically_derived]
     impl ::core::fmt::Debug for YamlNodeTypeT {
         #[inline]
-        fn fmt(&self, f: &mut ::core::fmt::Formatter) -> ::core::fmt::Result {
+        fn fmt(
+            &self,
+            f: &mut ::core::fmt::Formatter,
+        ) -> ::core::fmt::Result {
             ::core::fmt::Formatter::write_str(
                 f,
                 match self {
                     YamlNodeTypeT::YamlNoNode => "YamlNoNode",
                     YamlNodeTypeT::YamlScalarNode => "YamlScalarNode",
-                    YamlNodeTypeT::YamlSequenceNode => "YamlSequenceNode",
+                    YamlNodeTypeT::YamlSequenceNode => {
+                        "YamlSequenceNode"
+                    }
                     YamlNodeTypeT::YamlMappingNode => "YamlMappingNode",
                 },
             )
@@ -17427,7 +20950,9 @@ pub mod yaml {
         fn clone(&self) -> YamlNodeT {
             let _: ::core::clone::AssertParamIsClone<YamlNodeTypeT>;
             let _: ::core::clone::AssertParamIsClone<*mut yaml_char_t>;
-            let _: ::core::clone::AssertParamIsClone<UnnamedYamlNodeTData>;
+            let _: ::core::clone::AssertParamIsClone<
+                UnnamedYamlNodeTData,
+            >;
             let _: ::core::clone::AssertParamIsClone<YamlMarkT>;
             *self
         }
@@ -17435,7 +20960,10 @@ pub mod yaml {
     #[automatically_derived]
     impl ::core::fmt::Debug for YamlNodeT {
         #[inline]
-        fn fmt(&self, f: &mut ::core::fmt::Formatter) -> ::core::fmt::Result {
+        fn fmt(
+            &self,
+            f: &mut ::core::fmt::Formatter,
+        ) -> ::core::fmt::Result {
             ::core::fmt::Formatter::debug_struct_field5_finish(
                 f,
                 "YamlNodeT",
@@ -17468,16 +20996,25 @@ pub mod yaml {
     impl ::core::clone::Clone for UnnamedYamlNodeTData {
         #[inline]
         fn clone(&self) -> UnnamedYamlNodeTData {
-            let _: ::core::clone::AssertParamIsClone<UnnamedYamlNodeTDataScalar>;
-            let _: ::core::clone::AssertParamIsClone<UnnamedYamlNodeTDataSequence>;
-            let _: ::core::clone::AssertParamIsClone<UnnamedYamlNodeTDataMapping>;
+            let _: ::core::clone::AssertParamIsClone<
+                UnnamedYamlNodeTDataScalar,
+            >;
+            let _: ::core::clone::AssertParamIsClone<
+                UnnamedYamlNodeTDataSequence,
+            >;
+            let _: ::core::clone::AssertParamIsClone<
+                UnnamedYamlNodeTDataMapping,
+            >;
             *self
         }
     }
     #[automatically_derived]
     impl ::core::fmt::Debug for UnnamedYamlNodeTData {
         #[inline]
-        fn fmt(&self, f: &mut ::core::fmt::Formatter) -> ::core::fmt::Result {
+        fn fmt(
+            &self,
+            f: &mut ::core::fmt::Formatter,
+        ) -> ::core::fmt::Result {
             ::core::fmt::Formatter::debug_struct_field3_finish(
                 f,
                 "UnnamedYamlNodeTData",
@@ -17516,7 +21053,10 @@ pub mod yaml {
     #[automatically_derived]
     impl ::core::fmt::Debug for UnnamedYamlNodeTDataScalar {
         #[inline]
-        fn fmt(&self, f: &mut ::core::fmt::Formatter) -> ::core::fmt::Result {
+        fn fmt(
+            &self,
+            f: &mut ::core::fmt::Formatter,
+        ) -> ::core::fmt::Result {
             ::core::fmt::Formatter::debug_struct_field3_finish(
                 f,
                 "UnnamedYamlNodeTDataScalar",
@@ -17546,15 +21086,22 @@ pub mod yaml {
     impl ::core::clone::Clone for UnnamedYamlNodeTDataSequence {
         #[inline]
         fn clone(&self) -> UnnamedYamlNodeTDataSequence {
-            let _: ::core::clone::AssertParamIsClone<YamlStackT<YamlNodeItemT>>;
-            let _: ::core::clone::AssertParamIsClone<YamlSequenceStyleT>;
+            let _: ::core::clone::AssertParamIsClone<
+                YamlStackT<YamlNodeItemT>,
+            >;
+            let _: ::core::clone::AssertParamIsClone<
+                YamlSequenceStyleT,
+            >;
             *self
         }
     }
     #[automatically_derived]
     impl ::core::fmt::Debug for UnnamedYamlNodeTDataSequence {
         #[inline]
-        fn fmt(&self, f: &mut ::core::fmt::Formatter) -> ::core::fmt::Result {
+        fn fmt(
+            &self,
+            f: &mut ::core::fmt::Formatter,
+        ) -> ::core::fmt::Result {
             ::core::fmt::Formatter::debug_struct_field2_finish(
                 f,
                 "UnnamedYamlNodeTDataSequence",
@@ -17580,15 +21127,22 @@ pub mod yaml {
     impl ::core::clone::Clone for UnnamedYamlNodeTDataMapping {
         #[inline]
         fn clone(&self) -> UnnamedYamlNodeTDataMapping {
-            let _: ::core::clone::AssertParamIsClone<YamlStackT<YamlNodePairT>>;
-            let _: ::core::clone::AssertParamIsClone<YamlMappingStyleT>;
+            let _: ::core::clone::AssertParamIsClone<
+                YamlStackT<YamlNodePairT>,
+            >;
+            let _: ::core::clone::AssertParamIsClone<
+                YamlMappingStyleT,
+            >;
             *self
         }
     }
     #[automatically_derived]
     impl ::core::fmt::Debug for UnnamedYamlNodeTDataMapping {
         #[inline]
-        fn fmt(&self, f: &mut ::core::fmt::Formatter) -> ::core::fmt::Result {
+        fn fmt(
+            &self,
+            f: &mut ::core::fmt::Formatter,
+        ) -> ::core::fmt::Result {
             ::core::fmt::Formatter::debug_struct_field2_finish(
                 f,
                 "UnnamedYamlNodeTDataMapping",
@@ -17622,7 +21176,10 @@ pub mod yaml {
     #[automatically_derived]
     impl ::core::fmt::Debug for YamlNodePairT {
         #[inline]
-        fn fmt(&self, f: &mut ::core::fmt::Formatter) -> ::core::fmt::Result {
+        fn fmt(
+            &self,
+            f: &mut ::core::fmt::Formatter,
+        ) -> ::core::fmt::Result {
             ::core::fmt::Formatter::debug_struct_field2_finish(
                 f,
                 "YamlNodePairT",
@@ -17658,11 +21215,21 @@ pub mod yaml {
         fn clone(&self) -> YamlDocumentT {
             YamlDocumentT {
                 nodes: ::core::clone::Clone::clone(&self.nodes),
-                version_directive: ::core::clone::Clone::clone(&self.version_directive),
-                tag_directives: ::core::clone::Clone::clone(&self.tag_directives),
-                start_implicit: ::core::clone::Clone::clone(&self.start_implicit),
-                end_implicit: ::core::clone::Clone::clone(&self.end_implicit),
-                start_mark: ::core::clone::Clone::clone(&self.start_mark),
+                version_directive: ::core::clone::Clone::clone(
+                    &self.version_directive,
+                ),
+                tag_directives: ::core::clone::Clone::clone(
+                    &self.tag_directives,
+                ),
+                start_implicit: ::core::clone::Clone::clone(
+                    &self.start_implicit,
+                ),
+                end_implicit: ::core::clone::Clone::clone(
+                    &self.end_implicit,
+                ),
+                start_mark: ::core::clone::Clone::clone(
+                    &self.start_mark,
+                ),
                 end_mark: ::core::clone::Clone::clone(&self.end_mark),
             }
         }
@@ -17670,7 +21237,10 @@ pub mod yaml {
     #[automatically_derived]
     impl ::core::fmt::Debug for YamlDocumentT {
         #[inline]
-        fn fmt(&self, f: &mut ::core::fmt::Formatter) -> ::core::fmt::Result {
+        fn fmt(
+            &self,
+            f: &mut ::core::fmt::Formatter,
+        ) -> ::core::fmt::Result {
             let names: &'static _ = &[
                 "nodes",
                 "version_directive",
@@ -17712,15 +21282,22 @@ pub mod yaml {
     impl ::core::clone::Clone for UnnamedYamlDocumentTTagDirectives {
         #[inline]
         fn clone(&self) -> UnnamedYamlDocumentTTagDirectives {
-            let _: ::core::clone::AssertParamIsClone<*mut YamlTagDirectiveT>;
-            let _: ::core::clone::AssertParamIsClone<*mut YamlTagDirectiveT>;
+            let _: ::core::clone::AssertParamIsClone<
+                *mut YamlTagDirectiveT,
+            >;
+            let _: ::core::clone::AssertParamIsClone<
+                *mut YamlTagDirectiveT,
+            >;
             *self
         }
     }
     #[automatically_derived]
     impl ::core::fmt::Debug for UnnamedYamlDocumentTTagDirectives {
         #[inline]
-        fn fmt(&self, f: &mut ::core::fmt::Formatter) -> ::core::fmt::Result {
+        fn fmt(
+            &self,
+            f: &mut ::core::fmt::Formatter,
+        ) -> ::core::fmt::Result {
             ::core::fmt::Formatter::debug_struct_field2_finish(
                 f,
                 "UnnamedYamlDocumentTTagDirectives",
@@ -17774,7 +21351,10 @@ pub mod yaml {
     #[automatically_derived]
     impl ::core::fmt::Debug for YamlSimpleKeyT {
         #[inline]
-        fn fmt(&self, f: &mut ::core::fmt::Formatter) -> ::core::fmt::Result {
+        fn fmt(
+            &self,
+            f: &mut ::core::fmt::Formatter,
+        ) -> ::core::fmt::Result {
             ::core::fmt::Formatter::debug_struct_field4_finish(
                 f,
                 "YamlSimpleKeyT",
@@ -17869,8 +21449,10 @@ pub mod yaml {
     impl ::core::cmp::PartialEq for YamlParserStateT {
         #[inline]
         fn eq(&self, other: &YamlParserStateT) -> bool {
-            let __self_discr = ::core::intrinsics::discriminant_value(self);
-            let __arg1_discr = ::core::intrinsics::discriminant_value(other);
+            let __self_discr =
+                ::core::intrinsics::discriminant_value(self);
+            let __arg1_discr =
+                ::core::intrinsics::discriminant_value(other);
             __self_discr == __arg1_discr
         }
     }
@@ -17888,32 +21470,49 @@ pub mod yaml {
             &self,
             other: &YamlParserStateT,
         ) -> ::core::option::Option<::core::cmp::Ordering> {
-            let __self_discr = ::core::intrinsics::discriminant_value(self);
-            let __arg1_discr = ::core::intrinsics::discriminant_value(other);
-            ::core::cmp::PartialOrd::partial_cmp(&__self_discr, &__arg1_discr)
+            let __self_discr =
+                ::core::intrinsics::discriminant_value(self);
+            let __arg1_discr =
+                ::core::intrinsics::discriminant_value(other);
+            ::core::cmp::PartialOrd::partial_cmp(
+                &__self_discr,
+                &__arg1_discr,
+            )
         }
     }
     #[automatically_derived]
     impl ::core::cmp::Ord for YamlParserStateT {
         #[inline]
-        fn cmp(&self, other: &YamlParserStateT) -> ::core::cmp::Ordering {
-            let __self_discr = ::core::intrinsics::discriminant_value(self);
-            let __arg1_discr = ::core::intrinsics::discriminant_value(other);
+        fn cmp(
+            &self,
+            other: &YamlParserStateT,
+        ) -> ::core::cmp::Ordering {
+            let __self_discr =
+                ::core::intrinsics::discriminant_value(self);
+            let __arg1_discr =
+                ::core::intrinsics::discriminant_value(other);
             ::core::cmp::Ord::cmp(&__self_discr, &__arg1_discr)
         }
     }
     #[automatically_derived]
     impl ::core::hash::Hash for YamlParserStateT {
         #[inline]
-        fn hash<__H: ::core::hash::Hasher>(&self, state: &mut __H) -> () {
-            let __self_discr = ::core::intrinsics::discriminant_value(self);
+        fn hash<__H: ::core::hash::Hasher>(
+            &self,
+            state: &mut __H,
+        ) -> () {
+            let __self_discr =
+                ::core::intrinsics::discriminant_value(self);
             ::core::hash::Hash::hash(&__self_discr, state)
         }
     }
     #[automatically_derived]
     impl ::core::fmt::Debug for YamlParserStateT {
         #[inline]
-        fn fmt(&self, f: &mut ::core::fmt::Formatter) -> ::core::fmt::Result {
+        fn fmt(
+            &self,
+            f: &mut ::core::fmt::Formatter,
+        ) -> ::core::fmt::Result {
             ::core::fmt::Formatter::write_str(
                 f,
                 match self {
@@ -18015,7 +21614,10 @@ pub mod yaml {
     #[automatically_derived]
     impl ::core::fmt::Debug for YamlAliasDataT {
         #[inline]
-        fn fmt(&self, f: &mut ::core::fmt::Formatter) -> ::core::fmt::Result {
+        fn fmt(
+            &self,
+            f: &mut ::core::fmt::Formatter,
+        ) -> ::core::fmt::Result {
             ::core::fmt::Formatter::debug_struct_field3_finish(
                 f,
                 "YamlAliasDataT",
@@ -18111,18 +21713,32 @@ pub mod yaml {
             YamlParserT {
                 error: ::core::clone::Clone::clone(&self.error),
                 problem: ::core::clone::Clone::clone(&self.problem),
-                problem_offset: ::core::clone::Clone::clone(&self.problem_offset),
-                problem_value: ::core::clone::Clone::clone(&self.problem_value),
-                problem_mark: ::core::clone::Clone::clone(&self.problem_mark),
+                problem_offset: ::core::clone::Clone::clone(
+                    &self.problem_offset,
+                ),
+                problem_value: ::core::clone::Clone::clone(
+                    &self.problem_value,
+                ),
+                problem_mark: ::core::clone::Clone::clone(
+                    &self.problem_mark,
+                ),
                 context: ::core::clone::Clone::clone(&self.context),
-                context_mark: ::core::clone::Clone::clone(&self.context_mark),
-                read_handler: ::core::clone::Clone::clone(&self.read_handler),
-                read_handler_data: ::core::clone::Clone::clone(&self.read_handler_data),
+                context_mark: ::core::clone::Clone::clone(
+                    &self.context_mark,
+                ),
+                read_handler: ::core::clone::Clone::clone(
+                    &self.read_handler,
+                ),
+                read_handler_data: ::core::clone::Clone::clone(
+                    &self.read_handler_data,
+                ),
                 input: ::core::clone::Clone::clone(&self.input),
                 eof: ::core::clone::Clone::clone(&self.eof),
                 buffer: ::core::clone::Clone::clone(&self.buffer),
                 unread: ::core::clone::Clone::clone(&self.unread),
-                raw_buffer: ::core::clone::Clone::clone(&self.raw_buffer),
+                raw_buffer: ::core::clone::Clone::clone(
+                    &self.raw_buffer,
+                ),
                 encoding: ::core::clone::Clone::clone(&self.encoding),
                 offset: ::core::clone::Clone::clone(&self.offset),
                 mark: ::core::clone::Clone::clone(&self.mark),
@@ -18132,21 +21748,33 @@ pub mod yaml {
                 stream_end_produced: ::core::clone::Clone::clone(
                     &self.stream_end_produced,
                 ),
-                flow_level: ::core::clone::Clone::clone(&self.flow_level),
+                flow_level: ::core::clone::Clone::clone(
+                    &self.flow_level,
+                ),
                 tokens: ::core::clone::Clone::clone(&self.tokens),
-                tokens_parsed: ::core::clone::Clone::clone(&self.tokens_parsed),
-                token_available: ::core::clone::Clone::clone(&self.token_available),
+                tokens_parsed: ::core::clone::Clone::clone(
+                    &self.tokens_parsed,
+                ),
+                token_available: ::core::clone::Clone::clone(
+                    &self.token_available,
+                ),
                 indents: ::core::clone::Clone::clone(&self.indents),
                 indent: ::core::clone::Clone::clone(&self.indent),
                 simple_key_allowed: ::core::clone::Clone::clone(
                     &self.simple_key_allowed,
                 ),
-                simple_keys: ::core::clone::Clone::clone(&self.simple_keys),
-                not_simple_keys: ::core::clone::Clone::clone(&self.not_simple_keys),
+                simple_keys: ::core::clone::Clone::clone(
+                    &self.simple_keys,
+                ),
+                not_simple_keys: ::core::clone::Clone::clone(
+                    &self.not_simple_keys,
+                ),
                 states: ::core::clone::Clone::clone(&self.states),
                 state: ::core::clone::Clone::clone(&self.state),
                 marks: ::core::clone::Clone::clone(&self.marks),
-                tag_directives: ::core::clone::Clone::clone(&self.tag_directives),
+                tag_directives: ::core::clone::Clone::clone(
+                    &self.tag_directives,
+                ),
                 aliases: ::core::clone::Clone::clone(&self.aliases),
                 document: ::core::clone::Clone::clone(&self.document),
             }
@@ -18155,7 +21783,10 @@ pub mod yaml {
     #[automatically_derived]
     impl ::core::fmt::Debug for YamlParserT {
         #[inline]
-        fn fmt(&self, f: &mut ::core::fmt::Formatter) -> ::core::fmt::Result {
+        fn fmt(
+            &self,
+            f: &mut ::core::fmt::Formatter,
+        ) -> ::core::fmt::Result {
             let names: &'static _ = &[
                 "error",
                 "problem",
@@ -18262,18 +21893,25 @@ pub mod yaml {
         #[inline]
         fn clone(&self) -> YamlParserTPrefix {
             let _: ::core::clone::AssertParamIsClone<YamlErrorTypeT>;
-            let _: ::core::clone::AssertParamIsClone<*const libc::c_char>;
+            let _: ::core::clone::AssertParamIsClone<
+                *const libc::c_char,
+            >;
             let _: ::core::clone::AssertParamIsClone<size_t>;
             let _: ::core::clone::AssertParamIsClone<libc::c_int>;
             let _: ::core::clone::AssertParamIsClone<YamlMarkT>;
-            let _: ::core::clone::AssertParamIsClone<*const libc::c_char>;
+            let _: ::core::clone::AssertParamIsClone<
+                *const libc::c_char,
+            >;
             *self
         }
     }
     #[automatically_derived]
     impl ::core::fmt::Debug for YamlParserTPrefix {
         #[inline]
-        fn fmt(&self, f: &mut ::core::fmt::Formatter) -> ::core::fmt::Result {
+        fn fmt(
+            &self,
+            f: &mut ::core::fmt::Formatter,
+        ) -> ::core::fmt::Result {
             let names: &'static _ = &[
                 "error",
                 "problem",
@@ -18318,14 +21956,19 @@ pub mod yaml {
     impl ::core::clone::Clone for UnnamedYamlParserTInput {
         #[inline]
         fn clone(&self) -> UnnamedYamlParserTInput {
-            let _: ::core::clone::AssertParamIsClone<UnnamedYamlParserTInputString>;
+            let _: ::core::clone::AssertParamIsClone<
+                UnnamedYamlParserTInputString,
+            >;
             *self
         }
     }
     #[automatically_derived]
     impl ::core::fmt::Debug for UnnamedYamlParserTInput {
         #[inline]
-        fn fmt(&self, f: &mut ::core::fmt::Formatter) -> ::core::fmt::Result {
+        fn fmt(
+            &self,
+            f: &mut ::core::fmt::Formatter,
+        ) -> ::core::fmt::Result {
             ::core::fmt::Formatter::debug_struct_field1_finish(
                 f,
                 "UnnamedYamlParserTInput",
@@ -18358,16 +22001,25 @@ pub mod yaml {
     impl ::core::clone::Clone for UnnamedYamlParserTInputString {
         #[inline]
         fn clone(&self) -> UnnamedYamlParserTInputString {
-            let _: ::core::clone::AssertParamIsClone<*const libc::c_uchar>;
-            let _: ::core::clone::AssertParamIsClone<*const libc::c_uchar>;
-            let _: ::core::clone::AssertParamIsClone<*const libc::c_uchar>;
+            let _: ::core::clone::AssertParamIsClone<
+                *const libc::c_uchar,
+            >;
+            let _: ::core::clone::AssertParamIsClone<
+                *const libc::c_uchar,
+            >;
+            let _: ::core::clone::AssertParamIsClone<
+                *const libc::c_uchar,
+            >;
             *self
         }
     }
     #[automatically_derived]
     impl ::core::fmt::Debug for UnnamedYamlParserTInputString {
         #[inline]
-        fn fmt(&self, f: &mut ::core::fmt::Formatter) -> ::core::fmt::Result {
+        fn fmt(
+            &self,
+            f: &mut ::core::fmt::Formatter,
+        ) -> ::core::fmt::Result {
             ::core::fmt::Formatter::debug_struct_field3_finish(
                 f,
                 "UnnamedYamlParserTInputString",
@@ -18449,8 +22101,10 @@ pub mod yaml {
     impl ::core::cmp::PartialEq for YamlEmitterStateT {
         #[inline]
         fn eq(&self, other: &YamlEmitterStateT) -> bool {
-            let __self_discr = ::core::intrinsics::discriminant_value(self);
-            let __arg1_discr = ::core::intrinsics::discriminant_value(other);
+            let __self_discr =
+                ::core::intrinsics::discriminant_value(self);
+            let __arg1_discr =
+                ::core::intrinsics::discriminant_value(other);
             __self_discr == __arg1_discr
         }
     }
@@ -18468,32 +22122,49 @@ pub mod yaml {
             &self,
             other: &YamlEmitterStateT,
         ) -> ::core::option::Option<::core::cmp::Ordering> {
-            let __self_discr = ::core::intrinsics::discriminant_value(self);
-            let __arg1_discr = ::core::intrinsics::discriminant_value(other);
-            ::core::cmp::PartialOrd::partial_cmp(&__self_discr, &__arg1_discr)
+            let __self_discr =
+                ::core::intrinsics::discriminant_value(self);
+            let __arg1_discr =
+                ::core::intrinsics::discriminant_value(other);
+            ::core::cmp::PartialOrd::partial_cmp(
+                &__self_discr,
+                &__arg1_discr,
+            )
         }
     }
     #[automatically_derived]
     impl ::core::cmp::Ord for YamlEmitterStateT {
         #[inline]
-        fn cmp(&self, other: &YamlEmitterStateT) -> ::core::cmp::Ordering {
-            let __self_discr = ::core::intrinsics::discriminant_value(self);
-            let __arg1_discr = ::core::intrinsics::discriminant_value(other);
+        fn cmp(
+            &self,
+            other: &YamlEmitterStateT,
+        ) -> ::core::cmp::Ordering {
+            let __self_discr =
+                ::core::intrinsics::discriminant_value(self);
+            let __arg1_discr =
+                ::core::intrinsics::discriminant_value(other);
             ::core::cmp::Ord::cmp(&__self_discr, &__arg1_discr)
         }
     }
     #[automatically_derived]
     impl ::core::hash::Hash for YamlEmitterStateT {
         #[inline]
-        fn hash<__H: ::core::hash::Hasher>(&self, state: &mut __H) -> () {
-            let __self_discr = ::core::intrinsics::discriminant_value(self);
+        fn hash<__H: ::core::hash::Hasher>(
+            &self,
+            state: &mut __H,
+        ) -> () {
+            let __self_discr =
+                ::core::intrinsics::discriminant_value(self);
             ::core::hash::Hash::hash(&__self_discr, state)
         }
     }
     #[automatically_derived]
     impl ::core::fmt::Debug for YamlEmitterStateT {
         #[inline]
-        fn fmt(&self, f: &mut ::core::fmt::Formatter) -> ::core::fmt::Result {
+        fn fmt(
+            &self,
+            f: &mut ::core::fmt::Formatter,
+        ) -> ::core::fmt::Result {
             ::core::fmt::Formatter::write_str(
                 f,
                 match self {
@@ -18577,7 +22248,10 @@ pub mod yaml {
     #[automatically_derived]
     impl ::core::fmt::Debug for YamlAnchorsT {
         #[inline]
-        fn fmt(&self, f: &mut ::core::fmt::Formatter) -> ::core::fmt::Result {
+        fn fmt(
+            &self,
+            f: &mut ::core::fmt::Formatter,
+        ) -> ::core::fmt::Result {
             ::core::fmt::Formatter::debug_struct_field3_finish(
                 f,
                 "YamlAnchorsT",
@@ -18679,44 +22353,74 @@ pub mod yaml {
             YamlEmitterT {
                 error: ::core::clone::Clone::clone(&self.error),
                 problem: ::core::clone::Clone::clone(&self.problem),
-                write_handler: ::core::clone::Clone::clone(&self.write_handler),
+                write_handler: ::core::clone::Clone::clone(
+                    &self.write_handler,
+                ),
                 write_handler_data: ::core::clone::Clone::clone(
                     &self.write_handler_data,
                 ),
                 output: ::core::clone::Clone::clone(&self.output),
                 buffer: ::core::clone::Clone::clone(&self.buffer),
-                raw_buffer: ::core::clone::Clone::clone(&self.raw_buffer),
+                raw_buffer: ::core::clone::Clone::clone(
+                    &self.raw_buffer,
+                ),
                 encoding: ::core::clone::Clone::clone(&self.encoding),
                 canonical: ::core::clone::Clone::clone(&self.canonical),
-                best_indent: ::core::clone::Clone::clone(&self.best_indent),
-                best_width: ::core::clone::Clone::clone(&self.best_width),
+                best_indent: ::core::clone::Clone::clone(
+                    &self.best_indent,
+                ),
+                best_width: ::core::clone::Clone::clone(
+                    &self.best_width,
+                ),
                 unicode: ::core::clone::Clone::clone(&self.unicode),
-                line_break: ::core::clone::Clone::clone(&self.line_break),
+                line_break: ::core::clone::Clone::clone(
+                    &self.line_break,
+                ),
                 states: ::core::clone::Clone::clone(&self.states),
                 state: ::core::clone::Clone::clone(&self.state),
                 events: ::core::clone::Clone::clone(&self.events),
                 indents: ::core::clone::Clone::clone(&self.indents),
-                tag_directives: ::core::clone::Clone::clone(&self.tag_directives),
+                tag_directives: ::core::clone::Clone::clone(
+                    &self.tag_directives,
+                ),
                 indent: ::core::clone::Clone::clone(&self.indent),
-                flow_level: ::core::clone::Clone::clone(&self.flow_level),
-                root_context: ::core::clone::Clone::clone(&self.root_context),
-                sequence_context: ::core::clone::Clone::clone(&self.sequence_context),
-                mapping_context: ::core::clone::Clone::clone(&self.mapping_context),
+                flow_level: ::core::clone::Clone::clone(
+                    &self.flow_level,
+                ),
+                root_context: ::core::clone::Clone::clone(
+                    &self.root_context,
+                ),
+                sequence_context: ::core::clone::Clone::clone(
+                    &self.sequence_context,
+                ),
+                mapping_context: ::core::clone::Clone::clone(
+                    &self.mapping_context,
+                ),
                 simple_key_context: ::core::clone::Clone::clone(
                     &self.simple_key_context,
                 ),
                 line: ::core::clone::Clone::clone(&self.line),
                 column: ::core::clone::Clone::clone(&self.column),
-                whitespace: ::core::clone::Clone::clone(&self.whitespace),
+                whitespace: ::core::clone::Clone::clone(
+                    &self.whitespace,
+                ),
                 indention: ::core::clone::Clone::clone(&self.indention),
-                open_ended: ::core::clone::Clone::clone(&self.open_ended),
-                anchor_data: ::core::clone::Clone::clone(&self.anchor_data),
+                open_ended: ::core::clone::Clone::clone(
+                    &self.open_ended,
+                ),
+                anchor_data: ::core::clone::Clone::clone(
+                    &self.anchor_data,
+                ),
                 tag_data: ::core::clone::Clone::clone(&self.tag_data),
-                scalar_data: ::core::clone::Clone::clone(&self.scalar_data),
+                scalar_data: ::core::clone::Clone::clone(
+                    &self.scalar_data,
+                ),
                 opened: ::core::clone::Clone::clone(&self.opened),
                 closed: ::core::clone::Clone::clone(&self.closed),
                 anchors: ::core::clone::Clone::clone(&self.anchors),
-                last_anchor_id: ::core::clone::Clone::clone(&self.last_anchor_id),
+                last_anchor_id: ::core::clone::Clone::clone(
+                    &self.last_anchor_id,
+                ),
                 document: ::core::clone::Clone::clone(&self.document),
             }
         }
@@ -18724,7 +22428,10 @@ pub mod yaml {
     #[automatically_derived]
     impl ::core::fmt::Debug for YamlEmitterT {
         #[inline]
-        fn fmt(&self, f: &mut ::core::fmt::Formatter) -> ::core::fmt::Result {
+        fn fmt(
+            &self,
+            f: &mut ::core::fmt::Formatter,
+        ) -> ::core::fmt::Result {
             let names: &'static _ = &[
                 "error",
                 "problem",
@@ -18827,14 +22534,19 @@ pub mod yaml {
         #[inline]
         fn clone(&self) -> YamlEmitterTPrefix {
             let _: ::core::clone::AssertParamIsClone<YamlErrorTypeT>;
-            let _: ::core::clone::AssertParamIsClone<*const libc::c_char>;
+            let _: ::core::clone::AssertParamIsClone<
+                *const libc::c_char,
+            >;
             *self
         }
     }
     #[automatically_derived]
     impl ::core::fmt::Debug for YamlEmitterTPrefix {
         #[inline]
-        fn fmt(&self, f: &mut ::core::fmt::Formatter) -> ::core::fmt::Result {
+        fn fmt(
+            &self,
+            f: &mut ::core::fmt::Formatter,
+        ) -> ::core::fmt::Result {
             ::core::fmt::Formatter::debug_struct_field2_finish(
                 f,
                 "YamlEmitterTPrefix",
@@ -18864,14 +22576,19 @@ pub mod yaml {
     impl ::core::clone::Clone for UnnamedYamlEmitterTOutput {
         #[inline]
         fn clone(&self) -> UnnamedYamlEmitterTOutput {
-            let _: ::core::clone::AssertParamIsClone<UnnamedYamlEmitterTOutputString>;
+            let _: ::core::clone::AssertParamIsClone<
+                UnnamedYamlEmitterTOutputString,
+            >;
             *self
         }
     }
     #[automatically_derived]
     impl ::core::fmt::Debug for UnnamedYamlEmitterTOutput {
         #[inline]
-        fn fmt(&self, f: &mut ::core::fmt::Formatter) -> ::core::fmt::Result {
+        fn fmt(
+            &self,
+            f: &mut ::core::fmt::Formatter,
+        ) -> ::core::fmt::Result {
             ::core::fmt::Formatter::debug_struct_field1_finish(
                 f,
                 "UnnamedYamlEmitterTOutput",
@@ -18905,7 +22622,9 @@ pub mod yaml {
     impl ::core::clone::Clone for UnnamedYamlEmitterTOutputString {
         #[inline]
         fn clone(&self) -> UnnamedYamlEmitterTOutputString {
-            let _: ::core::clone::AssertParamIsClone<*mut libc::c_uchar>;
+            let _: ::core::clone::AssertParamIsClone<
+                *mut libc::c_uchar,
+            >;
             let _: ::core::clone::AssertParamIsClone<size_t>;
             let _: ::core::clone::AssertParamIsClone<*mut size_t>;
             *self
@@ -18914,7 +22633,10 @@ pub mod yaml {
     #[automatically_derived]
     impl ::core::fmt::Debug for UnnamedYamlEmitterTOutputString {
         #[inline]
-        fn fmt(&self, f: &mut ::core::fmt::Formatter) -> ::core::fmt::Result {
+        fn fmt(
+            &self,
+            f: &mut ::core::fmt::Formatter,
+        ) -> ::core::fmt::Result {
             ::core::fmt::Formatter::debug_struct_field3_finish(
                 f,
                 "UnnamedYamlEmitterTOutputString",
@@ -18951,7 +22673,10 @@ pub mod yaml {
     #[automatically_derived]
     impl ::core::fmt::Debug for UnnamedYamlEmitterTAnchorData {
         #[inline]
-        fn fmt(&self, f: &mut ::core::fmt::Formatter) -> ::core::fmt::Result {
+        fn fmt(
+            &self,
+            f: &mut ::core::fmt::Formatter,
+        ) -> ::core::fmt::Result {
             ::core::fmt::Formatter::debug_struct_field3_finish(
                 f,
                 "UnnamedYamlEmitterTAnchorData",
@@ -18990,7 +22715,10 @@ pub mod yaml {
     #[automatically_derived]
     impl ::core::fmt::Debug for UnnamedYamlEmitterTTagData {
         #[inline]
-        fn fmt(&self, f: &mut ::core::fmt::Formatter) -> ::core::fmt::Result {
+        fn fmt(
+            &self,
+            f: &mut ::core::fmt::Formatter,
+        ) -> ::core::fmt::Result {
             ::core::fmt::Formatter::debug_struct_field4_finish(
                 f,
                 "UnnamedYamlEmitterTTagData",
@@ -19006,12 +22734,16 @@ pub mod yaml {
         }
     }
     #[automatically_derived]
-    impl ::core::marker::StructuralPartialEq for UnnamedYamlEmitterTTagData {}
+    impl ::core::marker::StructuralPartialEq
+        for UnnamedYamlEmitterTTagData
+    {
+    }
     #[automatically_derived]
     impl ::core::cmp::PartialEq for UnnamedYamlEmitterTTagData {
         #[inline]
         fn eq(&self, other: &UnnamedYamlEmitterTTagData) -> bool {
-            self.handle == other.handle && self.handle_length == other.handle_length
+            self.handle == other.handle
+                && self.handle_length == other.handle_length
                 && self.suffix == other.suffix
                 && self.suffix_length == other.suffix_length
         }
@@ -19034,13 +22766,20 @@ pub mod yaml {
             &self,
             other: &UnnamedYamlEmitterTTagData,
         ) -> ::core::option::Option<::core::cmp::Ordering> {
-            match ::core::cmp::PartialOrd::partial_cmp(&self.handle, &other.handle) {
-                ::core::option::Option::Some(::core::cmp::Ordering::Equal) => {
+            match ::core::cmp::PartialOrd::partial_cmp(
+                &self.handle,
+                &other.handle,
+            ) {
+                ::core::option::Option::Some(
+                    ::core::cmp::Ordering::Equal,
+                ) => {
                     match ::core::cmp::PartialOrd::partial_cmp(
                         &self.handle_length,
                         &other.handle_length,
                     ) {
-                        ::core::option::Option::Some(::core::cmp::Ordering::Equal) => {
+                        ::core::option::Option::Some(
+                            ::core::cmp::Ordering::Equal,
+                        ) => {
                             match ::core::cmp::PartialOrd::partial_cmp(
                                 &self.suffix,
                                 &other.suffix,
@@ -19066,7 +22805,10 @@ pub mod yaml {
     #[automatically_derived]
     impl ::core::cmp::Ord for UnnamedYamlEmitterTTagData {
         #[inline]
-        fn cmp(&self, other: &UnnamedYamlEmitterTTagData) -> ::core::cmp::Ordering {
+        fn cmp(
+            &self,
+            other: &UnnamedYamlEmitterTTagData,
+        ) -> ::core::cmp::Ordering {
             match ::core::cmp::Ord::cmp(&self.handle, &other.handle) {
                 ::core::cmp::Ordering::Equal => {
                     match ::core::cmp::Ord::cmp(
@@ -19074,7 +22816,10 @@ pub mod yaml {
                         &other.handle_length,
                     ) {
                         ::core::cmp::Ordering::Equal => {
-                            match ::core::cmp::Ord::cmp(&self.suffix, &other.suffix) {
+                            match ::core::cmp::Ord::cmp(
+                                &self.suffix,
+                                &other.suffix,
+                            ) {
                                 ::core::cmp::Ordering::Equal => {
                                     ::core::cmp::Ord::cmp(
                                         &self.suffix_length,
@@ -19094,7 +22839,10 @@ pub mod yaml {
     #[automatically_derived]
     impl ::core::hash::Hash for UnnamedYamlEmitterTTagData {
         #[inline]
-        fn hash<__H: ::core::hash::Hasher>(&self, state: &mut __H) -> () {
+        fn hash<__H: ::core::hash::Hasher>(
+            &self,
+            state: &mut __H,
+        ) -> () {
             ::core::hash::Hash::hash(&self.handle, state);
             ::core::hash::Hash::hash(&self.handle_length, state);
             ::core::hash::Hash::hash(&self.suffix, state);
@@ -19136,7 +22884,10 @@ pub mod yaml {
     #[automatically_derived]
     impl ::core::fmt::Debug for UnnamedYamlEmitterTScalarData {
         #[inline]
-        fn fmt(&self, f: &mut ::core::fmt::Formatter) -> ::core::fmt::Result {
+        fn fmt(
+            &self,
+            f: &mut ::core::fmt::Formatter,
+        ) -> ::core::fmt::Result {
             let names: &'static _ = &[
                 "value",
                 "length",
@@ -19186,7 +22937,10 @@ pub mod yaml {
     #[automatically_derived]
     impl ::core::fmt::Debug for YamlStringT {
         #[inline]
-        fn fmt(&self, f: &mut ::core::fmt::Formatter) -> ::core::fmt::Result {
+        fn fmt(
+            &self,
+            f: &mut ::core::fmt::Formatter,
+        ) -> ::core::fmt::Result {
             ::core::fmt::Formatter::debug_struct_field3_finish(
                 f,
                 "YamlStringT",
@@ -19233,7 +22987,10 @@ pub mod yaml {
     #[automatically_derived]
     impl<T: ::core::fmt::Debug> ::core::fmt::Debug for YamlBufferT<T> {
         #[inline]
-        fn fmt(&self, f: &mut ::core::fmt::Formatter) -> ::core::fmt::Result {
+        fn fmt(
+            &self,
+            f: &mut ::core::fmt::Formatter,
+        ) -> ::core::fmt::Result {
             ::core::fmt::Formatter::debug_struct_field4_finish(
                 f,
                 "YamlBufferT",
@@ -19285,7 +23042,10 @@ pub mod yaml {
     #[automatically_derived]
     impl<T: ::core::fmt::Debug> ::core::fmt::Debug for YamlStackT<T> {
         #[inline]
-        fn fmt(&self, f: &mut ::core::fmt::Formatter) -> ::core::fmt::Result {
+        fn fmt(
+            &self,
+            f: &mut ::core::fmt::Formatter,
+        ) -> ::core::fmt::Result {
             ::core::fmt::Formatter::debug_struct_field3_finish(
                 f,
                 "YamlStackT",
@@ -19319,7 +23079,10 @@ pub mod yaml {
     #[automatically_derived]
     impl<T: ::core::fmt::Debug> ::core::fmt::Debug for YamlQueueT<T> {
         #[inline]
-        fn fmt(&self, f: &mut ::core::fmt::Formatter) -> ::core::fmt::Result {
+        fn fmt(
+            &self,
+            f: &mut ::core::fmt::Formatter,
+        ) -> ::core::fmt::Result {
             ::core::fmt::Formatter::debug_struct_field4_finish(
                 f,
                 "YamlQueueT",
@@ -19589,7 +23352,9 @@ pub mod yaml {
                 tag_ptr = tag_ptr.add(1);
             }
             if !self.tag_directives.start.is_null() {
-                yaml_free(self.tag_directives.start as *mut libc::c_void);
+                yaml_free(
+                    self.tag_directives.start as *mut libc::c_void,
+                );
             }
             self.tag_directives.start = ptr::null_mut();
             self.tag_directives.end = ptr::null_mut();
@@ -19609,21 +23374,28 @@ pub mod yaml {
                         }
                     }
                     YamlSequenceNode => {
-                        let items_start = node.data.sequence.items.start;
+                        let items_start =
+                            node.data.sequence.items.start;
                         if !items_start.is_null() {
                             yaml_free(items_start as *mut libc::c_void);
-                            node.data.sequence.items.start = ptr::null_mut();
-                            node.data.sequence.items.end = ptr::null_mut();
-                            node.data.sequence.items.top = ptr::null_mut();
+                            node.data.sequence.items.start =
+                                ptr::null_mut();
+                            node.data.sequence.items.end =
+                                ptr::null_mut();
+                            node.data.sequence.items.top =
+                                ptr::null_mut();
                         }
                     }
                     YamlMappingNode => {
                         let pairs_start = node.data.mapping.pairs.start;
                         if !pairs_start.is_null() {
                             yaml_free(pairs_start as *mut libc::c_void);
-                            node.data.mapping.pairs.start = ptr::null_mut();
-                            node.data.mapping.pairs.end = ptr::null_mut();
-                            node.data.mapping.pairs.top = ptr::null_mut();
+                            node.data.mapping.pairs.start =
+                                ptr::null_mut();
+                            node.data.mapping.pairs.end =
+                                ptr::null_mut();
+                            node.data.mapping.pairs.top =
+                                ptr::null_mut();
                         }
                     }
                     _ => {}
@@ -19647,7 +23419,8 @@ pub mod yaml {
                     top: ptr::null_mut(),
                 },
                 version_directive: ptr::null_mut(),
-                tag_directives: UnnamedYamlDocumentTTagDirectives::default(),
+                tag_directives:
+                    UnnamedYamlDocumentTTagDirectives::default(),
                 start_implicit: false,
                 end_implicit: false,
                 start_mark: YamlMarkT::default(),
@@ -19657,38 +23430,47 @@ pub mod yaml {
     }
 }
 pub use crate::api::{
-    yaml_alias_event_initialize, yaml_emitter_delete, yaml_emitter_initialize,
-    yaml_emitter_set_break, yaml_emitter_set_canonical, yaml_emitter_set_encoding,
-    yaml_emitter_set_indent, yaml_emitter_set_output, yaml_emitter_set_output_string,
-    yaml_emitter_set_unicode, yaml_emitter_set_width, yaml_event_delete,
-    yaml_mapping_end_event_initialize, yaml_mapping_start_event_initialize,
-    yaml_parser_set_encoding, yaml_parser_set_input, yaml_parser_set_input_string,
+    yaml_alias_event_initialize, yaml_emitter_delete,
+    yaml_emitter_initialize, yaml_emitter_set_break,
+    yaml_emitter_set_canonical, yaml_emitter_set_encoding,
+    yaml_emitter_set_indent, yaml_emitter_set_output,
+    yaml_emitter_set_output_string, yaml_emitter_set_unicode,
+    yaml_emitter_set_width, yaml_event_delete,
+    yaml_mapping_end_event_initialize,
+    yaml_mapping_start_event_initialize, yaml_parser_set_encoding,
+    yaml_parser_set_input, yaml_parser_set_input_string,
     yaml_scalar_event_initialize, yaml_sequence_end_event_initialize,
-    yaml_sequence_start_event_initialize, yaml_stream_end_event_initialize,
+    yaml_sequence_start_event_initialize,
+    yaml_stream_end_event_initialize,
     yaml_stream_start_event_initialize, yaml_token_delete,
 };
 pub use crate::decode::{yaml_parser_delete, yaml_parser_initialize};
 pub use crate::document::{
-    yaml_document_delete, yaml_document_get_node, yaml_document_get_root_node,
-    yaml_document_initialize,
+    yaml_document_delete, yaml_document_get_node,
+    yaml_document_get_root_node, yaml_document_initialize,
 };
-pub use crate::dumper::{yaml_emitter_close, yaml_emitter_dump, yaml_emitter_open};
+pub use crate::dumper::{
+    yaml_emitter_close, yaml_emitter_dump, yaml_emitter_open,
+};
 pub use crate::emitter::yaml_emitter_emit;
 pub use crate::loader::yaml_parser_load;
 pub use crate::parser::yaml_parser_parse;
 pub use crate::scanner::yaml_parser_scan;
 pub use crate::writer::yaml_emitter_flush;
 pub use crate::yaml::{
-    YamlAliasDataT, YamlBreakT, YamlDocumentT, YamlEmitterStateT, YamlEmitterT,
-    YamlEncodingT, YamlErrorTypeT, YamlEventT, YamlEventTypeT, YamlMappingStyleT,
-    YamlMarkT, YamlNodeItemT, YamlNodePairT, YamlNodeT, YamlNodeTypeT, YamlParserStateT,
-    YamlParserT, YamlReadHandlerT, YamlScalarStyleT, YamlSequenceStyleT, YamlSimpleKeyT,
-    YamlStackT, YamlTagDirectiveT, YamlTokenT, YamlTokenTypeT, YamlVersionDirectiveT,
+    YamlAliasDataT, YamlBreakT, YamlDocumentT, YamlEmitterStateT,
+    YamlEmitterT, YamlEncodingT, YamlErrorTypeT, YamlEventT,
+    YamlEventTypeT, YamlMappingStyleT, YamlMarkT, YamlNodeItemT,
+    YamlNodePairT, YamlNodeT, YamlNodeTypeT, YamlParserStateT,
+    YamlParserT, YamlReadHandlerT, YamlScalarStyleT,
+    YamlSequenceStyleT, YamlSimpleKeyT, YamlStackT, YamlTagDirectiveT,
+    YamlTokenT, YamlTokenTypeT, YamlVersionDirectiveT,
     YamlWriteHandlerT,
 };
 #[doc(hidden)]
 pub use crate::yaml::{
-    YamlBreakT::*, YamlEmitterStateT::*, YamlEncodingT::*, YamlErrorTypeT::*,
-    YamlEventTypeT::*, YamlMappingStyleT::*, YamlNodeTypeT::*, YamlParserStateT::*,
-    YamlScalarStyleT::*, YamlSequenceStyleT::*, YamlTokenTypeT::*,
+    YamlBreakT::*, YamlEmitterStateT::*, YamlEncodingT::*,
+    YamlErrorTypeT::*, YamlEventTypeT::*, YamlMappingStyleT::*,
+    YamlNodeTypeT::*, YamlParserStateT::*, YamlScalarStyleT::*,
+    YamlSequenceStyleT::*, YamlTokenTypeT::*,
 };

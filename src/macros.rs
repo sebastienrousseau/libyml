@@ -1,4 +1,5 @@
-// macr
+// macros.rs
+
 // ------------------------------------
 // Buffer Management Macros
 // ------------------------------------
@@ -20,19 +21,17 @@
 #[macro_export]
 macro_rules! BUFFER_INIT {
     ($buffer:expr, $size:expr) => {{
-        let start = addr_of_mut!($buffer.start);
-        *start = yaml_malloc($size as size_t) as *mut yaml_char_t;
+        let start = yaml_malloc($size as size_t) as *mut yaml_char_t;
         if !start.is_null() {
-            let _ = memset(*start as *mut libc::c_void, 0, $size as u64); // Convert to u64
+            let _ = memset(start as *mut libc::c_void, 0, $size as u64);
+            $buffer.start = start;
+            $buffer.pointer = start;
+            $buffer.last = start;
+            $buffer.end = start.wrapping_add($size);
+            true
         } else {
-            panic!("Failed to allocate memory for buffer");
+            false
         }
-        let pointer = addr_of_mut!($buffer.pointer);
-        *pointer = *start;
-        let last = addr_of_mut!($buffer.last);
-        *last = *pointer;
-        let end = addr_of_mut!($buffer.end);
-        *end = (*start).wrapping_add($size);
     }};
 }
 
@@ -904,11 +903,20 @@ macro_rules! copy {
 #[macro_export]
 macro_rules! STACK_INIT {
     ($stack:expr, $type:ty) => {{
-        $stack.start =
+        // Allocate memory for the stack
+        let allocation =
             yaml_malloc(16 * size_of::<$type>() as libc::c_ulong)
                 as *mut $type;
-        $stack.top = $stack.start;
-        $stack.end = $stack.start.offset(16_isize);
+
+        if allocation.is_null() {
+            false // Return `false` to indicate failure
+        } else {
+            // Initialize the stack pointers
+            $stack.start = allocation;
+            $stack.top = $stack.start;
+            $stack.end = $stack.start.add(16);
+            true // Return `true` to indicate success
+        }
     }};
 }
 

@@ -10,7 +10,7 @@ use std::fs;
 use std::io::{Read, Write};
 use std::path::Path;
 
-// Add this wrapper function
+// Unsafe wrapper for the emitter test suite.
 unsafe fn unsafe_main_wrapper(
     stdin: &mut dyn Read,
     stdout: &mut dyn Write,

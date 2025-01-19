@@ -3452,22 +3452,39 @@ unsafe fn yaml_parser_scan_plain_scalar(
         while IS_BLANK!((*parser).buffer) || IS_BREAK!((*parser).buffer)
         {
             if IS_BLANK!((*parser).buffer) {
-                if leading_blanks
-                    && ((*parser).mark.column as libc::c_int) < indent
-                    && IS_TAB!((*parser).buffer)
-                {
-                    yaml_parser_set_scanner_error(
-                        parser,
-                        b"while scanning a plain scalar\0".as_ptr() as *const i8,
-                        start_mark,
-                        b"found a tab character that violates indentation\0".as_ptr() as *const i8,
-                    );
-                    break_with_cleanup!(
-                        string,
-                        leading_break,
-                        trailing_breaks,
-                        whitespaces
-                    );
+                if leading_blanks {
+                    if let Ok(column_as_i32) =
+                        libc::c_int::try_from((*parser).mark.column)
+                    {
+                        if column_as_i32 < indent
+                            && IS_TAB!((*parser).buffer)
+                        {
+                            yaml_parser_set_scanner_error(
+                parser,
+                b"while scanning a plain scalar\0".as_ptr().cast::<i8>(),
+                start_mark,
+                b"found a tab character that violates indentation\0".as_ptr().cast::<i8>(),
+            );
+                            break_with_cleanup!(
+                                string,
+                                leading_break,
+                                trailing_breaks,
+                                whitespaces
+                            );
+                        }
+                    } else {
+                        // Handle cases where the column value exceeds the range of libc::c_int
+                        yaml_parser_set_scanner_error(
+                            parser,
+                            b"while scanning a plain scalar\0"
+                                .as_ptr()
+                                .cast::<i8>(),
+                            start_mark,
+                            b"column value too large to process\0"
+                                .as_ptr()
+                                .cast::<i8>(),
+                        );
+                    }
                 }
 
                 if !leading_blanks {

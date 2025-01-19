@@ -153,7 +153,7 @@ unsafe fn utf8_to_codepoint(ptr: *const u8, len: usize) -> u32 {
 /// # Safety
 ///
 /// The caller must ensure:
-/// * `emitter` points to a valid YamlEmitterT
+/// * `emitter` points to a valid `YamlEmitterT`
 /// * There is enough space in the raw buffer for 2 bytes
 ///
 /// # Returns
@@ -187,7 +187,7 @@ unsafe fn write_utf16_unit(
 /// # Safety
 ///
 /// The caller must ensure:
-/// * `emitter` points to a valid YamlEmitterT
+/// * `emitter` points to a valid `YamlEmitterT`
 /// * The write handler and its data are valid
 ///
 /// # Returns
@@ -257,7 +257,7 @@ pub unsafe fn yaml_emitter_flush(
             None => {
                 return yaml_emitter_set_writer_error(
                     emitter,
-                    INVALID_UTF8.as_ptr() as *const libc::c_char,
+                    INVALID_UTF8.as_ptr().cast::<libc::c_char>(),
                 )
             }
         };
@@ -270,15 +270,22 @@ pub unsafe fn yaml_emitter_flush(
         if code_point > MAX_UNICODE {
             return yaml_emitter_set_writer_error(
                 emitter,
-                INVALID_UTF8.as_ptr() as *const libc::c_char,
+                INVALID_UTF8.as_ptr().cast::<libc::c_char>(),
             );
         }
 
         if code_point < 0x10000 {
-            if write_utf16_unit(emitter, code_point as u16, low, high)
-                == FAIL
-            {
-                return FAIL;
+            if let Ok(code_point_u16) = u16::try_from(code_point) {
+                if write_utf16_unit(emitter, code_point_u16, low, high)
+                    == FAIL
+                {
+                    return FAIL;
+                }
+            } else {
+                return yaml_emitter_set_writer_error(
+                    emitter,
+                    INVALID_UTF8.as_ptr().cast::<libc::c_char>(),
+                );
             }
         } else {
             // Write surrogate pair
@@ -286,38 +293,48 @@ pub unsafe fn yaml_emitter_flush(
             let high_surrogate = 0xD800 | ((code_point >> 10) & 0x3FF);
             let low_surrogate = 0xDC00 | (code_point & 0x3FF);
 
-            if write_utf16_unit(
-                emitter,
-                high_surrogate as u16,
-                low,
-                high,
-            ) == FAIL
-            {
-                return FAIL;
+            // Safely convert high_surrogate to u16
+            if let Ok(high_u16) = u16::try_from(high_surrogate) {
+                if write_utf16_unit(emitter, high_u16, low, high)
+                    == FAIL
+                {
+                    return FAIL;
+                }
+            } else {
+                return yaml_emitter_set_writer_error(
+                    emitter,
+                    INVALID_UTF8.as_ptr().cast::<libc::c_char>(),
+                );
             }
-            if write_utf16_unit(
-                emitter,
-                low_surrogate as u16,
-                low,
-                high,
-            ) == FAIL
-            {
-                return FAIL;
+
+            // Safely convert low_surrogate to u16
+            if let Ok(low_u16) = u16::try_from(low_surrogate) {
+                if write_utf16_unit(emitter, low_u16, low, high) == FAIL
+                {
+                    return FAIL;
+                }
+            } else {
+                return yaml_emitter_set_writer_error(
+                    emitter,
+                    INVALID_UTF8.as_ptr().cast::<libc::c_char>(),
+                );
             }
         }
     }
 
     // Write accumulated UTF-16 data
-    let write_result =
-        (*emitter).write_handler.expect("non-null function pointer")(
-            (*emitter).write_handler_data,
-            (*emitter).raw_buffer.start,
-            (*emitter)
-                .raw_buffer
-                .last
-                .c_offset_from((*emitter).raw_buffer.start)
-                as size_t,
-        );
+    let offset = (*emitter)
+        .raw_buffer
+        .last
+        .c_offset_from((*emitter).raw_buffer.start);
+
+    let write_result = offset.try_into().map_or_else(|_| {
+            panic!("Offset calculation resulted in a negative value, which is invalid for size_t");
+        }, |offset_unsigned| (*emitter).write_handler.expect("non-null function pointer")(
+                (*emitter).write_handler_data,
+                (*emitter).raw_buffer.start,
+                offset_unsigned,
+            ));
 
     if write_result != 0 {
         // Reset all buffer pointers
@@ -332,7 +349,7 @@ pub unsafe fn yaml_emitter_flush(
     } else {
         yaml_emitter_set_writer_error(
             emitter,
-            WRITE_ERROR.as_ptr() as *const libc::c_char,
+            WRITE_ERROR.as_ptr().cast::<libc::c_char>(),
         )
     }
 }

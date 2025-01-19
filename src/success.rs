@@ -10,14 +10,18 @@ pub const FAIL: Success = Success { ok: false };
 
 /// Structure representing the success state of an operation.
 #[must_use]
-#[derive(Copy, Clone, Debug, Default, PartialEq)]
+#[derive(
+    Copy, Clone, Debug, Default, Eq, PartialEq, Ord, PartialOrd, Hash,
+)]
 pub struct Success {
     /// Boolean indicating whether the operation was successful.
     pub ok: bool,
 }
 
 /// Structure representing the failure state of an operation.
-#[derive(Copy, Clone, Debug, Default, PartialEq)]
+#[derive(
+    Copy, Clone, Debug, Default, Eq, PartialEq, Ord, PartialOrd, Hash,
+)]
 pub struct Failure {
     /// Boolean indicating whether the operation failed.
     pub fail: bool,
@@ -46,7 +50,8 @@ impl Deref for Success {
 ///
 /// * `true` if the operation was successful.
 /// * `false` if the operation failed.
-pub fn is_success(result: Success) -> bool {
+#[must_use]
+pub const fn is_success(result: Success) -> bool {
     result.ok
 }
 
@@ -60,7 +65,8 @@ pub fn is_success(result: Success) -> bool {
 ///
 /// * `true` if the operation failed.
 /// * `false` if the operation was successful.
-pub fn is_failure(result: Success) -> bool {
+#[must_use]
+pub const fn is_failure(result: Success) -> bool {
     !result.ok
 }
 

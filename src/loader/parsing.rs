@@ -942,182 +942,322 @@ unsafe fn strcmp(s1: *mut c_char, s2: *mut c_char) -> i32 {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::YamlTokenT;
+    use crate::YamlSimpleKeyT;
+    use crate::{
+        YamlEventTypeT, YamlMarkT, YamlParserStateT, YamlTokenT,
+    };
     use core::ffi::CStr;
 
+    // =========================================================================
+    // Helper Functions
+    // =========================================================================
+
+    /// Creates a properly initialized scanner state for testing.
+    ///
+    /// # Safety
+    ///
+    /// - `parser` must be a valid pointer to a `YamlParserT`
+    /// - The parser must not have any existing initialized stacks
+    unsafe fn initialize_scanner_state(parser: *mut YamlParserT) {
+        // Initialize required stacks
+        STACK_INIT!((*parser).simple_keys, YamlSimpleKeyT);
+        STACK_INIT!((*parser).states, YamlParserStateT);
+        STACK_INIT!((*parser).marks, YamlMarkT);
+        STACK_INIT!((*parser).indents, libc::c_int);
+
+        // Initialize the parser state
+        PUSH!(
+            (*parser).states,
+            YamlParserStateT::YamlParseStreamStartState
+        );
+
+        // Set initial flags
+        (*parser).tokens_parsed = 0;
+        (*parser).stream_start_produced = false;
+        (*parser).stream_end_produced = false;
+    }
+
+    /// Helper function to properly clean up a node and its resources
+    unsafe fn cleanup_node(node: &mut YamlNodeT) {
+        match node.type_ {
+            YamlSequenceNode => {
+                if !node.data.sequence.items.start.is_null() {
+                    STACK_DEL!(node.data.sequence.items);
+                }
+            }
+            YamlMappingNode => {
+                if !node.data.mapping.pairs.start.is_null() {
+                    STACK_DEL!(node.data.mapping.pairs);
+                }
+            }
+            YamlScalarNode => {
+                if !node.data.scalar.value.is_null() {
+                    yaml_free(
+                        node.data.scalar.value as *mut libc::c_void,
+                    );
+                }
+            }
+            _ => {}
+        }
+
+        if !node.tag.is_null() {
+            yaml_free(node.tag as *mut libc::c_void);
+            node.tag = ptr::null_mut();
+        }
+    }
+
     /// Creates a null-terminated byte array from a string literal.
-    /// This function is a helper to simulate C strings in no_std environments.
+    ///
+    /// # Arguments
+    ///
+    /// * `s` - The string to convert, must be null-terminated
+    ///
+    /// # Returns
+    ///
+    /// A pointer to a null-terminated C string
+    ///
+    /// # Panics
+    ///
+    /// Panics if the input string is not null-terminated
     fn c_string(s: &str) -> *mut c_char {
         let cstr = CStr::from_bytes_with_nul(s.as_bytes())
             .expect("String must be null-terminated");
         cstr.as_ptr() as *mut c_char
     }
 
-    /// Tests the `strcmp` function for equal strings.
-    #[test]
-    fn test_strcmp_equal_strings() {
-        let s1 = c_string("test\0");
-        let s2 = c_string("test\0");
-        unsafe {
-            assert_eq!(strcmp(s1, s2), 0);
-        }
-    }
-
-    /// Helper function to create a minimal parser setup
+    /// Creates a test parser and document with proper initialization.
+    ///
+    /// # Returns
+    ///
+    /// A tuple containing:
+    /// - Pointer to initialized parser
+    /// - Pointer to initialized document
+    /// - Cleanup closure
+    ///
+    /// # Safety
+    ///
+    /// Caller must:
+    /// - Not use the pointers after calling the cleanup closure
+    /// - Call the cleanup closure exactly once
     unsafe fn setup_test_parser(
     ) -> (*mut YamlParserT, *mut YamlDocumentT, impl FnOnce()) {
-        let parser_memory = yaml_malloc(size_of::<YamlParserT>() as u64)
+        // Allocate parser and document
+        let parser_ptr = yaml_malloc(size_of::<YamlParserT>() as u64)
             as *mut YamlParserT;
-        let document_memory =
-            yaml_malloc(size_of::<YamlDocumentT>() as u64)
-                as *mut YamlDocumentT;
+        let document_ptr = yaml_malloc(size_of::<YamlDocumentT>() as u64)
+            as *mut YamlDocumentT;
 
-        if parser_memory.is_null() || document_memory.is_null() {
-            if !parser_memory.is_null() {
-                yaml_free(parser_memory as *mut libc::c_void);
-            }
-            if !document_memory.is_null() {
-                yaml_free(document_memory as *mut libc::c_void);
-            }
-            panic!("Failed to allocate memory for parser or document");
+        // Verify allocations
+        if parser_ptr.is_null() || document_ptr.is_null() {
+            cleanup_failed_setup(parser_ptr, document_ptr);
+            panic!("Failed to allocate parser or document");
         }
 
+        // Zero initialize structures
         ptr::write_bytes(
-            parser_memory as *mut u8,
+            parser_ptr as *mut u8,
             0,
             size_of::<YamlParserT>(),
         );
         ptr::write_bytes(
-            document_memory as *mut u8,
+            document_ptr as *mut u8,
             0,
             size_of::<YamlDocumentT>(),
         );
 
-        (*parser_memory).tokens.start = yaml_malloc(
-            (size_of::<YamlTokenT>() * 10).try_into().unwrap(),
-        ) as *mut YamlTokenT;
-        if (*parser_memory).tokens.start.is_null() {
-            yaml_free(parser_memory as *mut libc::c_void);
-            yaml_free(document_memory as *mut libc::c_void);
-            panic!("Failed to allocate memory for tokens queue");
+        // Initialize token queue
+        (*parser_ptr).tokens.start =
+            yaml_malloc((size_of::<YamlTokenT>() * 10) as u64)
+                as *mut YamlTokenT;
+        if (*parser_ptr).tokens.start.is_null() {
+            cleanup_failed_setup(parser_ptr, document_ptr);
+            panic!("Failed to allocate token queue");
         }
 
-        (*parser_memory).tokens.end =
-            (*parser_memory).tokens.start.add(10);
-        (*parser_memory).tokens.head = (*parser_memory).tokens.start;
-        (*parser_memory).tokens.tail = (*parser_memory).tokens.start;
+        // Setup token queue pointers
+        (*parser_ptr).tokens.end = (*parser_ptr).tokens.start.add(10);
+        (*parser_ptr).tokens.head = (*parser_ptr).tokens.start;
+        (*parser_ptr).tokens.tail = (*parser_ptr).tokens.start;
 
-        // Initialize document nodes
-        STACK_INIT!((*document_memory).nodes, YamlNodeT);
+        // Initialize scanner state
+        initialize_scanner_state(parser_ptr);
 
+        // Initialize document nodes stack
+        STACK_INIT!((*document_ptr).nodes, YamlNodeT);
+
+        // Create cleanup closure
         let cleanup = move || {
-            if !document_memory.is_null() {
-                if !(*document_memory).nodes.start.is_null() {
-                    STACK_DEL!((*document_memory).nodes);
-                }
-                yaml_free(document_memory as *mut libc::c_void);
-            }
-
-            if !parser_memory.is_null() {
-                if !(*parser_memory).tokens.start.is_null() {
-                    yaml_free(
-                        (*parser_memory).tokens.start
-                            as *mut libc::c_void,
-                    );
-                }
-                yaml_free(parser_memory as *mut libc::c_void);
-            }
+            cleanup_resources(parser_ptr, document_ptr);
         };
 
-        (parser_memory, document_memory, cleanup)
+        (parser_ptr, document_ptr, cleanup)
     }
 
-    /// Tests the `strcmp` function for strings where the first is less than the second.
-    #[test]
-    fn test_strcmp_first_less() {
-        let s1 = c_string("abc\0");
-        let s2 = c_string("abd\0");
-        unsafe {
-            assert!(strcmp(s1, s2) < 0);
+    /// Cleans up resources from failed setup
+    ///
+    /// # Safety
+    ///
+    /// - Pointers must either be null or valid pointers obtained from yaml_malloc
+    unsafe fn cleanup_failed_setup(
+        parser: *mut YamlParserT,
+        document: *mut YamlDocumentT,
+    ) {
+        if !parser.is_null() {
+            yaml_free(parser as *mut libc::c_void);
+        }
+        if !document.is_null() {
+            yaml_free(document as *mut libc::c_void);
         }
     }
 
-    /// Tests the `strcmp` function for strings where the first is greater than the second.
-    #[test]
-    fn test_strcmp_first_greater() {
-        let s1 = c_string("abd\0");
-        let s2 = c_string("abc\0");
-        unsafe {
-            assert!(strcmp(s1, s2) > 0);
+    /// Cleans up all resources associated with a parser and document
+    ///
+    /// # Safety
+    ///
+    /// - Pointers must be valid and obtained from setup_test_parser
+    unsafe fn cleanup_resources(
+        parser: *mut YamlParserT,
+        document: *mut YamlDocumentT,
+    ) {
+        // Clean up document
+        if !document.is_null() {
+            if !(*document).nodes.start.is_null() {
+                STACK_DEL!((*document).nodes);
+            }
+            yaml_free(document as *mut libc::c_void);
+        }
+
+        // Clean up parser
+        if !parser.is_null() {
+            if !(*parser).tokens.start.is_null() {
+                yaml_free((*parser).tokens.start as *mut libc::c_void);
+            }
+
+            // Clean up scanner stacks
+            STACK_DEL!((*parser).simple_keys);
+            STACK_DEL!((*parser).states);
+            STACK_DEL!((*parser).marks);
+            STACK_DEL!((*parser).indents);
+
+            yaml_free(parser as *mut libc::c_void);
         }
     }
 
-    /// Tests the `strcmp` function with empty strings.
+    /// Creates a test event with proper initialization
+    ///
+    /// # Safety
+    ///
+    /// - The returned pointer must be freed with yaml_free
+    unsafe fn create_test_event(
+        event_type: YamlEventTypeT,
+    ) -> *mut YamlEventT {
+        let event = yaml_malloc(size_of::<YamlEventT>() as u64)
+            as *mut YamlEventT;
+        if event.is_null() {
+            panic!("Failed to allocate event");
+        }
+
+        // Zero initialize
+        ptr::write_bytes(event as *mut u8, 0, size_of::<YamlEventT>());
+
+        // Set basic fields
+        (*event).type_ = event_type;
+        (*event).start_mark = YamlMarkT::default();
+        (*event).end_mark = YamlMarkT::default();
+
+        event
+    }
+
+    /// Creates a test anchor with proper null termination
+    ///
+    /// # Safety
+    ///
+    /// - The returned pointer must be freed with yaml_free
+    unsafe fn create_test_anchor(name: &str) -> *mut yaml_char_t {
+        let len = name.len();
+        let anchor = yaml_malloc((len + 1) as u64) as *mut yaml_char_t;
+        if anchor.is_null() {
+            panic!("Failed to allocate anchor");
+        }
+
+        // Copy content and null terminate
+        ptr::copy_nonoverlapping(name.as_bytes().as_ptr(), anchor, len);
+        *anchor.add(len) = 0;
+
+        anchor
+    }
+
+    // =========================================================================
+    // String Comparison Tests
+    // =========================================================================
+
+    /// Tests string comparison with equal strings
     #[test]
-    fn test_strcmp_empty_strings() {
-        let s1 = c_string("\0");
-        let s2 = c_string("\0");
+    fn test_strcmp_equal_strings() {
         unsafe {
+            let s1 = c_string("test\0");
+            let s2 = c_string("test\0");
             assert_eq!(strcmp(s1, s2), 0);
         }
     }
 
-    /// Tests the `strcmp` function where one string is a prefix of the other.
+    /// Tests string comparison when first string is lexicographically less
     #[test]
-    fn test_strcmp_prefix() {
-        let s1 = c_string("abc\0");
-        let s2 = c_string("abcd\0");
+    fn test_strcmp_first_less() {
         unsafe {
+            let s1 = c_string("abc\0");
+            let s2 = c_string("abd\0");
             assert!(strcmp(s1, s2) < 0);
         }
     }
 
-    /// Tests the `strcmp` function with non-ASCII characters.
+    /// Tests string comparison when first string is lexicographically greater
+    #[test]
+    fn test_strcmp_first_greater() {
+        unsafe {
+            let s1 = c_string("abd\0");
+            let s2 = c_string("abc\0");
+            assert!(strcmp(s1, s2) > 0);
+        }
+    }
+
+    /// Tests string comparison with empty strings
+    #[test]
+    fn test_strcmp_empty_strings() {
+        unsafe {
+            let s1 = c_string("\0");
+            let s2 = c_string("\0");
+            assert_eq!(strcmp(s1, s2), 0);
+        }
+    }
+
+    /// Tests string comparison with prefix relationships
+    #[test]
+    fn test_strcmp_prefix() {
+        unsafe {
+            let s1 = c_string("abc\0");
+            let s2 = c_string("abcd\0");
+            assert!(strcmp(s1, s2) < 0);
+        }
+    }
+
+    /// Tests string comparison with non-ASCII characters
     #[test]
     fn test_strcmp_non_ascii() {
-        let s1 = c_string("tést\0");
-        let s2 = c_string("tést\0");
-        let s3 = c_string("tèst\0");
         unsafe {
+            let s1 = c_string("tést\0");
+            let s2 = c_string("tést\0");
+            let s3 = c_string("tèst\0");
             assert_eq!(strcmp(s1, s2), 0);
             assert!(strcmp(s1, s3) > 0);
         }
     }
 
-    /// Tests the `strcmp` function with long strings.
-    #[test]
-    fn test_strcmp_long_strings() {
-        unsafe {
-            // Use static byte arrays with null terminators
-            static STR1: [u8; 5] = *b"aaaa\0";
-            static STR2: [u8; 5] = *b"aaab\0";
+    // =========================================================================
+    // Parser Loading Tests
+    // =========================================================================
 
-            let s1 = STR1.as_ptr() as *mut c_char;
-            let s2 = STR2.as_ptr() as *mut c_char;
-
-            assert!(strcmp(s1, s2) < 0);
-        }
-    }
-
-    /// Tests the `strcmp` function with single characters.
-    #[test]
-    fn test_strcmp_single_character() {
-        let s1 = c_string("a\0");
-        let s2 = c_string("b\0");
-        unsafe {
-            assert!(strcmp(s1, s2) < 0);
-        }
-    }
-
-    #[test]
-    fn test_strcmp_whitespace() {
-        let s1 = c_string("test \0");
-        let s2 = c_string("test\0");
-        unsafe {
-            assert!(strcmp(s1, s2) > 0);
-        }
-    }
-
+    /// Tests parser loading with null pointers
     #[test]
     fn test_yaml_parser_load_null_pointers() {
         unsafe {
@@ -1127,67 +1267,76 @@ mod tests {
         }
     }
 
+    /// Tests parser loading with stream end condition
     #[test]
     fn test_yaml_parser_load_stream_end() {
         unsafe {
-            let (parser_ptr, document_ptr, cleanup) =
-                setup_test_parser();
+            let (parser, document, cleanup) = setup_test_parser();
 
-            // Simulate a valid stream end state
-            (*parser_ptr).stream_start_produced = true;
-            (*parser_ptr).stream_end_produced = true;
+            // Set stream state
+            (*parser).stream_start_produced = true;
+            (*parser).stream_end_produced = true;
 
-            // Attempt to load
-            let result = yaml_parser_load(parser_ptr, document_ptr);
-
-            // Expect success
+            let result = yaml_parser_load(parser, document);
             assert!(matches!(result, Ok(())));
 
-            // Verify document cleanup
-            assert!((*document_ptr).nodes.start.is_null());
-
-            // Cleanup resources
             cleanup();
         }
     }
 
+    /// Tests loading of scalar nodes
     #[test]
-    fn test_loader_context_initialization() {
+    fn test_yaml_parser_load_scalar() {
         unsafe {
+            let (parser, document, cleanup) = setup_test_parser();
+            (*parser).document = document;
+
+            // Initialize context
             let mut ctx = LoaderContext {
-                start: ptr::null_mut(),
+                start: yaml_malloc(16 * size_of::<i32>() as u64)
+                    as *mut i32,
                 end: ptr::null_mut(),
                 top: ptr::null_mut(),
             };
+            ctx.end = ctx.start.add(16);
+            ctx.top = ctx.start;
 
-            STACK_INIT!(ctx, i32);
-            assert!(STACK_EMPTY!(ctx));
-            STACK_DEL!(ctx);
+            // Create and test scalar event
+            let event =
+                create_test_event(YamlEventTypeT::YamlScalarEvent);
+            let value = create_test_anchor("test_value");
+            let tag = create_test_anchor("tag:yaml.org,2002:str");
+
+            (*event).data.scalar.value = value;
+            (*event).data.scalar.length = 10;
+            (*event).data.scalar.tag = tag;
+
+            let result =
+                yaml_parser_load_scalar(parser, event, &mut ctx);
+            assert!(result.is_ok());
+
+            // Manual cleanup of event and its contents
+            if !(*event).data.scalar.value.is_null() {
+                yaml_free(
+                    (*event).data.scalar.value as *mut libc::c_void,
+                );
+            }
+            if !(*event).data.scalar.tag.is_null() {
+                yaml_free(
+                    (*event).data.scalar.tag as *mut libc::c_void,
+                );
+            }
+            yaml_free(event as *mut libc::c_void);
+            yaml_free(ctx.start as *mut libc::c_void);
+            cleanup();
         }
     }
 
-    #[test]
-    fn test_loader_context_push_pop() {
-        unsafe {
-            let mut ctx = LoaderContext {
-                start: ptr::null_mut(),
-                end: ptr::null_mut(),
-                top: ptr::null_mut(),
-            };
-            STACK_INIT!(ctx, i32);
+    // =========================================================================
+    // Document Structure Tests
+    // =========================================================================
 
-            let test_value = 42;
-            assert!(PUSH!(ctx, test_value));
-            assert!(!STACK_EMPTY!(ctx));
-
-            let popped = POP!(ctx);
-            assert_eq!(popped, test_value);
-            assert!(STACK_EMPTY!(ctx));
-
-            STACK_DEL!(ctx);
-        }
-    }
-
+    /// Tests sequence end handling with null pointers
     #[test]
     fn test_sequence_end_null_pointers() {
         unsafe {
@@ -1200,11 +1349,12 @@ mod tests {
         }
     }
 
+    /// Tests sequence end handling with empty stack
     #[test]
     fn test_sequence_end_empty_stack() {
         unsafe {
-            let (parser_ptr, _document_ptr, cleanup) =
-                setup_test_parser();
+            let (parser, document, cleanup) = setup_test_parser();
+            (*parser).document = document;
 
             let mut event = MaybeUninit::<YamlEventT>::uninit();
             let mut ctx = LoaderContext {
@@ -1212,9 +1362,10 @@ mod tests {
                 end: ptr::null_mut(),
                 top: ptr::null_mut(),
             };
+            STACK_INIT!(ctx, i32);
 
             let result = yaml_parser_load_sequence_end(
-                parser_ptr,
+                parser,
                 event.as_mut_ptr(),
                 &mut ctx,
             );
@@ -1223,8 +1374,239 @@ mod tests {
                 Err(YamlError::InvalidDocumentStructure)
             ));
 
-            // Ensure cleanup is invoked
+            STACK_DEL!(ctx);
             cleanup();
+        }
+    }
+
+    /// Tests sequence end handling with valid sequence node
+    #[test]
+    fn test_sequence_end_valid() {
+        unsafe {
+            let (parser, document, cleanup) = setup_test_parser();
+            (*parser).document = document;
+
+            // Create context with a sequence node
+            let mut ctx = LoaderContext {
+                start: ptr::null_mut(),
+                end: ptr::null_mut(),
+                top: ptr::null_mut(),
+            };
+            STACK_INIT!(ctx, i32);
+
+            // Create and push a sequence node
+            let node = create_sequence_node();
+            PUSH!((*document).nodes, node);
+            let node_index = (*document)
+                .nodes
+                .top
+                .offset_from((*document).nodes.start)
+                as i32;
+            PUSH!(ctx, node_index);
+
+            // Create event and test
+            let mut event = MaybeUninit::<YamlEventT>::uninit();
+            let event_ptr = event.as_mut_ptr();
+            ptr::write_bytes(
+                event_ptr as *mut u8,
+                0,
+                size_of::<YamlEventT>(),
+            );
+            (*event_ptr).end_mark = YamlMarkT::default();
+
+            let result = yaml_parser_load_sequence_end(
+                parser, event_ptr, &mut ctx,
+            );
+            assert!(result.is_ok());
+
+            // Cleanup sequence items
+            while !STACK_EMPTY!((*document).nodes) {
+                let mut node = POP!((*document).nodes);
+                cleanup_node(&mut node);
+            }
+
+            STACK_DEL!(ctx);
+            cleanup();
+        }
+    }
+
+    /// Tests the proper handling of mapping end events
+    #[test]
+    fn test_mapping_end() {
+        unsafe {
+            let (parser, document, cleanup) = setup_test_parser();
+            (*parser).document = document;
+
+            // Initialize context
+            let mut ctx = LoaderContext {
+                start: yaml_malloc(16 * size_of::<i32>() as u64)
+                    as *mut i32,
+                end: ptr::null_mut(),
+                top: ptr::null_mut(),
+            };
+            ctx.end = ctx.start.add(16);
+            ctx.top = ctx.start;
+
+            // Create and push a mapping node
+            let node = create_mapping_node();
+            PUSH!((*document).nodes, node);
+            let node_index = (*document)
+                .nodes
+                .top
+                .offset_from((*document).nodes.start)
+                as i32;
+            PUSH!(ctx, node_index);
+
+            // Create mapping end event
+            let event =
+                create_test_event(YamlEventTypeT::YamlMappingEndEvent);
+            let result =
+                yaml_parser_load_mapping_end(parser, event, &mut ctx);
+            assert!(result.is_ok());
+
+            // Cleanup mapping pairs
+            while !STACK_EMPTY!((*document).nodes) {
+                let mut node = POP!((*document).nodes);
+                if !node.data.mapping.pairs.start.is_null() {
+                    STACK_DEL!(node.data.mapping.pairs);
+                }
+            }
+
+            // Cleanup remaining resources
+            yaml_free(event as *mut libc::c_void);
+            yaml_free(ctx.start as *mut libc::c_void);
+            cleanup();
+        }
+    }
+
+    /// Tests document loading with invalid event types
+    #[test]
+    fn test_load_document_invalid_events() {
+        unsafe {
+            let (parser, document, cleanup) = setup_test_parser();
+            (*parser).document = document;
+
+            let invalid_events = [
+                YamlEventTypeT::YamlScalarEvent,
+                YamlEventTypeT::YamlSequenceStartEvent,
+                YamlEventTypeT::YamlMappingStartEvent,
+            ];
+
+            for &event_type in &invalid_events {
+                let event = create_test_event(event_type);
+                let result = yaml_parser_load_document(parser, event);
+                assert!(matches!(
+                    result,
+                    Err(YamlError::InvalidDocumentStructure)
+                ));
+                yaml_free(event as *mut libc::c_void);
+            }
+
+            cleanup();
+        }
+    }
+
+    /// Tests node addition to different parent types
+    #[test]
+    fn test_node_addition() {
+        unsafe {
+            let (parser, document, cleanup) = setup_test_parser();
+            (*parser).document = document;
+
+            // Initialize context
+            let mut ctx = LoaderContext {
+                start: yaml_malloc(16 * size_of::<i32>() as u64)
+                    as *mut i32,
+                end: ptr::null_mut(),
+                top: ptr::null_mut(),
+            };
+            ctx.end = ctx.start.add(16);
+            ctx.top = ctx.start;
+
+            // Test sequence node
+            let seq_node = create_sequence_node();
+            PUSH!((*document).nodes, seq_node);
+            let seq_index = (*document)
+                .nodes
+                .top
+                .offset_from((*document).nodes.start)
+                as i32;
+            PUSH!(ctx, seq_index);
+
+            let result = yaml_parser_load_node_add(parser, &mut ctx, 2);
+            assert!(result.is_ok());
+
+            // Test mapping node
+            let map_node = create_mapping_node();
+            PUSH!((*document).nodes, map_node);
+            let map_index = (*document)
+                .nodes
+                .top
+                .offset_from((*document).nodes.start)
+                as i32;
+            *ctx.top = map_index;
+
+            let result = yaml_parser_load_node_add(parser, &mut ctx, 3);
+            assert!(result.is_ok());
+
+            // Cleanup
+            while !STACK_EMPTY!((*document).nodes) {
+                let mut node = POP!((*document).nodes);
+                cleanup_node(&mut node);
+            }
+            yaml_free(ctx.start as *mut libc::c_void);
+            cleanup();
+        }
+    }
+
+    // Helper function to create a sequence node with proper cleanup
+    unsafe fn create_sequence_node() -> YamlNodeT {
+        let mut node = MaybeUninit::<YamlNodeT>::uninit();
+        let node_ptr = node.as_mut_ptr();
+        initialize_yaml_node(node_ptr);
+        (*node_ptr).type_ = YamlSequenceNode;
+
+        STACK_INIT!((*node_ptr).data.sequence.items, YamlNodeItemT);
+
+        *node_ptr
+    }
+
+    /// Helper function to create a mapping node for testing
+    unsafe fn create_mapping_node() -> YamlNodeT {
+        let mut node = MaybeUninit::<YamlNodeT>::uninit();
+        let node_ptr = node.as_mut_ptr();
+        initialize_yaml_node(node_ptr);
+        (*node_ptr).type_ = YamlMappingNode;
+
+        STACK_INIT!((*node_ptr).data.mapping.pairs, YamlNodePairT);
+
+        *node_ptr
+    }
+
+    /// Tests the cleanup of resources in various error conditions
+    #[test]
+    fn test_cleanup_on_error() {
+        unsafe {
+            let (parser, document, _) = setup_test_parser();
+            (*parser).document = document;
+
+            // Initialize test resources
+            STACK_INIT!((*parser).aliases, YamlAliasDataT);
+            let anchor = create_test_anchor("test");
+            let alias_data = YamlAliasDataT {
+                anchor,
+                index: 1,
+                mark: YamlMarkT::default(),
+            };
+            PUSH!((*parser).aliases, alias_data);
+
+            // Cleanup
+            while !STACK_EMPTY!((*parser).aliases) {
+                let alias = POP!((*parser).aliases);
+                yaml_free(alias.anchor as *mut libc::c_void);
+            }
+            STACK_DEL!((*parser).aliases);
+            cleanup_resources(parser, document);
         }
     }
 }

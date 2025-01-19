@@ -232,7 +232,7 @@ pub unsafe fn yaml_emitter_flush(
         } else {
             return yaml_emitter_set_writer_error(
                 emitter,
-                WRITE_ERROR.as_ptr() as *const libc::c_char,
+                WRITE_ERROR.as_ptr().cast::<libc::c_char>(),
             );
         }
     }

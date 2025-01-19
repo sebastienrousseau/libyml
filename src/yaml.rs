@@ -30,7 +30,8 @@ pub struct YamlVersionDirectiveT {
 
 impl YamlVersionDirectiveT {
     /// Constructor for `YamlVersionDirectiveT`.
-    pub fn new(major: libc::c_int, minor: libc::c_int) -> Self {
+    #[must_use]
+    pub const fn new(major: libc::c_int, minor: libc::c_int) -> Self {
         Self { major, minor }
     }
 }
@@ -49,7 +50,7 @@ pub struct YamlTagDirectiveT {
 
 impl Default for YamlTagDirectiveT {
     fn default() -> Self {
-        YamlTagDirectiveT {
+        Self {
             handle: null_mut(),
             prefix: null_mut(),
         }
@@ -94,7 +95,7 @@ pub enum YamlBreakT {
 
 impl Default for YamlBreakT {
     fn default() -> Self {
-        YamlBreakT::YamlAnyBreak
+        Self::YamlAnyBreak
     }
 }
 
@@ -258,7 +259,7 @@ pub enum YamlTokenTypeT {
 
 impl Default for YamlTokenTypeT {
     fn default() -> Self {
-        YamlTokenTypeT::YamlNoToken
+        Self::YamlNoToken
     }
 }
 
@@ -435,19 +436,19 @@ pub struct YamlEventT {
 #[derive(Copy, Clone, Debug)]
 #[repr(C)]
 pub struct UnnamedYamlEventTData {
-    /// The stream parameters (for YamlStreamStartEvent).
+    /// The stream parameters (for `YamlStreamStartEvent`).
     pub stream_start: UnnamedYamlEventTdataStreamStart,
-    /// The document parameters (for YamlDocumentStartEvent).
+    /// The document parameters (for `YamlDocumentStartEvent`).
     pub document_start: UnnamedYamlEventTdataDocumentStart,
-    /// The document end parameters (for YamlDocumentEndEvent).
+    /// The document end parameters (for `YamlDocumentEndEvent`).
     pub document_end: UnnamedYamlEventTdataDocumentEnd,
-    /// The alias parameters (for YamlAliasEvent).
+    /// The alias parameters (for `YamlAliasEvent`).
     pub alias: UnnamedYamlEventTdataAlias,
-    /// The scalar parameters (for YamlScalarEvent).
+    /// The scalar parameters (for `YamlScalarEvent`).
     pub scalar: UnnamedYamlEventTdataScalar,
-    /// The sequence parameters (for YamlSequenceStartEvent).
+    /// The sequence parameters (for `YamlSequenceStartEvent`).
     pub sequence_start: UnnamedYamlEventTdataSequenceStart,
-    /// The mapping parameters (for YamlMappingStartEvent).
+    /// The mapping parameters (for `YamlMappingStartEvent`).
     pub mapping_start: UnnamedYamlEventTdataMappingStart,
 }
 
@@ -589,11 +590,11 @@ pub struct YamlNodeT {
 #[derive(Copy, Clone, Debug)]
 #[repr(C)]
 pub struct UnnamedYamlNodeTData {
-    /// The scalar parameters (for YamlScalarNode).
+    /// The scalar parameters (for `YamlScalarNode`).
     pub scalar: UnnamedYamlNodeTDataScalar,
-    /// The sequence parameters (for YamlSequenceNode).
+    /// The sequence parameters (for `YamlSequenceNode`).
     pub sequence: UnnamedYamlNodeTDataSequence,
-    /// The mapping parameters (for YamlMappingNode).
+    /// The mapping parameters (for `YamlMappingNode`).
     pub mapping: UnnamedYamlNodeTDataMapping,
 }
 
@@ -860,7 +861,7 @@ pub struct YamlParserT {
     pub(crate) simple_key_allowed: bool,
     /// The stack of simple keys.
     pub(crate) simple_keys: YamlStackT<YamlSimpleKeyT>,
-    /// At least this many leading elements of simple_keys have possible=0.
+    /// At least this many leading elements of `simple_keys` have possible=0.
     pub(crate) not_simple_keys: libc::c_int,
     /// The parser states stack.
     pub(crate) states: YamlStackT<YamlParserStateT>,
@@ -891,14 +892,14 @@ impl Default for YamlParserT {
             // Input handling fields
             read_handler: None,
             read_handler_data: null_mut(),
-            input: Default::default(),
+            input: UnnamedYamlParserTInput::default(),
             eof: false,
 
             // Buffer management
             buffer: YamlBufferT::default(),
             unread: 0,
             raw_buffer: YamlBufferT::default(),
-            encoding: Default::default(),
+            encoding: YamlEncodingT::default(),
 
             // Parser position tracking
             offset: 0,
@@ -1171,7 +1172,7 @@ pub struct YamlEmitterT {
 
 impl Default for YamlEmitterT {
     fn default() -> Self {
-        YamlEmitterT {
+        Self {
             // Basic fields
             error: YamlErrorTypeT::YamlNoError,
             problem: null(),
@@ -1228,7 +1229,7 @@ impl Default for YamlEmitterT {
 
 impl Default for YamlEventT {
     fn default() -> Self {
-        YamlEventT {
+        Self {
             type_: YamlNoEvent,
             data: UnnamedYamlEventTData {
                 stream_start: UnnamedYamlEventTdataStreamStart {
@@ -1296,7 +1297,7 @@ impl YamlEmitterT {
         // 1) Free anchor_data fields
         //
         if !self.anchor_data.anchor.is_null() {
-            yaml_free(self.anchor_data.anchor as *mut libc::c_void);
+            yaml_free(self.anchor_data.anchor.cast::<libc::c_void>());
             self.anchor_data.anchor = null_mut();
         }
 
@@ -1304,11 +1305,11 @@ impl YamlEmitterT {
         // 2) Free tag_data fields
         //
         if !self.tag_data.handle.is_null() {
-            yaml_free(self.tag_data.handle as *mut libc::c_void);
+            yaml_free(self.tag_data.handle.cast::<libc::c_void>());
             self.tag_data.handle = null_mut();
         }
         if !self.tag_data.suffix.is_null() {
-            yaml_free(self.tag_data.suffix as *mut libc::c_void);
+            yaml_free(self.tag_data.suffix.cast::<libc::c_void>());
             self.tag_data.suffix = null_mut();
         }
 
@@ -1316,7 +1317,7 @@ impl YamlEmitterT {
         // 3) Free scalar_data fields
         //
         if !self.scalar_data.value.is_null() {
-            yaml_free(self.scalar_data.value as *mut libc::c_void);
+            yaml_free(self.scalar_data.value.cast::<libc::c_void>());
             self.scalar_data.value = null_mut();
         }
 
@@ -1326,13 +1327,13 @@ impl YamlEmitterT {
         let mut tag_ptr = self.tag_directives.start;
         while tag_ptr < self.tag_directives.end {
             // Each directive may have allocated handle/prefix
-            yaml_free((*tag_ptr).handle as *mut libc::c_void);
-            yaml_free((*tag_ptr).prefix as *mut libc::c_void);
+            yaml_free((*tag_ptr).handle.cast::<libc::c_void>());
+            yaml_free((*tag_ptr).prefix.cast::<libc::c_void>());
             tag_ptr = tag_ptr.add(1);
         }
         // Then free the array if allocated
         if !self.tag_directives.start.is_null() {
-            yaml_free(self.tag_directives.start as *mut libc::c_void);
+            yaml_free(self.tag_directives.start.cast::<libc::c_void>());
         }
         self.tag_directives.start = null_mut();
         self.tag_directives.end = null_mut();
@@ -1351,48 +1352,48 @@ impl YamlEmitterT {
                 YamlAliasEvent => {
                     let anchor = event.data.alias.anchor;
                     if !anchor.is_null() {
-                        yaml_free(anchor as *mut libc::c_void);
+                        yaml_free(anchor.cast::<libc::c_void>());
                         event.data.alias.anchor = null_mut();
                     }
                 }
                 YamlScalarEvent => {
                     let anchor = event.data.scalar.anchor;
                     if !anchor.is_null() {
-                        yaml_free(anchor as *mut libc::c_void);
+                        yaml_free(anchor.cast::<libc::c_void>());
                         event.data.scalar.anchor = null_mut();
                     }
                     let tag = event.data.scalar.tag;
                     if !tag.is_null() {
-                        yaml_free(tag as *mut libc::c_void);
+                        yaml_free(tag.cast::<libc::c_void>());
                         event.data.scalar.tag = null_mut();
                     }
                     let value = event.data.scalar.value;
                     if !value.is_null() {
-                        yaml_free(value as *mut libc::c_void);
+                        yaml_free(value.cast::<libc::c_void>());
                         event.data.scalar.value = null_mut();
                     }
                 }
                 YamlSequenceStartEvent => {
                     let anchor = event.data.sequence_start.anchor;
                     if !anchor.is_null() {
-                        yaml_free(anchor as *mut libc::c_void);
+                        yaml_free(anchor.cast::<libc::c_void>());
                         event.data.sequence_start.anchor = null_mut();
                     }
                     let tag = event.data.sequence_start.tag;
                     if !tag.is_null() {
-                        yaml_free(tag as *mut libc::c_void);
+                        yaml_free(tag.cast::<libc::c_void>());
                         event.data.sequence_start.tag = null_mut();
                     }
                 }
                 YamlMappingStartEvent => {
                     let anchor = event.data.mapping_start.anchor;
                     if !anchor.is_null() {
-                        yaml_free(anchor as *mut libc::c_void);
+                        yaml_free(anchor.cast::<libc::c_void>());
                         event.data.mapping_start.anchor = null_mut();
                     }
                     let tag = event.data.mapping_start.tag;
                     if !tag.is_null() {
-                        yaml_free(tag as *mut libc::c_void);
+                        yaml_free(tag.cast::<libc::c_void>());
                         event.data.mapping_start.tag = null_mut();
                     }
                 }
@@ -1406,7 +1407,7 @@ impl YamlEmitterT {
         }
         // Finally free the underlying array, if any
         if !self.events.start.is_null() {
-            yaml_free(self.events.start as *mut libc::c_void);
+            yaml_free(self.events.start.cast::<libc::c_void>());
         }
         self.events.start = null_mut();
         self.events.end = null_mut();
@@ -1417,7 +1418,7 @@ impl YamlEmitterT {
         // 6) Free the anchors array
         //
         if !self.anchors.is_null() {
-            yaml_free(self.anchors as *mut libc::c_void);
+            yaml_free(self.anchors.cast::<libc::c_void>());
             self.anchors = null_mut();
         }
 
@@ -1425,7 +1426,7 @@ impl YamlEmitterT {
         // 7) If you allocated the string buffer in `output`, free it:
         //
         if !self.output.string.buffer.is_null() {
-            yaml_free(self.output.string.buffer as *mut libc::c_void);
+            yaml_free(self.output.string.buffer.cast::<libc::c_void>());
             self.output.string.buffer = null_mut();
         }
         self.output.string.size = 0;
@@ -1436,13 +1437,13 @@ impl YamlEmitterT {
         //    states, indents, etc. (If they had separate heap allocations.)
         //
         if !self.states.start.is_null() {
-            yaml_free(self.states.start as *mut libc::c_void);
+            yaml_free(self.states.start.cast::<libc::c_void>());
             self.states.start = null_mut();
             self.states.end = null_mut();
             self.states.top = null_mut();
         }
         if !self.indents.start.is_null() {
-            yaml_free(self.indents.start as *mut libc::c_void);
+            yaml_free(self.indents.start.cast::<libc::c_void>());
             self.indents.start = null_mut();
             self.indents.end = null_mut();
             self.indents.top = null_mut();
@@ -1455,7 +1456,7 @@ impl YamlEmitterT {
         if !self.document.is_null() {
             // If your design says the emitter *owns* the document, free it:
             // (*self.document).cleanup();
-            yaml_free(self.document as *mut libc::c_void);
+            yaml_free(self.document.cast::<libc::c_void>());
             self.document = null_mut();
         }
     }
@@ -1465,8 +1466,9 @@ impl YamlEmitterT {
     /// The emitter is configured with:
     /// - Best indentation set to 4 spaces
     /// - Unicode output enabled
+    #[must_use]
     pub fn new() -> Self {
-        YamlEmitterT {
+        Self {
             best_indent: 4,
             unicode: true,
             ..Default::default()
@@ -1609,7 +1611,7 @@ impl<T> YamlBufferT<T> {
 
 impl<T> Default for YamlBufferT<T> {
     fn default() -> Self {
-        YamlBufferT {
+        Self {
             start: null_mut(),
             end: null_mut(),
             pointer: null_mut(),
@@ -1660,7 +1662,7 @@ impl<T> Clone for YamlQueueT<T> {
 
 impl<T: Default> Default for YamlQueueT<T> {
     fn default() -> Self {
-        YamlQueueT {
+        Self {
             start: null_mut(),
             end: null_mut(),
             head: null_mut(),
@@ -1671,7 +1673,7 @@ impl<T: Default> Default for YamlQueueT<T> {
 
 impl Default for YamlStringT {
     fn default() -> Self {
-        YamlStringT {
+        Self {
             start: null_mut(),
             end: null_mut(),
             pointer: null_mut(),
@@ -1681,7 +1683,7 @@ impl Default for YamlStringT {
 
 impl Default for UnnamedYamlEmitterTScalarData {
     fn default() -> Self {
-        UnnamedYamlEmitterTScalarData {
+        Self {
             value: null_mut(),
             length: 0,
             multiline: false,
@@ -1696,7 +1698,7 @@ impl Default for UnnamedYamlEmitterTScalarData {
 
 impl Default for UnnamedYamlEmitterTTagData {
     fn default() -> Self {
-        UnnamedYamlEmitterTTagData {
+        Self {
             handle: null_mut(),
             handle_length: 0,
             suffix: null_mut(),
@@ -1707,7 +1709,7 @@ impl Default for UnnamedYamlEmitterTTagData {
 
 impl Default for UnnamedYamlEmitterTAnchorData {
     fn default() -> Self {
-        UnnamedYamlEmitterTAnchorData {
+        Self {
             anchor: null_mut(),
             anchor_length: 0,
             alias: false,
@@ -1717,7 +1719,7 @@ impl Default for UnnamedYamlEmitterTAnchorData {
 
 impl Default for UnnamedYamlEmitterTOutputString {
     fn default() -> Self {
-        UnnamedYamlEmitterTOutputString {
+        Self {
             buffer: null_mut(),
             size: 0,
             size_written: null_mut(),
@@ -1727,7 +1729,7 @@ impl Default for UnnamedYamlEmitterTOutputString {
 
 impl Default for UnnamedYamlParserTInputString {
     fn default() -> Self {
-        UnnamedYamlParserTInputString {
+        Self {
             start: null(),
             end: null(),
             current: null(),
@@ -1737,7 +1739,7 @@ impl Default for UnnamedYamlParserTInputString {
 
 impl Default for UnnamedYamlDocumentTTagDirectives {
     fn default() -> Self {
-        UnnamedYamlDocumentTTagDirectives {
+        Self {
             start: null_mut(),
             end: null_mut(),
         }
@@ -1746,25 +1748,25 @@ impl Default for UnnamedYamlDocumentTTagDirectives {
 
 impl Default for YamlParserStateT {
     fn default() -> Self {
-        YamlParserStateT::YamlParseStreamStartState
+        Self::YamlParseStreamStartState
     }
 }
 
 impl Default for UnnamedYamlTokenTdataAlias {
     fn default() -> Self {
-        UnnamedYamlTokenTdataAlias { value: null_mut() }
+        Self { value: null_mut() }
     }
 }
 
 impl Default for UnnamedYamlTokenTdataAnchor {
     fn default() -> Self {
-        UnnamedYamlTokenTdataAnchor { value: null_mut() }
+        Self { value: null_mut() }
     }
 }
 
 impl Default for UnnamedYamlTokenTdataTag {
     fn default() -> Self {
-        UnnamedYamlTokenTdataTag {
+        Self {
             handle: null_mut(),
             suffix: null_mut(),
         }
@@ -1773,7 +1775,7 @@ impl Default for UnnamedYamlTokenTdataTag {
 
 impl Default for UnnamedYamlTokenTdataScalar {
     fn default() -> Self {
-        UnnamedYamlTokenTdataScalar {
+        Self {
             value: null_mut(),
             length: 0,
             style: YamlScalarStyleT::YamlAnyScalarStyle,
@@ -1783,7 +1785,7 @@ impl Default for UnnamedYamlTokenTdataScalar {
 
 impl Default for UnnamedYamlTokenTdataTagDirective {
     fn default() -> Self {
-        UnnamedYamlTokenTdataTagDirective {
+        Self {
             handle: null_mut(),
             prefix: null_mut(),
         }
@@ -1792,7 +1794,7 @@ impl Default for UnnamedYamlTokenTdataTagDirective {
 
 impl Default for YamlStackT<YamlSimpleKeyT> {
     fn default() -> Self {
-        YamlStackT {
+        Self {
             start: null_mut(),
             end: null_mut(),
             top: null_mut(),
@@ -1802,7 +1804,7 @@ impl Default for YamlStackT<YamlSimpleKeyT> {
 
 impl Default for YamlStackT<YamlTagDirectiveT> {
     fn default() -> Self {
-        YamlStackT {
+        Self {
             start: null_mut(),
             end: null_mut(),
             top: null_mut(),
@@ -1812,7 +1814,7 @@ impl Default for YamlStackT<YamlTagDirectiveT> {
 
 impl Default for YamlStackT<YamlAliasDataT> {
     fn default() -> Self {
-        YamlStackT {
+        Self {
             start: null_mut(),
             end: null_mut(),
             top: null_mut(),
@@ -1822,7 +1824,7 @@ impl Default for YamlStackT<YamlAliasDataT> {
 
 impl Default for YamlAliasDataT {
     fn default() -> Self {
-        YamlAliasDataT {
+        Self {
             anchor: null_mut(),
             index: 0,
             mark: YamlMarkT::default(),
@@ -1838,113 +1840,114 @@ impl Default for YamlNodeTypeT {
 
 impl Default for YamlEmitterStateT {
     fn default() -> Self {
-        YamlEmitterStateT::YamlEmitStreamStartState
+        Self::YamlEmitStreamStartState
     }
 }
 
 impl YamlDocumentT {
-    /// Cleans up all dynamically allocated memory within `YamlDocumentT`.
-    ///
-    /// Frees:
-    /// - `version_directive` pointer
-    /// - All `tag_directives` (including each directive’s `handle`/`prefix`)
-    /// - The `nodes` array, and per-node allocations (e.g., `tag`, `data.scalar.value`,
-    ///   `data.sequence.items`, `data.mapping.pairs`)
+    // Cleans up all dynamically allocated memory within `YamlDocumentT`.
     ///
     /// # Safety
-    ///
     /// - Assumes pointers are either valid or null.
     /// - Must not be called if other code is still using these pointers.
     /// - Must match the memory management strategy used in allocations (`yaml_free` here).
     pub unsafe fn cleanup(&mut self) {
-        //
-        // 1) Free the version_directive if allocated
-        //
+        self.cleanup_version_directive();
+        self.cleanup_tag_directives();
+        self.cleanup_nodes();
+    }
+
+    /// Cleans up the `version_directive` field if allocated.
+    unsafe fn cleanup_version_directive(&mut self) {
         if !self.version_directive.is_null() {
-            yaml_free(self.version_directive as *mut libc::c_void);
+            yaml_free(self.version_directive.cast::<libc::c_void>());
             self.version_directive = null_mut();
         }
+    }
 
-        //
-        // 2) Free each YamlTagDirective’s handle/prefix, then free the array itself
-        //
+    /// Cleans up the `tag_directives` field, including all handles and prefixes.
+    unsafe fn cleanup_tag_directives(&mut self) {
         let mut tag_ptr = self.tag_directives.start;
         while tag_ptr < self.tag_directives.end {
-            // Each directive may have allocated handle/prefix
-            yaml_free((*tag_ptr).handle as *mut libc::c_void);
-            yaml_free((*tag_ptr).prefix as *mut libc::c_void);
+            yaml_free((*tag_ptr).handle.cast::<libc::c_void>());
+            yaml_free((*tag_ptr).prefix.cast::<libc::c_void>());
             tag_ptr = tag_ptr.add(1);
         }
-        // Then free the array (if it was allocated with yaml_malloc or similar)
+
         if !self.tag_directives.start.is_null() {
-            yaml_free(self.tag_directives.start as *mut libc::c_void);
+            yaml_free(self.tag_directives.start.cast::<libc::c_void>());
         }
+
         self.tag_directives.start = null_mut();
         self.tag_directives.end = null_mut();
+    }
 
-        //
-        // 3) Free each node’s allocations, then the nodes array.
-        //
+    /// Cleans up all nodes in the `nodes` array and their associated memory.
+    unsafe fn cleanup_nodes(&mut self) {
         let mut node_ptr = self.nodes.start;
         while node_ptr < self.nodes.top {
-            let node = &mut *node_ptr;
-
-            // Free node.tag if allocated
-            if !node.tag.is_null() {
-                yaml_free(node.tag as *mut libc::c_void);
-                node.tag = null_mut();
-            }
-
-            match node.type_ {
-                YamlScalarNode => {
-                    // Free the scalar's value if allocated
-                    let scalar_val = node.data.scalar.value;
-                    if !scalar_val.is_null() {
-                        yaml_free(scalar_val as *mut libc::c_void);
-                        node.data.scalar.value = null_mut();
-                    }
-                }
-                YamlSequenceNode => {
-                    // Free the sequence items array
-                    let items_start = node.data.sequence.items.start;
-                    if !items_start.is_null() {
-                        yaml_free(items_start as *mut libc::c_void);
-                        node.data.sequence.items.start = null_mut();
-                        node.data.sequence.items.end = null_mut();
-                        node.data.sequence.items.top = null_mut();
-                    }
-                }
-                YamlMappingNode => {
-                    // Free the mapping pairs array
-                    let pairs_start = node.data.mapping.pairs.start;
-                    if !pairs_start.is_null() {
-                        yaml_free(pairs_start as *mut libc::c_void);
-                        node.data.mapping.pairs.start = null_mut();
-                        node.data.mapping.pairs.end = null_mut();
-                        node.data.mapping.pairs.top = null_mut();
-                    }
-                }
-                _ => {
-                    // E.g., YamlNoNode or future node types
-                }
-            }
-
+            self.cleanup_node(&mut *node_ptr);
             node_ptr = node_ptr.add(1);
         }
 
-        // Free the entire nodes array if allocated
         if !self.nodes.start.is_null() {
-            yaml_free(self.nodes.start as *mut libc::c_void);
+            yaml_free(self.nodes.start.cast::<libc::c_void>());
         }
+
         self.nodes.start = null_mut();
         self.nodes.end = null_mut();
         self.nodes.top = null_mut();
+    }
+
+    /// Cleans up memory associated with a single node.
+    unsafe fn cleanup_node(&self, node: &mut YamlNodeT) {
+        if !node.tag.is_null() {
+            yaml_free(node.tag.cast::<libc::c_void>());
+            node.tag = null_mut();
+        }
+
+        match node.type_ {
+            YamlScalarNode => self.cleanup_scalar_node(node),
+            YamlSequenceNode => self.cleanup_sequence_node(node),
+            YamlMappingNode => self.cleanup_mapping_node(node),
+            _ => {}
+        }
+    }
+
+    /// Cleans up memory for a scalar node.
+    unsafe fn cleanup_scalar_node(&self, node: &mut YamlNodeT) {
+        if !node.data.scalar.value.is_null() {
+            yaml_free(node.data.scalar.value.cast::<libc::c_void>());
+            node.data.scalar.value = null_mut();
+        }
+    }
+
+    /// Cleans up memory for a sequence node.
+    unsafe fn cleanup_sequence_node(&self, node: &mut YamlNodeT) {
+        let items_start = node.data.sequence.items.start;
+        if !items_start.is_null() {
+            yaml_free(items_start.cast::<libc::c_void>());
+            node.data.sequence.items.start = null_mut();
+            node.data.sequence.items.end = null_mut();
+            node.data.sequence.items.top = null_mut();
+        }
+    }
+
+    /// Cleans up memory for a mapping node.
+    unsafe fn cleanup_mapping_node(&self, node: &mut YamlNodeT) {
+        let pairs_start = node.data.mapping.pairs.start;
+        if !pairs_start.is_null() {
+            yaml_free(pairs_start.cast::<libc::c_void>());
+            node.data.mapping.pairs.start = null_mut();
+            node.data.mapping.pairs.end = null_mut();
+            node.data.mapping.pairs.top = null_mut();
+        }
     }
 }
 
 impl Default for YamlDocumentT {
     fn default() -> Self {
-        YamlDocumentT {
+        Self {
             nodes: YamlStackT {
                 start: null_mut(),
                 end: null_mut(),

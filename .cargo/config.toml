@@ -1,0 +1,24 @@
+[build]
+rustflags = [
+    # Enable Clippy lints
+    "-Wclippy::all",              # Enable all common lints
+    "-Wclippy::pedantic",         # Enable pedantic lints (may require frequent allowances)
+    "-Wclippy::cargo",            # Lints related to Cargo best practices
+    "-Wclippy::nursery",          # Enable experimental lints
+
+    # Disable specific noisy lints
+    "-Aclippy::literal_string_with_formatting_args", # Allow literal strings in formatting macros
+    "-Aclippy::module_name_repetitions",            # Disable repetitive module name lint (useful for large projects)
+
+    # Treat warnings as errors (optional, for stricter code quality)
+    "-Dwarnings"
+]
+
+[target.'cfg(test)']
+rustflags = [
+    "-Dwarnings", # Ensure warnings in test configurations are treated as errors
+    "-Wclippy::all",
+    "-Wclippy::pedantic",
+    "-Wclippy::cargo",
+    "-Wclippy::nursery"
+]

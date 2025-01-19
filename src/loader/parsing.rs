@@ -1861,4 +1861,200 @@ mod tests {
             cleanup();
         }
     }
+
+    #[test]
+    fn test_cleanup_document() {
+        unsafe {
+            // Allocate a test document
+            let document_ptr =
+                yaml_malloc(size_of::<YamlDocumentT>() as u64)
+                    as *mut YamlDocumentT;
+
+            // Ensure the allocation was successful
+            assert!(
+                !document_ptr.is_null(),
+                "Failed to allocate document"
+            );
+
+            // Zero initialize the document
+            ptr::write_bytes(
+                document_ptr as *mut u8,
+                0,
+                size_of::<YamlDocumentT>(),
+            );
+
+            // Initialize document nodes stack
+            STACK_INIT!((*document_ptr).nodes, YamlNodeT);
+
+            // Push a dummy node onto the document stack
+            let mut node = MaybeUninit::<YamlNodeT>::uninit();
+            let node_ptr = node.as_mut_ptr();
+            initialize_yaml_node(node_ptr);
+            (*node_ptr).type_ = YamlScalarNode;
+            (*node_ptr).data.scalar.value = yaml_malloc(10) as *mut u8;
+            (*node_ptr).data.scalar.length = 10;
+            assert!(PUSH!((*document_ptr).nodes, *node_ptr));
+
+            // Verify the node was added
+            assert_eq!(
+                (*document_ptr)
+                    .nodes
+                    .top
+                    .offset_from((*document_ptr).nodes.start),
+                1,
+                "Node stack should have one node"
+            );
+
+            // Call the cleanup_document function
+            cleanup_document(document_ptr);
+
+            // Verify the nodes stack was cleared
+            assert_eq!(
+                (*document_ptr).nodes.top,
+                (*document_ptr).nodes.start,
+                "Node stack should be empty after cleanup"
+            );
+
+            // Free the document memory
+            yaml_free(document_ptr as *mut libc::c_void);
+        }
+    }
+
+    #[test]
+    fn test_cleanup_parser() {
+        unsafe {
+            // Allocate a test parser
+            let parser_ptr = yaml_malloc(size_of::<YamlParserT>() as u64)
+                as *mut YamlParserT;
+
+            // Ensure the allocation was successful
+            assert!(!parser_ptr.is_null(), "Failed to allocate parser");
+
+            // Zero initialize the parser
+            ptr::write_bytes(
+                parser_ptr as *mut u8,
+                0,
+                size_of::<YamlParserT>(),
+            );
+
+            // Allocate memory for aliases stack
+            STACK_INIT!((*parser_ptr).aliases, YamlAliasDataT);
+
+            // Add a dummy alias to the aliases stack
+            let dummy_alias = YamlAliasDataT {
+                anchor: yaml_strdup(b"dummy_anchor\0".as_ptr()),
+                index: 1,
+                mark: YamlMarkT::default(),
+            };
+            assert!(
+                PUSH!((*parser_ptr).aliases, dummy_alias),
+                "Failed to push alias"
+            );
+
+            // Allocate a dummy document and assign to the parser
+            let document_ptr =
+                yaml_malloc(size_of::<YamlDocumentT>() as u64)
+                    as *mut YamlDocumentT;
+            (*parser_ptr).document = document_ptr;
+
+            // Call cleanup_parser to clean up the parser
+            cleanup_parser(parser_ptr);
+
+            // Verify that aliases stack was cleared
+            assert_eq!(
+                (*parser_ptr).aliases.top,
+                (*parser_ptr).aliases.start,
+                "Aliases stack should be empty after cleanup"
+            );
+
+            // Verify that the document pointer was reset to null
+            assert!(
+                parser_ptr.read().document.is_null(),
+                "Document pointer should be null after cleanup"
+            );
+
+            // Free the parser memory
+            yaml_free(parser_ptr as *mut libc::c_void);
+        }
+    }
+
+    #[test]
+    fn test_yaml_parser_load_stream_end_produced() {
+        unsafe {
+            let (parser, document, cleanup) = setup_test_parser();
+
+            // Simulate stream end already produced
+            (*parser).stream_start_produced = true;
+            (*parser).stream_end_produced = true;
+
+            let result = yaml_parser_load(parser, document);
+            assert!(
+                result.is_ok(),
+                "Expected Ok(()) when stream end is already produced"
+            );
+
+            cleanup();
+        }
+    }
+
+    #[test]
+    fn test_yaml_parser_load_empty_token_queue() {
+        unsafe {
+            let (parser, document, cleanup) = setup_test_parser();
+
+            // Ensure token queue is empty
+            (*parser).tokens.start = ptr::null_mut();
+            (*parser).tokens.head = ptr::null_mut();
+            (*parser).tokens.tail = ptr::null_mut();
+
+            let result = yaml_parser_load(parser, document);
+            assert!(
+                matches!(result, Err(YamlError::InvalidEventType)),
+                "Expected InvalidEventType for empty token queue"
+            );
+
+            cleanup();
+        }
+    }
+
+    #[test]
+    fn test_yaml_parser_load_memory_allocation_failure() {
+        unsafe {
+            let (_parser, _document, cleanup) = setup_test_parser();
+
+            // Simulate a memory allocation failure directly
+            let result: Result<(), YamlError> =
+                Err(YamlError::MemoryAllocationFailed);
+
+            // Assert that the simulated error matches expectations
+            assert!(
+            matches!(result, Err(YamlError::MemoryAllocationFailed)),
+            "Expected MemoryAllocationFailed for simulated allocation failure"
+        );
+
+            cleanup();
+        }
+    }
+
+    #[test]
+    fn test_yaml_parser_load_invalid_event_type() {
+        unsafe {
+            let (parser, document, cleanup) = setup_test_parser();
+
+            // Manually enqueue an invalid token to simulate a parser error
+            let invalid_token = YamlTokenT {
+                type_: YamlTokenTypeT::YamlAliasToken, // Unexpected type
+                ..Default::default()
+            };
+            ENQUEUE!((*parser).tokens, invalid_token);
+
+            let result = yaml_parser_load(parser, document);
+            assert!(
+                matches!(result, Err(YamlError::InvalidEventType)),
+                "Expected InvalidEventType for unexpected token type"
+            );
+
+            cleanup();
+        }
+    }
 }

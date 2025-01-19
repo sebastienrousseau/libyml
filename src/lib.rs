@@ -1,12 +1,5 @@
 // lib.rs
 
-#![allow(
-    clippy::cast_possible_truncation,
-    clippy::cast_sign_loss,
-    clippy::missing_safety_doc,
-    clippy::module_name_repetitions,
-    clippy::to_string_in_format_args
-)]
 //! # LibYML
 //!
 //! [![Made With Love][made-with-rust]][10]
@@ -494,94 +487,94 @@ impl<T> PointerExt for *mut T {
     }
 }
 
-/// Macros module for LibYML.
+/// Macros module for `LibYML`.
 ///
-/// This module contains various macros used throughout the LibYML library.
+/// This module contains various macros used throughout the `LibYML` library.
 #[macro_use]
 pub mod macros;
 
-/// Utility functions for LibYML.
+/// Utility functions for `LibYML`.
 ///
-/// This module contains utility functions and macros that are used throughout the LibYML library.
+/// This module contains utility functions and macros that are used throughout the `LibYML` library.
 #[macro_use]
 pub mod utils;
 
-/// API module for LibYML.
+/// API module for `LibYML`.
 ///
 /// This module provides the public API functions for working with YAML data.
 pub mod api;
 
-/// String utilities for LibYML.
+/// String utilities for `LibYML`.
 ///
 /// This module provides utilities for working with YAML strings.
 pub mod string;
 
-/// Dumper module for LibYML.
+/// Dumper module for `LibYML`.
 ///
 /// This module contains functions related to dumping YAML data.
 pub mod dumper;
 
-/// Emitter module for LibYML.
+/// Emitter module for `LibYML`.
 ///
 /// This module provides functions for emitting YAML data.
 pub mod emitter;
 
-/// Loader module for LibYML.
+/// Loader module for `LibYML`.
 ///
 /// This module contains functions for loading YAML data.
 pub mod loader;
 
-/// Decode module for LibYML.
+/// Decode module for `LibYML`.
 ///
 /// This module contains functions for decoding YAML data.
 pub mod decode;
 
-/// Document module for LibYML.
+/// Document module for `LibYML`.
 ///
 /// This module provides functions for working with YAML documents.
 pub mod document;
 
-/// Internal utilities for LibYML.
+/// Internal utilities for `LibYML`.
 ///
 /// This module contains internal utility functions and structures for the library.
 pub mod internal;
 
-/// Memory management for LibYML.
+/// Memory management for `LibYML`.
 ///
 /// This module provides functions for managing memory within the library.
 pub mod memory;
 
-/// Operations module for LibYML.
+/// Operations module for `LibYML`.
 ///
 /// This module provides various operations and functions for working with YAML data.
 pub mod ops;
 
-/// Parser module for LibYML.
+/// Parser module for `LibYML`.
 ///
 /// This module provides functions for parsing YAML data.
 pub mod parser;
 
-/// Reader module for LibYML.
+/// Reader module for `LibYML`.
 ///
 /// This module provides functions for reading YAML data.
 pub mod reader;
 
-/// Scanner module for LibYML.
+/// Scanner module for `LibYML`.
 ///
 /// This module provides functions for scanning YAML data.
 pub mod scanner;
 
-/// Success and Failure types for LibYML.
+/// Success and Failure types for `LibYML`.
 ///
 /// This module provides types for representing the success and failure of various operations within the library.
 pub mod success;
 
-/// Writer module for LibYML.
+/// Writer module for `LibYML`.
 ///
 /// This module provides functions for writing YAML data.
 pub mod writer;
 
-/// YAML API module for LibYML.
+/// YAML API module for `LibYML`.
 ///
 /// This module provides functions and types for working directly with YAML data structures.
 pub mod yaml;

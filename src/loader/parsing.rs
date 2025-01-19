@@ -1747,8 +1747,7 @@ mod tests {
             // Set sequence properties
             (*event_ptr).data.sequence_start.anchor = ptr::null_mut();
             (*event_ptr).data.sequence_start.tag =
-                yaml_strdup(b"tag:yaml.org,2002:seq\0".as_ptr()
-                    as *const yaml_char_t);
+                yaml_strdup(b"tag:yaml.org,2002:seq\0".as_ptr());
             (*event_ptr).data.sequence_start.implicit = true;
             (*event_ptr).data.sequence_start.style =
                 YamlSequenceStyleT::YamlBlockSequenceStyle;
@@ -1798,8 +1797,7 @@ mod tests {
             // Set mapping properties
             (*event_ptr).data.mapping_start.anchor = ptr::null_mut();
             (*event_ptr).data.mapping_start.tag =
-                yaml_strdup(b"tag:yaml.org,2002:map\0".as_ptr()
-                    as *const yaml_char_t);
+                yaml_strdup(b"tag:yaml.org,2002:map\0".as_ptr());
             (*event_ptr).data.mapping_start.implicit = true;
             (*event_ptr).data.mapping_start.style =
                 YamlMappingStyleT::YamlBlockMappingStyle;
@@ -1838,8 +1836,7 @@ mod tests {
             };
             STACK_INIT!(ctx, i32);
 
-            let tag = yaml_strdup(b"tag:yaml.org,2002:str\0".as_ptr()
-                as *const yaml_char_t);
+            let tag = yaml_strdup(b"tag:yaml.org,2002:str\0".as_ptr());
             let anchor = create_test_anchor("test_value");
 
             let token = YamlTokenT {

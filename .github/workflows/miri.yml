@@ -14,22 +14,37 @@ jobs:
 
       # Setup Rust with Miri component
       - name: Setup Rust with Miri
-        run: |
-          rustup override set nightly
-          rustup component add miri
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: nightly
+          components: miri
+          override: true
 
-      # Configure cache
-      - name: Configure cache
+      # Configure Cargo cache
+      - name: Configure Cargo cache
         uses: actions/cache@v4
         with:
           path: |
-            ~/.cargo/bin/
-            ~/.cargo/registry/index/
-            ~/.cargo/registry/cache/
-            ~/.cargo/git/db/
-            target/
-          key: miri-${{ runner.os }}-cargo-nightly-${{ hashFiles('**/Cargo.lock') }}
+            ~/.cargo/bin
+            ~/.cargo/registry/index
+            ~/.cargo/registry/cache
+            ~/.cargo/git/db
+          key: miri-${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+
+      # Clean the build state
+      - name: Clean build state
+        run: cargo clean
 
       # Run Miri tests
       - name: Run Miri tests
-        run: MIRIFLAGS="-Zmiri-disable-isolation -Zmiri-ignore-leaks" cargo miri test --verbose
+        run: |
+          MIRIFLAGS="-Zmiri-disable-isolation -Zmiri-ignore-leaks" cargo miri test --verbose | tee miri-test.log
+
+      # Upload logs on failure
+      - name: Upload Miri logs
+        if: failure()
+        uses: actions/upload-artifact@v3
+        with:
+          name: miri-test-logs
+          path: miri-test.log

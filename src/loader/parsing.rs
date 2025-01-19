@@ -1,5 +1,6 @@
 // src/loader/parsing.rs
 
+use crate::libc::c_void;
 use crate::YamlEventTypeT::YamlDocumentEndEvent;
 use crate::{
     internal::yaml_stack_extend,
@@ -384,7 +385,7 @@ unsafe fn yaml_parser_register_anchor(
             anchor as *mut c_char,
         ) == 0
         {
-            yaml_free(anchor as *mut libc::c_void);
+            yaml_free(anchor as *mut c_void);
 
             return yaml_parser_set_error(
                 parser,
@@ -503,7 +504,7 @@ unsafe fn yaml_parser_load_alias(
             anchor as *mut c_char,
         ) == 0
         {
-            yaml_free(anchor as *mut libc::c_void);
+            yaml_free(anchor as *mut c_void);
             return yaml_parser_load_node_add(
                 parser,
                 ctx,
@@ -513,7 +514,7 @@ unsafe fn yaml_parser_load_alias(
         alias_data = alias_data.offset(1);
     }
 
-    yaml_free(anchor as *mut libc::c_void);
+    yaml_free(anchor as *mut c_void);
     yaml_parser_set_error(
         parser,
         None,
@@ -555,7 +556,7 @@ unsafe fn yaml_parser_load_scalar(
                 b"!\0" as *const u8 as *mut c_char,
             ) == 0
         {
-            yaml_free(tag as *mut libc::c_void);
+            yaml_free(tag as *mut c_void);
             tag = yaml_strdup(
                 b"tag:yaml.org,2002:str\0" as *const u8 as *const c_char
                     as *mut yaml_char_t,
@@ -594,9 +595,9 @@ unsafe fn yaml_parser_load_scalar(
         return Ok(());
     }
 
-    yaml_free(tag as *mut libc::c_void);
-    yaml_free((*event).data.scalar.anchor as *mut libc::c_void);
-    yaml_free((*event).data.scalar.value as *mut libc::c_void);
+    yaml_free(tag as *mut c_void);
+    yaml_free((*event).data.scalar.anchor as *mut c_void);
+    yaml_free((*event).data.scalar.value as *mut c_void);
     Err(YamlError::MemoryAllocationFailed)
 }
 
@@ -642,7 +643,7 @@ unsafe fn yaml_parser_load_sequence(
                 b"!\0" as *const u8 as *mut c_char,
             ) == 0
         {
-            yaml_free(tag as *mut libc::c_void);
+            yaml_free(tag as *mut c_void);
             tag = yaml_strdup(
                 b"tag:yaml.org,2002:seq\0" as *const u8 as *const c_char
                     as *mut yaml_char_t,
@@ -692,8 +693,8 @@ unsafe fn yaml_parser_load_sequence(
         return Ok(());
     }
 
-    yaml_free(tag as *mut libc::c_void);
-    yaml_free((*event).data.sequence_start.anchor as *mut libc::c_void);
+    yaml_free(tag as *mut c_void);
+    yaml_free((*event).data.sequence_start.anchor as *mut c_void);
     Err(YamlError::MemoryAllocationFailed)
 }
 
@@ -801,7 +802,7 @@ unsafe fn yaml_parser_load_mapping(
                 b"!\0" as *const u8 as *mut c_char,
             ) == 0
         {
-            yaml_free(tag as *mut libc::c_void);
+            yaml_free(tag as *mut c_void);
             tag = yaml_strdup(
                 b"tag:yaml.org,2002:map\0" as *const u8 as *const c_char
                     as *mut yaml_char_t,
@@ -851,8 +852,8 @@ unsafe fn yaml_parser_load_mapping(
         return Ok(());
     }
 
-    yaml_free(tag as *mut libc::c_void);
-    yaml_free((*event).data.mapping_start.anchor as *mut libc::c_void);
+    yaml_free(tag as *mut c_void);
+    yaml_free((*event).data.mapping_start.anchor as *mut c_void);
     Err(YamlError::MemoryAllocationFailed)
 }
 
@@ -942,9 +943,11 @@ unsafe fn strcmp(s1: *mut c_char, s2: *mut c_char) -> i32 {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::YamlSimpleKeyT;
+    use crate::internal::yaml_queue_extend;
+    use crate::libc::c_void;
     use crate::{
-        YamlEventTypeT, YamlMarkT, YamlParserStateT, YamlTokenT,
+        YamlEventTypeT, YamlMappingStyleT, YamlMarkT, YamlParserStateT,
+        YamlSequenceStyleT, YamlSimpleKeyT, YamlTokenT, YamlTokenTypeT,
     };
     use core::ffi::CStr;
 
@@ -1603,10 +1606,262 @@ mod tests {
             // Cleanup
             while !STACK_EMPTY!((*parser).aliases) {
                 let alias = POP!((*parser).aliases);
-                yaml_free(alias.anchor as *mut libc::c_void);
+                yaml_free(alias.anchor as *mut c_void);
             }
             STACK_DEL!((*parser).aliases);
             cleanup_resources(parser, document);
+        }
+    }
+
+    #[test]
+    fn test_yaml_parser_load_sequence_end() {
+        unsafe {
+            let (parser, document, cleanup) = setup_test_parser();
+            (*parser).document = document;
+
+            // Create context without any nodes (should fail)
+            let mut ctx = LoaderContext {
+                start: ptr::null_mut::<i32>(),
+                end: ptr::null_mut::<i32>(),
+                top: ptr::null_mut::<i32>(),
+            };
+            STACK_INIT!(ctx, i32);
+
+            // Create an event
+            let mut event = MaybeUninit::<YamlEventT>::uninit();
+            let event_ptr = event.as_mut_ptr();
+            (*event_ptr).type_ = YamlEventTypeT::YamlSequenceEndEvent;
+            (*event_ptr).start_mark = YamlMarkT::default();
+            (*event_ptr).end_mark = YamlMarkT::default();
+
+            // Test without sequence node - should fail
+            let result = yaml_parser_load_sequence_end(
+                parser, event_ptr, &mut ctx,
+            );
+            assert!(result.is_err());
+            assert!(matches!(
+                result,
+                Err(YamlError::InvalidDocumentStructure)
+            ));
+
+            STACK_DEL!(ctx);
+            cleanup();
+        }
+    }
+
+    #[test]
+    fn test_yaml_parser_load_mapping_end() {
+        unsafe {
+            let (parser, document, cleanup) = setup_test_parser();
+            (*parser).document = document;
+
+            // Create context and initialize it
+            let mut ctx = LoaderContext {
+                start: ptr::null_mut::<i32>(),
+                end: ptr::null_mut::<i32>(),
+                top: ptr::null_mut::<i32>(),
+            };
+            STACK_INIT!(ctx, i32);
+
+            // Create and initialize a mapping node
+            let mut node = MaybeUninit::<YamlNodeT>::uninit();
+            let node_ptr = node.as_mut_ptr();
+            initialize_yaml_node(node_ptr);
+            (*node_ptr).type_ = YamlMappingNode;
+            (*node_ptr).start_mark = YamlMarkT::default();
+
+            // Initialize mapping pairs
+            struct Pairs {
+                start: *mut YamlNodePairT,
+                end: *mut YamlNodePairT,
+                top: *mut YamlNodePairT,
+            }
+            let mut pairs = Pairs {
+                start: ptr::null_mut::<YamlNodePairT>(),
+                end: ptr::null_mut::<YamlNodePairT>(),
+                top: ptr::null_mut::<YamlNodePairT>(),
+            };
+            STACK_INIT!(pairs, YamlNodePairT);
+            (*node_ptr).data.mapping.pairs.start = pairs.start;
+            (*node_ptr).data.mapping.pairs.end = pairs.end;
+            (*node_ptr).data.mapping.pairs.top = pairs.start;
+
+            // Push node to document
+            PUSH!((*document).nodes, *node_ptr);
+
+            // Push the node index onto context
+            let node_index = (*document)
+                .nodes
+                .top
+                .offset_from((*document).nodes.start)
+                as i32;
+            PUSH!(ctx, node_index);
+
+            // Create an event
+            let mut event = MaybeUninit::<YamlEventT>::uninit();
+            let event_ptr = event.as_mut_ptr();
+            (*event_ptr).type_ = YamlEventTypeT::YamlMappingEndEvent;
+            (*event_ptr).start_mark = YamlMarkT::default();
+            (*event_ptr).end_mark = YamlMarkT::default();
+
+            // Test mapping end - should succeed
+            let result = yaml_parser_load_mapping_end(
+                parser, event_ptr, &mut ctx,
+            );
+            assert!(result.is_ok());
+
+            // Cleanup mapping pairs
+            while !STACK_EMPTY!((*document).nodes) {
+                let mut node = POP!((*document).nodes);
+                if !node.data.mapping.pairs.start.is_null() {
+                    STACK_DEL!(node.data.mapping.pairs);
+                }
+            }
+
+            STACK_DEL!(ctx);
+            cleanup();
+        }
+    }
+
+    #[test]
+    fn test_yaml_parser_load_sequence() {
+        unsafe {
+            let (parser, document, cleanup) = setup_test_parser();
+            (*parser).document = document;
+
+            // Create context and initialize it
+            let mut ctx = LoaderContext {
+                start: ptr::null_mut::<i32>(),
+                end: ptr::null_mut::<i32>(),
+                top: ptr::null_mut::<i32>(),
+            };
+            STACK_INIT!(ctx, i32);
+
+            // Create a sequence start event
+            let mut event = MaybeUninit::<YamlEventT>::uninit();
+            let event_ptr = event.as_mut_ptr();
+            (*event_ptr).type_ = YamlEventTypeT::YamlSequenceStartEvent;
+            (*event_ptr).start_mark = YamlMarkT::default();
+            (*event_ptr).end_mark = YamlMarkT::default();
+
+            // Set sequence properties
+            (*event_ptr).data.sequence_start.anchor = ptr::null_mut();
+            (*event_ptr).data.sequence_start.tag =
+                yaml_strdup(b"tag:yaml.org,2002:seq\0".as_ptr()
+                    as *const yaml_char_t);
+            (*event_ptr).data.sequence_start.implicit = true;
+            (*event_ptr).data.sequence_start.style =
+                YamlSequenceStyleT::YamlBlockSequenceStyle;
+
+            // Test sequence loading
+            let result =
+                yaml_parser_load_sequence(parser, event_ptr, &mut ctx);
+            assert!(result.is_ok());
+
+            // Verify sequence was added to document
+            assert!(!STACK_EMPTY!((*document).nodes));
+            let node_ptr = (*document).nodes.top.offset(-1);
+            assert_eq!((*node_ptr).type_, YamlSequenceNode);
+
+            // Clean up nodes
+            while !STACK_EMPTY!((*document).nodes) {
+                let mut node = POP!((*document).nodes);
+                cleanup_node(&mut node);
+            }
+
+            STACK_DEL!(ctx);
+            cleanup();
+        }
+    }
+
+    #[test]
+    fn test_yaml_parser_load_mapping() {
+        unsafe {
+            let (parser, document, cleanup) = setup_test_parser();
+            (*parser).document = document;
+
+            // Create context and initialize it
+            let mut ctx = LoaderContext {
+                start: ptr::null_mut::<i32>(),
+                end: ptr::null_mut::<i32>(),
+                top: ptr::null_mut::<i32>(),
+            };
+            STACK_INIT!(ctx, i32);
+
+            // Create a mapping start event
+            let mut event = MaybeUninit::<YamlEventT>::uninit();
+            let event_ptr = event.as_mut_ptr();
+            (*event_ptr).type_ = YamlEventTypeT::YamlMappingStartEvent;
+            (*event_ptr).start_mark = YamlMarkT::default();
+            (*event_ptr).end_mark = YamlMarkT::default();
+
+            // Set mapping properties
+            (*event_ptr).data.mapping_start.anchor = ptr::null_mut();
+            (*event_ptr).data.mapping_start.tag =
+                yaml_strdup(b"tag:yaml.org,2002:map\0".as_ptr()
+                    as *const yaml_char_t);
+            (*event_ptr).data.mapping_start.implicit = true;
+            (*event_ptr).data.mapping_start.style =
+                YamlMappingStyleT::YamlBlockMappingStyle;
+
+            // Test mapping loading
+            let result =
+                yaml_parser_load_mapping(parser, event_ptr, &mut ctx);
+            assert!(result.is_ok());
+
+            // Verify mapping was added to document
+            assert!(!STACK_EMPTY!((*document).nodes));
+            let node_ptr = (*document).nodes.top.offset(-1);
+            assert_eq!((*node_ptr).type_, YamlMappingNode);
+
+            // Clean up nodes
+            while !STACK_EMPTY!((*document).nodes) {
+                let mut node = POP!((*document).nodes);
+                cleanup_node(&mut node);
+            }
+
+            STACK_DEL!(ctx);
+            cleanup();
+        }
+    }
+
+    #[test]
+    fn test_yaml_parser_load_nodes() {
+        unsafe {
+            let (parser, document, cleanup) = setup_test_parser();
+            (*parser).document = document;
+
+            let mut ctx = LoaderContext {
+                start: ptr::null_mut(),
+                end: ptr::null_mut(),
+                top: ptr::null_mut(),
+            };
+            STACK_INIT!(ctx, i32);
+
+            let tag = yaml_strdup(b"tag:yaml.org,2002:str\0".as_ptr()
+                as *const yaml_char_t);
+            let anchor = create_test_anchor("test_value");
+
+            let token = YamlTokenT {
+                type_: YamlTokenTypeT::YamlScalarToken,
+                start_mark: YamlMarkT::default(),
+                end_mark: YamlMarkT::default(),
+                data: Default::default(),
+            };
+            ENQUEUE!((*parser).tokens, token);
+
+            let result = yaml_parser_load_nodes(parser, &mut ctx);
+            assert!(result.is_err());
+            assert!(matches!(result, Err(YamlError::InvalidEventType)));
+
+            // Free memory
+            yaml_free(tag as *mut c_void);
+            yaml_free(anchor as *mut c_void);
+            while !QUEUE_EMPTY!((*parser).tokens) {
+                let _ = DEQUEUE!((*parser).tokens);
+            }
+            STACK_DEL!(ctx);
+            cleanup();
         }
     }
 }

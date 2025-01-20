@@ -104,13 +104,13 @@ macro_rules! STRING_INIT {
     ($string:expr) => {{
         $string.start = yaml_malloc(16) as *mut yaml_char_t;
         if !$string.start.is_null() {
-            let _ = memset($string.start as *mut libc::c_void, 0, 16);
+            let _ = memset($string.start.cast::<libc::c_void>(), 0, 16);
         } else {
             panic!("Failed to allocate memory for string");
         }
         $string.pointer = $string.start;
         $string.end = $string.start.wrapping_add(16);
-        let _ = memset($string.start as *mut libc::c_void, 0, 16);
+        let _ = memset($string.start.cast::<libc::c_void>(), 0, 16);
     }};
 }
 
@@ -131,7 +131,7 @@ macro_rules! STRING_INIT {
 #[macro_export]
 macro_rules! STRING_DEL {
     ($string:expr) => {{
-        yaml_free($string.start as *mut libc::c_void);
+        yaml_free($string.start.cast::<libc::c_void>());
         $string.end = ptr::null_mut::<yaml_char_t>();
         $string.pointer = $string.end;
         $string.start = $string.pointer;
@@ -175,10 +175,16 @@ macro_rules! STRING_EXTEND {
 macro_rules! CLEAR {
     ($string:expr) => {{
         $string.pointer = $string.start;
+        let offset = $string.end.offset_from($string.start);
+
+        if offset < 0 {
+            panic!("String end is before start, which is invalid for CLEAR macro");
+        }
+
         let _ = memset(
-            $string.start as *mut libc::c_void,
+            $string.start.cast::<libc::c_void>(),
             0,
-            $string.end.offset_from($string.start) as libc::c_ulong,
+            offset.try_into().expect("Offset must fit into libc::c_ulong"),
         );
     }};
 }

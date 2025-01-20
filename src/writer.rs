@@ -8,7 +8,6 @@
 use crate::{
     libc,
     success::{Success, FAIL, OK},
-    yaml::size_t,
     PointerExt, YamlAnyEncoding, YamlEmitterT, YamlUtf16leEncoding,
     YamlUtf8Encoding, YamlWriterError,
 };
@@ -72,10 +71,10 @@ unsafe fn check_utf8_sequence(
     // Add validation for overlong sequences
     let first = *ptr;
     let len = if first < 0x80 {
-        1
+        1_isize
     } else if first & 0xE0 == 0xC0 && first >= 0xC2 {
         // Prevent overlong sequences
-        2
+        2_isize
     } else if first & 0xF0 == 0xE0 {
         // Additional validation for 3-byte sequences
         if remaining >= 2 {
@@ -87,26 +86,33 @@ unsafe fn check_utf8_sequence(
                 return None;
             }
         }
-        3
+        3_isize
     } else if first & 0xF8 == 0xF0 && first <= 0xF4 {
         // Restrict to valid range
-        4
+        4_isize
     } else {
         return None;
     };
 
-    if remaining < len as isize {
+    // Check remaining bytes
+    if remaining < len {
         return None;
     }
 
+    // Convert len to usize safely
+    let len_usize = match usize::try_from(len) {
+        Ok(l) => l,
+        Err(_) => return None,
+    };
+
     // Validate continuation bytes
-    for i in 1..len {
+    for i in 1..len_usize {
         if *ptr.add(i) & 0xC0 != 0x80 {
             return None;
         }
     }
 
-    Some(len)
+    Some(len_usize)
 }
 
 /// Converts a UTF-8 sequence to a Unicode code point.
@@ -128,21 +134,21 @@ unsafe fn check_utf8_sequence(
 #[inline]
 unsafe fn utf8_to_codepoint(ptr: *const u8, len: usize) -> u32 {
     match len {
-        1 => *ptr as u32,
+        1 => u32::from(*ptr),
         2 => {
-            (((*ptr & 0x1F) as u32) << 6)
-                | ((*ptr.offset(1) & 0x3F) as u32)
+            (u32::from(*ptr & 0x1F) << 6)
+                | u32::from(*ptr.offset(1) & 0x3F)
         }
         3 => {
-            (((*ptr & 0x0F) as u32) << 12)
-                | (((*ptr.offset(1) & 0x3F) as u32) << 6)
-                | ((*ptr.offset(2) & 0x3F) as u32)
+            (u32::from(*ptr & 0x0F) << 12)
+                | (u32::from(*ptr.offset(1) & 0x3F) << 6)
+                | u32::from(*ptr.offset(2) & 0x3F)
         }
         4 => {
-            (((*ptr & 0x07) as u32) << 18)
-                | (((*ptr.offset(1) & 0x3F) as u32) << 12)
-                | (((*ptr.offset(2) & 0x3F) as u32) << 6)
-                | ((*ptr.offset(3) & 0x3F) as u32)
+            (u32::from(*ptr & 0x07) << 18)
+                | (u32::from(*ptr.offset(1) & 0x3F) << 12)
+                | (u32::from(*ptr.offset(2) & 0x3F) << 6)
+                | u32::from(*ptr.offset(3) & 0x3F)
         }
         _ => unreachable!(),
     }
@@ -170,7 +176,7 @@ unsafe fn write_utf16_unit(
     {
         return yaml_emitter_set_writer_error(
             emitter,
-            BUFFER_OVERFLOW.as_ptr() as *const libc::c_char,
+            BUFFER_OVERFLOW.as_ptr().cast::<libc::c_char>(),
         );
     }
 
@@ -178,6 +184,213 @@ unsafe fn write_utf16_unit(
     *(*emitter).raw_buffer.last.offset(low) = (unit & 0xFF) as u8;
     (*emitter).raw_buffer.last = (*emitter).raw_buffer.last.offset(2);
     OK
+}
+
+/// Flushes the UTF-8 encoded buffer to the output stream.
+unsafe fn flush_utf8_buffer(emitter: *mut YamlEmitterT) -> Success {
+    // Calculate offset - must be positive since last comes after start
+    let offset = (*emitter)
+        .buffer
+        .last
+        .c_offset_from((*emitter).buffer.start);
+    // Convert to size_t using try_into()
+    let size = match usize::try_from(offset) {
+        Ok(s) => s,
+        Err(_) => {
+            return yaml_emitter_set_writer_error(
+                emitter,
+                b"invalid buffer offset\0"
+                    .as_ptr()
+                    .cast::<libc::c_char>(),
+            );
+        }
+    };
+
+    let write_result =
+        (*emitter).write_handler.expect("non-null function pointer")(
+            (*emitter).write_handler_data,
+            (*emitter).buffer.start,
+            size.try_into().unwrap(),
+        );
+
+    if write_result != 0 {
+        reset_buffer_pointers(emitter);
+        OK
+    } else {
+        yaml_emitter_set_writer_error(
+            emitter,
+            WRITE_ERROR.as_ptr().cast::<libc::c_char>(),
+        )
+    }
+}
+
+/// Handles UTF-16 encoding for a single code point.
+unsafe fn handle_utf16_code_point(
+    emitter: *mut YamlEmitterT,
+    code_point: u32,
+    low: i32,
+    high: i32,
+) -> Success {
+    if code_point < 0x10000 {
+        u16::try_from(code_point).map_or_else(
+            |_| {
+                yaml_emitter_set_writer_error(
+                    emitter,
+                    INVALID_UTF8.as_ptr().cast::<libc::c_char>(),
+                )
+            },
+            |code_point_u16| {
+                write_utf16_unit(
+                    emitter,
+                    code_point_u16,
+                    low as isize,
+                    high as isize,
+                )
+            },
+        )
+    } else {
+        handle_utf16_surrogate_pair(emitter, code_point, low, high)
+    }
+}
+
+/// Handles UTF-16 surrogate pair encoding.
+unsafe fn handle_utf16_surrogate_pair(
+    emitter: *mut YamlEmitterT,
+    code_point: u32,
+    low: i32,
+    high: i32,
+) -> Success {
+    let code_point = code_point - 0x10000;
+    let high_surrogate = 0xD800 | ((code_point >> 10) & 0x3FF);
+    let low_surrogate = 0xDC00 | (code_point & 0x3FF);
+
+    if let Ok(high_u16) = u16::try_from(high_surrogate) {
+        if write_utf16_unit(
+            emitter,
+            high_u16,
+            low as isize,
+            high as isize,
+        ) == FAIL
+        {
+            return FAIL;
+        }
+    } else {
+        return yaml_emitter_set_writer_error(
+            emitter,
+            INVALID_UTF8.as_ptr().cast::<libc::c_char>(),
+        );
+    }
+
+    u16::try_from(low_surrogate).map_or_else(
+        |_| {
+            yaml_emitter_set_writer_error(
+                emitter,
+                INVALID_UTF8.as_ptr().cast::<libc::c_char>(),
+            )
+        },
+        |low_u16| {
+            write_utf16_unit(
+                emitter,
+                low_u16,
+                low as isize,
+                high as isize,
+            )
+        },
+    )
+}
+
+/// Process UTF-16 buffer content.
+unsafe fn process_utf16_buffer(
+    emitter: *mut YamlEmitterT,
+    low: i32,
+    high: i32,
+) -> Success {
+    while (*emitter).buffer.pointer != (*emitter).buffer.last {
+        let remaining = (*emitter)
+            .buffer
+            .last
+            .offset_from((*emitter).buffer.pointer);
+
+        let seq_len = match check_utf8_sequence(
+            (*emitter).buffer.pointer,
+            remaining,
+        ) {
+            Some(len) => len,
+            None => {
+                return yaml_emitter_set_writer_error(
+                    emitter,
+                    INVALID_UTF8.as_ptr().cast::<libc::c_char>(),
+                )
+            }
+        };
+
+        let code_point =
+            utf8_to_codepoint((*emitter).buffer.pointer, seq_len);
+        (*emitter).buffer.pointer =
+            (*emitter).buffer.pointer.add(seq_len);
+
+        if code_point > MAX_UNICODE {
+            return yaml_emitter_set_writer_error(
+                emitter,
+                INVALID_UTF8.as_ptr().cast::<libc::c_char>(),
+            );
+        }
+
+        if handle_utf16_code_point(emitter, code_point, low, high)
+            == FAIL
+        {
+            return FAIL;
+        }
+    }
+    OK
+}
+
+/// Write the accumulated UTF-16 data to the output stream.
+unsafe fn write_accumulated_utf16_data(
+    emitter: *mut YamlEmitterT,
+) -> Success {
+    let offset = (*emitter)
+        .raw_buffer
+        .last
+        .c_offset_from((*emitter).raw_buffer.start);
+
+    let write_result = offset.try_into().map_or_else(
+        |_| {
+            panic!("Offset calculation resulted in a negative value, which is invalid for size_t");
+        },
+        |offset_unsigned| {
+            (*emitter).write_handler.expect("non-null function pointer")(
+                (*emitter).write_handler_data,
+                (*emitter).raw_buffer.start,
+                offset_unsigned,
+            )
+        },
+    );
+
+    if write_result != 0 {
+        reset_all_buffer_pointers(emitter);
+        OK
+    } else {
+        yaml_emitter_set_writer_error(
+            emitter,
+            WRITE_ERROR.as_ptr().cast::<libc::c_char>(),
+        )
+    }
+}
+
+/// Reset buffer pointers for UTF-8 encoding.
+unsafe fn reset_buffer_pointers(emitter: *mut YamlEmitterT) {
+    *addr_of_mut!((*emitter).buffer.last) = (*emitter).buffer.start;
+    *addr_of_mut!((*emitter).buffer.pointer) = (*emitter).buffer.start;
+}
+
+/// Reset all buffer pointers including raw buffer.
+unsafe fn reset_all_buffer_pointers(emitter: *mut YamlEmitterT) {
+    reset_buffer_pointers(emitter);
+    *addr_of_mut!((*emitter).raw_buffer.last) =
+        (*emitter).raw_buffer.start;
+    *addr_of_mut!((*emitter).raw_buffer.pointer) =
+        (*emitter).raw_buffer.start;
 }
 
 /// Flushes the emitter's buffer to the output stream.
@@ -211,30 +424,7 @@ pub unsafe fn yaml_emitter_flush(
 
     // Handle UTF-8 encoding
     if (*emitter).encoding == YamlUtf8Encoding {
-        let write_result = (*emitter)
-            .write_handler
-            .expect("non-null function pointer")(
-            (*emitter).write_handler_data,
-            (*emitter).buffer.start,
-            (*emitter)
-                .buffer
-                .last
-                .c_offset_from((*emitter).buffer.start)
-                as size_t,
-        );
-
-        if write_result != 0 {
-            *addr_of_mut!((*emitter).buffer.last) =
-                (*emitter).buffer.start;
-            *addr_of_mut!((*emitter).buffer.pointer) =
-                (*emitter).buffer.start;
-            return OK;
-        } else {
-            return yaml_emitter_set_writer_error(
-                emitter,
-                WRITE_ERROR.as_ptr().cast::<libc::c_char>(),
-            );
-        }
+        return flush_utf8_buffer(emitter);
     }
 
     // Handle UTF-16 encoding
@@ -244,114 +434,11 @@ pub unsafe fn yaml_emitter_flush(
         (1, 0)
     };
 
-    while (*emitter).buffer.pointer != (*emitter).buffer.last {
-        let remaining = (*emitter)
-            .buffer
-            .last
-            .offset_from((*emitter).buffer.pointer);
-        let seq_len = match check_utf8_sequence(
-            (*emitter).buffer.pointer,
-            remaining,
-        ) {
-            Some(len) => len,
-            None => {
-                return yaml_emitter_set_writer_error(
-                    emitter,
-                    INVALID_UTF8.as_ptr().cast::<libc::c_char>(),
-                )
-            }
-        };
-
-        let code_point =
-            utf8_to_codepoint((*emitter).buffer.pointer, seq_len);
-        (*emitter).buffer.pointer =
-            (*emitter).buffer.pointer.add(seq_len);
-
-        if code_point > MAX_UNICODE {
-            return yaml_emitter_set_writer_error(
-                emitter,
-                INVALID_UTF8.as_ptr().cast::<libc::c_char>(),
-            );
-        }
-
-        if code_point < 0x10000 {
-            if let Ok(code_point_u16) = u16::try_from(code_point) {
-                if write_utf16_unit(emitter, code_point_u16, low, high)
-                    == FAIL
-                {
-                    return FAIL;
-                }
-            } else {
-                return yaml_emitter_set_writer_error(
-                    emitter,
-                    INVALID_UTF8.as_ptr().cast::<libc::c_char>(),
-                );
-            }
-        } else {
-            // Write surrogate pair
-            let code_point = code_point - 0x10000;
-            let high_surrogate = 0xD800 | ((code_point >> 10) & 0x3FF);
-            let low_surrogate = 0xDC00 | (code_point & 0x3FF);
-
-            // Safely convert high_surrogate to u16
-            if let Ok(high_u16) = u16::try_from(high_surrogate) {
-                if write_utf16_unit(emitter, high_u16, low, high)
-                    == FAIL
-                {
-                    return FAIL;
-                }
-            } else {
-                return yaml_emitter_set_writer_error(
-                    emitter,
-                    INVALID_UTF8.as_ptr().cast::<libc::c_char>(),
-                );
-            }
-
-            // Safely convert low_surrogate to u16
-            if let Ok(low_u16) = u16::try_from(low_surrogate) {
-                if write_utf16_unit(emitter, low_u16, low, high) == FAIL
-                {
-                    return FAIL;
-                }
-            } else {
-                return yaml_emitter_set_writer_error(
-                    emitter,
-                    INVALID_UTF8.as_ptr().cast::<libc::c_char>(),
-                );
-            }
-        }
+    if process_utf16_buffer(emitter, low, high) == FAIL {
+        return FAIL;
     }
 
-    // Write accumulated UTF-16 data
-    let offset = (*emitter)
-        .raw_buffer
-        .last
-        .c_offset_from((*emitter).raw_buffer.start);
-
-    let write_result = offset.try_into().map_or_else(|_| {
-            panic!("Offset calculation resulted in a negative value, which is invalid for size_t");
-        }, |offset_unsigned| (*emitter).write_handler.expect("non-null function pointer")(
-                (*emitter).write_handler_data,
-                (*emitter).raw_buffer.start,
-                offset_unsigned,
-            ));
-
-    if write_result != 0 {
-        // Reset all buffer pointers
-        *addr_of_mut!((*emitter).buffer.last) = (*emitter).buffer.start;
-        *addr_of_mut!((*emitter).buffer.pointer) =
-            (*emitter).buffer.start;
-        *addr_of_mut!((*emitter).raw_buffer.last) =
-            (*emitter).raw_buffer.start;
-        *addr_of_mut!((*emitter).raw_buffer.pointer) =
-            (*emitter).raw_buffer.start;
-        OK
-    } else {
-        yaml_emitter_set_writer_error(
-            emitter,
-            WRITE_ERROR.as_ptr().cast::<libc::c_char>(),
-        )
-    }
+    write_accumulated_utf16_data(emitter)
 }
 
 #[cfg(test)]
@@ -672,7 +759,7 @@ mod tests {
     unsafe fn mock_write_handler(
         data: *mut libc::c_void,
         buffer: *mut u8,
-        size: size_t,
+        size: crate::yaml::size_t,
     ) -> i32 {
         let test_data = &mut *(data as *mut TestData);
         test_data.output.clear();
@@ -695,7 +782,7 @@ mod tests {
             let write_handler: unsafe fn(
                 *mut libc::c_void,
                 *mut u8,
-                size_t,
+                crate::yaml::size_t,
             ) -> i32 = mock_write_handler;
             emitter.write_handler = Some(write_handler);
 
@@ -733,7 +820,7 @@ mod tests {
             let write_handler: unsafe fn(
                 *mut libc::c_void,
                 *mut u8,
-                size_t,
+                crate::yaml::size_t,
             ) -> i32 = mock_write_handler;
             emitter.write_handler = Some(write_handler);
 
@@ -808,7 +895,7 @@ mod tests {
             let write_handler: unsafe fn(
                 *mut libc::c_void,
                 *mut u8,
-                size_t,
+                crate::yaml::size_t,
             ) -> i32 = mock_write_handler;
             emitter.write_handler = Some(write_handler);
 
@@ -856,7 +943,7 @@ mod tests {
         unsafe fn mock_fail_handler(
             _: *mut libc::c_void,
             _: *mut u8,
-            _: size_t,
+            _: crate::yaml::size_t,
         ) -> i32 {
             0 // Simulate write failure
         }
@@ -872,7 +959,7 @@ mod tests {
             let write_handler: unsafe fn(
                 *mut libc::c_void,
                 *mut u8,
-                size_t,
+                crate::yaml::size_t,
             ) -> i32 = mock_fail_handler;
             emitter.write_handler = Some(write_handler);
 
@@ -918,7 +1005,7 @@ mod tests {
             let write_handler: unsafe fn(
                 *mut libc::c_void,
                 *mut u8,
-                size_t,
+                crate::yaml::size_t,
             ) -> i32 = mock_write_handler;
             emitter.write_handler = Some(write_handler);
 
@@ -972,7 +1059,7 @@ mod tests {
             let write_handler: unsafe fn(
                 *mut libc::c_void,
                 *mut u8,
-                size_t,
+                crate::yaml::size_t,
             ) -> i32 = mock_write_handler;
             emitter.write_handler = Some(write_handler);
 
@@ -1039,7 +1126,7 @@ mod tests {
             let write_handler: unsafe fn(
                 *mut libc::c_void,
                 *mut u8,
-                size_t,
+                crate::yaml::size_t,
             ) -> i32 = mock_write_handler;
             emitter.write_handler = Some(write_handler);
 
@@ -1093,7 +1180,7 @@ mod tests {
             let write_handler: unsafe fn(
                 *mut libc::c_void,
                 *mut u8,
-                size_t,
+                crate::yaml::size_t,
             ) -> i32 = mock_write_handler;
             emitter.write_handler = Some(write_handler);
 
@@ -1150,7 +1237,7 @@ mod tests {
             let write_handler: unsafe fn(
                 *mut libc::c_void,
                 *mut u8,
-                size_t,
+                crate::yaml::size_t,
             ) -> i32 = mock_write_handler;
             emitter.write_handler = Some(write_handler);
 
@@ -1209,7 +1296,7 @@ mod tests {
             let write_handler: unsafe fn(
                 *mut libc::c_void,
                 *mut u8,
-                size_t,
+                crate::yaml::size_t,
             ) -> i32 = mock_write_handler;
             emitter.write_handler = Some(write_handler);
 
@@ -1268,7 +1355,7 @@ mod tests {
             let write_handler: unsafe fn(
                 *mut libc::c_void,
                 *mut u8,
-                size_t,
+                crate::yaml::size_t,
             ) -> i32 = mock_write_handler;
             emitter.write_handler = Some(write_handler);
 
@@ -1321,7 +1408,7 @@ mod tests {
             let write_handler: unsafe fn(
                 *mut libc::c_void,
                 *mut u8,
-                size_t,
+                crate::yaml::size_t,
             ) -> i32 = mock_write_handler;
             emitter.write_handler = Some(write_handler);
 
@@ -1373,7 +1460,7 @@ mod tests {
             let write_handler: unsafe fn(
                 *mut libc::c_void,
                 *mut u8,
-                size_t,
+                crate::yaml::size_t,
             ) -> i32 = mock_write_handler;
             emitter.write_handler = Some(write_handler);
 

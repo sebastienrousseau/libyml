@@ -1293,119 +1293,62 @@ impl YamlEmitterT {
     /// - Assumes pointers are valid or null.
     /// - Must not be called if other code is still using these pointers.
     pub unsafe fn cleanup(&mut self) {
-        //
-        // 1) Free anchor_data fields
-        //
-        if !self.anchor_data.anchor.is_null() {
-            yaml_free(self.anchor_data.anchor.cast::<libc::c_void>());
-            self.anchor_data.anchor = null_mut();
-        }
+        self.cleanup_basic_data();
+        self.cleanup_tag_directives();
+        self.cleanup_events();
+        self.cleanup_anchors();
+        self.cleanup_output();
+        self.cleanup_stacks();
+        self.cleanup_document();
+    }
 
-        //
-        // 2) Free tag_data fields
-        //
-        if !self.tag_data.handle.is_null() {
-            yaml_free(self.tag_data.handle.cast::<libc::c_void>());
-            self.tag_data.handle = null_mut();
+    /// Helper function to free a pointer if it's not null
+    unsafe fn free_if_not_null(ptr: *mut yaml_char_t) {
+        if !ptr.is_null() {
+            yaml_free(ptr.cast::<libc::c_void>());
         }
-        if !self.tag_data.suffix.is_null() {
-            yaml_free(self.tag_data.suffix.cast::<libc::c_void>());
-            self.tag_data.suffix = null_mut();
-        }
+    }
 
-        //
-        // 3) Free scalar_data fields
-        //
-        if !self.scalar_data.value.is_null() {
-            yaml_free(self.scalar_data.value.cast::<libc::c_void>());
-            self.scalar_data.value = null_mut();
-        }
+    /// Cleans up basic data fields (`anchor_data`, `tag_data`, `scalar_data`)
+    unsafe fn cleanup_basic_data(&mut self) {
+        Self::free_if_not_null(self.anchor_data.anchor);
+        self.anchor_data.anchor = null_mut();
 
-        //
-        // 4) Free all tag directives
-        //
+        Self::free_if_not_null(self.tag_data.handle);
+        self.tag_data.handle = null_mut();
+
+        Self::free_if_not_null(self.tag_data.suffix);
+        self.tag_data.suffix = null_mut();
+
+        Self::free_if_not_null(self.scalar_data.value);
+        self.scalar_data.value = null_mut();
+    }
+
+    /// Cleans up tag directives
+    unsafe fn cleanup_tag_directives(&mut self) {
         let mut tag_ptr = self.tag_directives.start;
         while tag_ptr < self.tag_directives.end {
-            // Each directive may have allocated handle/prefix
-            yaml_free((*tag_ptr).handle.cast::<libc::c_void>());
-            yaml_free((*tag_ptr).prefix.cast::<libc::c_void>());
+            Self::free_if_not_null((*tag_ptr).handle);
+            Self::free_if_not_null((*tag_ptr).prefix);
             tag_ptr = tag_ptr.add(1);
         }
-        // Then free the array if allocated
+
         if !self.tag_directives.start.is_null() {
             yaml_free(self.tag_directives.start.cast::<libc::c_void>());
         }
         self.tag_directives.start = null_mut();
         self.tag_directives.end = null_mut();
         self.tag_directives.top = null_mut();
+    }
 
-        //
-        // 5) Free each event in `events` queue
-        //
-        //    We do so by iterating from head to tail. For each event, free any
-        //    allocated pointers (anchor, tag, value, etc.) depending on the event type.
-        //
+    /// Cleans up events queue
+    unsafe fn cleanup_events(&mut self) {
         let mut event_ptr = self.events.head;
         while event_ptr < self.events.tail {
-            let event = &mut *event_ptr;
-            match event.type_ {
-                YamlAliasEvent => {
-                    let anchor = event.data.alias.anchor;
-                    if !anchor.is_null() {
-                        yaml_free(anchor.cast::<libc::c_void>());
-                        event.data.alias.anchor = null_mut();
-                    }
-                }
-                YamlScalarEvent => {
-                    let anchor = event.data.scalar.anchor;
-                    if !anchor.is_null() {
-                        yaml_free(anchor.cast::<libc::c_void>());
-                        event.data.scalar.anchor = null_mut();
-                    }
-                    let tag = event.data.scalar.tag;
-                    if !tag.is_null() {
-                        yaml_free(tag.cast::<libc::c_void>());
-                        event.data.scalar.tag = null_mut();
-                    }
-                    let value = event.data.scalar.value;
-                    if !value.is_null() {
-                        yaml_free(value.cast::<libc::c_void>());
-                        event.data.scalar.value = null_mut();
-                    }
-                }
-                YamlSequenceStartEvent => {
-                    let anchor = event.data.sequence_start.anchor;
-                    if !anchor.is_null() {
-                        yaml_free(anchor.cast::<libc::c_void>());
-                        event.data.sequence_start.anchor = null_mut();
-                    }
-                    let tag = event.data.sequence_start.tag;
-                    if !tag.is_null() {
-                        yaml_free(tag.cast::<libc::c_void>());
-                        event.data.sequence_start.tag = null_mut();
-                    }
-                }
-                YamlMappingStartEvent => {
-                    let anchor = event.data.mapping_start.anchor;
-                    if !anchor.is_null() {
-                        yaml_free(anchor.cast::<libc::c_void>());
-                        event.data.mapping_start.anchor = null_mut();
-                    }
-                    let tag = event.data.mapping_start.tag;
-                    if !tag.is_null() {
-                        yaml_free(tag.cast::<libc::c_void>());
-                        event.data.mapping_start.tag = null_mut();
-                    }
-                }
-                _ => {
-                    // e.g., YamlNoEvent, YamlStreamStartEvent, etc.
-                    // typically no heap-allocated data to free
-                }
-            }
-
+            Self::cleanup_single_event(&mut *event_ptr);
             event_ptr = event_ptr.add(1);
         }
-        // Finally free the underlying array, if any
+
         if !self.events.start.is_null() {
             yaml_free(self.events.start.cast::<libc::c_void>());
         }
@@ -1413,49 +1356,79 @@ impl YamlEmitterT {
         self.events.end = null_mut();
         self.events.head = null_mut();
         self.events.tail = null_mut();
+    }
 
-        //
-        // 6) Free the anchors array
-        //
+    /// Cleans up a single event based on its type
+    unsafe fn cleanup_single_event(event: &mut YamlEventT) {
+        match event.type_ {
+            YamlAliasEvent => {
+                Self::free_if_not_null(event.data.alias.anchor);
+                event.data.alias.anchor = null_mut();
+            }
+            YamlScalarEvent => {
+                Self::free_if_not_null(event.data.scalar.anchor);
+                Self::free_if_not_null(event.data.scalar.tag);
+                Self::free_if_not_null(event.data.scalar.value);
+                event.data.scalar.anchor = null_mut();
+                event.data.scalar.tag = null_mut();
+                event.data.scalar.value = null_mut();
+            }
+            YamlSequenceStartEvent => {
+                Self::free_if_not_null(
+                    event.data.sequence_start.anchor,
+                );
+                Self::free_if_not_null(event.data.sequence_start.tag);
+                event.data.sequence_start.anchor = null_mut();
+                event.data.sequence_start.tag = null_mut();
+            }
+            YamlMappingStartEvent => {
+                Self::free_if_not_null(event.data.mapping_start.anchor);
+                Self::free_if_not_null(event.data.mapping_start.tag);
+                event.data.mapping_start.anchor = null_mut();
+                event.data.mapping_start.tag = null_mut();
+            }
+            _ => {}
+        }
+    }
+
+    /// Cleans up anchors array
+    unsafe fn cleanup_anchors(&mut self) {
         if !self.anchors.is_null() {
             yaml_free(self.anchors.cast::<libc::c_void>());
             self.anchors = null_mut();
         }
+    }
 
-        //
-        // 7) If you allocated the string buffer in `output`, free it:
-        //
+    /// Cleans up output string buffer
+    unsafe fn cleanup_output(&mut self) {
         if !self.output.string.buffer.is_null() {
             yaml_free(self.output.string.buffer.cast::<libc::c_void>());
             self.output.string.buffer = null_mut();
         }
         self.output.string.size = 0;
         self.output.string.size_written = null_mut();
+    }
 
-        //
-        // 8) (Optional) Clear any remaining stacks/queues, if needed:
-        //    states, indents, etc. (If they had separate heap allocations.)
-        //
+    /// Cleans up stacks (states and indents)
+    unsafe fn cleanup_stacks(&mut self) {
         if !self.states.start.is_null() {
             yaml_free(self.states.start.cast::<libc::c_void>());
             self.states.start = null_mut();
             self.states.end = null_mut();
             self.states.top = null_mut();
         }
+
         if !self.indents.start.is_null() {
             yaml_free(self.indents.start.cast::<libc::c_void>());
             self.indents.start = null_mut();
             self.indents.end = null_mut();
             self.indents.top = null_mut();
         }
+    }
 
-        //
-        // 9) If there's a document pointer, you may decide to call its cleanup
-        //    as well (or handle it elsewhere).
-        //
+    /// Cleans up document
+    unsafe fn cleanup_document(&mut self) {
         if !self.document.is_null() {
-            // If your design says the emitter *owns* the document, free it:
-            // (*self.document).cleanup();
             yaml_free(self.document.cast::<libc::c_void>());
             self.document = null_mut();
         }
@@ -1845,7 +1818,7 @@ impl Default for YamlEmitterStateT {
 }
 
 impl YamlDocumentT {
-    // Cleans up all dynamically allocated memory within `YamlDocumentT`.
+    /// Cleans up all dynamically allocated memory within `YamlDocumentT`.
     ///
     /// # Safety
     /// - Assumes pointers are either valid or null.
@@ -1855,6 +1828,13 @@ impl YamlDocumentT {
         self.cleanup_version_directive();
         self.cleanup_tag_directives();
         self.cleanup_nodes();
+    }
+
+    /// Helper function to free a pointer if it's not null
+    unsafe fn free_if_not_null(ptr: *mut yaml_char_t) {
+        if !ptr.is_null() {
+            yaml_free(ptr.cast::<libc::c_void>());
+        }
     }
 
     /// Cleans up the `version_directive` field if allocated.
@@ -1869,15 +1849,13 @@ impl YamlDocumentT {
     unsafe fn cleanup_tag_directives(&mut self) {
         let mut tag_ptr = self.tag_directives.start;
         while tag_ptr < self.tag_directives.end {
-            yaml_free((*tag_ptr).handle.cast::<libc::c_void>());
-            yaml_free((*tag_ptr).prefix.cast::<libc::c_void>());
+            Self::free_if_not_null((*tag_ptr).handle);
+            Self::free_if_not_null((*tag_ptr).prefix);
             tag_ptr = tag_ptr.add(1);
         }
-
         if !self.tag_directives.start.is_null() {
             yaml_free(self.tag_directives.start.cast::<libc::c_void>());
         }
-
         self.tag_directives.start = null_mut();
         self.tag_directives.end = null_mut();
     }
@@ -1886,44 +1864,38 @@ impl YamlDocumentT {
     unsafe fn cleanup_nodes(&mut self) {
         let mut node_ptr = self.nodes.start;
         while node_ptr < self.nodes.top {
-            self.cleanup_node(&mut *node_ptr);
+            Self::cleanup_node(&mut *node_ptr);
             node_ptr = node_ptr.add(1);
         }
-
         if !self.nodes.start.is_null() {
             yaml_free(self.nodes.start.cast::<libc::c_void>());
         }
-
         self.nodes.start = null_mut();
         self.nodes.end = null_mut();
         self.nodes.top = null_mut();
     }
 
     /// Cleans up memory associated with a single node.
-    unsafe fn cleanup_node(&self, node: &mut YamlNodeT) {
-        if !node.tag.is_null() {
-            yaml_free(node.tag.cast::<libc::c_void>());
-            node.tag = null_mut();
-        }
+    unsafe fn cleanup_node(node: &mut YamlNodeT) {
+        Self::free_if_not_null(node.tag);
+        node.tag = null_mut();
 
         match node.type_ {
-            YamlScalarNode => self.cleanup_scalar_node(node),
-            YamlSequenceNode => self.cleanup_sequence_node(node),
-            YamlMappingNode => self.cleanup_mapping_node(node),
+            YamlScalarNode => Self::cleanup_scalar_node(node),
+            YamlSequenceNode => Self::cleanup_sequence_node(node),
+            YamlMappingNode => Self::cleanup_mapping_node(node),
             _ => {}
         }
     }
 
     /// Cleans up memory for a scalar node.
-    unsafe fn cleanup_scalar_node(&self, node: &mut YamlNodeT) {
-        if !node.data.scalar.value.is_null() {
-            yaml_free(node.data.scalar.value.cast::<libc::c_void>());
-            node.data.scalar.value = null_mut();
-        }
+    unsafe fn cleanup_scalar_node(node: &mut YamlNodeT) {
+        Self::free_if_not_null(node.data.scalar.value);
+        node.data.scalar.value = null_mut();
     }
 
     /// Cleans up memory for a sequence node.
-    unsafe fn cleanup_sequence_node(&self, node: &mut YamlNodeT) {
+    unsafe fn cleanup_sequence_node(node: &mut YamlNodeT) {
         let items_start = node.data.sequence.items.start;
         if !items_start.is_null() {
             yaml_free(items_start.cast::<libc::c_void>());
@@ -1934,7 +1906,7 @@ impl YamlDocumentT {
     }
 
     /// Cleans up memory for a mapping node.
-    unsafe fn cleanup_mapping_node(&self, node: &mut YamlNodeT) {
+    unsafe fn cleanup_mapping_node(node: &mut YamlNodeT) {
         let pairs_start = node.data.mapping.pairs.start;
         if !pairs_start.is_null() {
             yaml_free(pairs_start.cast::<libc::c_void>());

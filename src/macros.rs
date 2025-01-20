@@ -102,7 +102,7 @@ macro_rules! STRING_ASSIGN {
 #[macro_export]
 macro_rules! STRING_INIT {
     ($string:expr) => {{
-        $string.start = yaml_malloc(16) as *mut yaml_char_t;
+        $string.start = yaml_malloc(16).cast::<yaml_char_t>();
         if !$string.start.is_null() {
             let _ = memset($string.start.cast::<libc::c_void>(), 0, 16);
         } else {
@@ -309,7 +309,7 @@ macro_rules! IS_DIGIT {
 #[macro_export]
 macro_rules! AS_DIGIT {
     ($string:expr) => {
-        (*$string.pointer - b'0') as libc::c_int
+        libc::c_int::from(*$string.pointer - b'0')
     };
 }
 
@@ -353,17 +353,19 @@ macro_rules! IS_HEX_AT {
 #[macro_export]
 macro_rules! AS_HEX_AT {
     ($string:expr, $offset:expr) => {
-        if *$string.pointer.wrapping_offset($offset) >= b'A'
-            && *$string.pointer.wrapping_offset($offset) <= b'F'
-        {
-            *$string.pointer.wrapping_offset($offset) - b'A' + 10
-        } else if *$string.pointer.wrapping_offset($offset) >= b'a'
-            && *$string.pointer.wrapping_offset($offset) <= b'f'
-        {
-            *$string.pointer.wrapping_offset($offset) - b'a' + 10
-        } else {
-            *$string.pointer.wrapping_offset($offset) - b'0'
-        } as libc::c_int
+        libc::c_int::from(
+            if *$string.pointer.wrapping_offset($offset) >= b'A'
+                && *$string.pointer.wrapping_offset($offset) <= b'F'
+            {
+                *$string.pointer.wrapping_offset($offset) - b'A' + 10
+            } else if *$string.pointer.wrapping_offset($offset) >= b'a'
+                && *$string.pointer.wrapping_offset($offset) <= b'f'
+            {
+                *$string.pointer.wrapping_offset($offset) - b'a' + 10
+            } else {
+                *$string.pointer.wrapping_offset($offset) - b'0'
+            },
+        )
     };
 }
 

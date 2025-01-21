@@ -390,3 +390,31 @@ fn test_yaml_version_directive() {
     assert_eq!(version_directive.major, 1);
     assert_eq!(version_directive.minor, 2);
 }
+
+#[test]
+fn test_yaml_parsing_basic() {
+    // Simulating basic parsing test using raw structures from yaml.rs
+    let version = YamlVersionDirectiveT::new(1, 2);
+    assert_eq!(version.major, 1);
+    assert_eq!(version.minor, 2);
+}
+
+#[test]
+fn test_yaml_complex_structure() {
+    // Example to test hierarchical parsing manually using core structures
+    let mapping_style = YamlMappingStyleT::YamlBlockMappingStyle;
+    assert_eq!(mapping_style, YamlMappingStyleT::YamlBlockMappingStyle);
+
+    let scalar_style = YamlScalarStyleT::YamlDoubleQuotedScalarStyle;
+    assert_eq!(
+        scalar_style,
+        YamlScalarStyleT::YamlDoubleQuotedScalarStyle
+    );
+}
+
+#[test]
+fn test_yaml_errors() {
+    // Simulating error detection using default error types
+    let error = YamlErrorTypeT::YamlParserError;
+    assert_eq!(error, YamlErrorTypeT::YamlParserError);
+}

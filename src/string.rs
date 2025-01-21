@@ -170,6 +170,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::needless_range_loop)]
     fn test_yaml_string_duplicate() {
         unsafe {
             // Create a source null-terminated string

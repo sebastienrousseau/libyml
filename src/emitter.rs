@@ -1919,7 +1919,8 @@ unsafe fn yaml_emitter_analyze_scalar(
         flow_indicators = true;
     }
     preceded_by_whitespace = true;
-    followed_by_whitespace = IS_BLANKZ_AT!(string, WIDTH!(string));
+    followed_by_whitespace =
+        IS_WHITESPACE_OR_NULL_AT!(string, WIDTH!(string));
     while string.pointer != string.end {
         if string.start == string.pointer {
             if CHECK!(string, b'#')
@@ -2013,11 +2014,11 @@ unsafe fn yaml_emitter_analyze_scalar(
             previous_space = false;
             previous_break = false;
         }
-        preceded_by_whitespace = IS_BLANKZ!(string);
+        preceded_by_whitespace = IS_WHITESPACE_OR_NULL!(string);
         MOVE!(string);
         if string.pointer != string.end {
             followed_by_whitespace =
-                IS_BLANKZ_AT!(string, WIDTH!(string));
+                IS_WHITESPACE_OR_NULL_AT!(string, WIDTH!(string));
         }
     }
     (*emitter).scalar_data.multiline = line_breaks;
@@ -2987,7 +2988,7 @@ unsafe fn yaml_emitter_write_folded_scalar(
                 while IS_BREAK_AT!(string, k as isize) {
                     k += WIDTH_AT!(string, k as isize);
                 }
-                if !IS_BLANKZ_AT!(string, k as isize)
+                if !IS_WHITESPACE_OR_NULL_AT!(string, k as isize)
                     && put_break(emitter).fail
                 {
                     return FAIL;

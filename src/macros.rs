@@ -721,7 +721,7 @@ macro_rules! IS_BREAKZ {
 /// Returns `true` if the character at the specified offset is a space, tab, line break character, or null character,
 /// and `false` otherwise.
 #[macro_export]
-macro_rules! IS_BLANKZ_AT {
+macro_rules! IS_WHITESPACE_OR_NULL_AT {
     ($string:expr, $offset:expr) => {
         IS_BLANK_AT!($string, $offset)
             || IS_BREAKZ_AT!($string, $offset)
@@ -740,9 +740,9 @@ macro_rules! IS_BLANKZ_AT {
 /// Returns `true` if the character is a space, tab, line break character, or null character,
 /// and `false` otherwise.
 #[macro_export]
-macro_rules! IS_BLANKZ {
+macro_rules! IS_WHITESPACE_OR_NULL {
     ($string:expr) => {
-        IS_BLANKZ_AT!($string, 0)
+        IS_WHITESPACE_OR_NULL_AT!($string, 0)
     };
 }
 

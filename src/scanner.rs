@@ -1,5 +1,63 @@
 // scanner.rs
 
+//! # YAML Scanner Module
+//!
+//! This module implements the core scanning logic for parsing YAML streams. The scanner reads
+//! raw input buffers and produces tokens representing YAML syntax elements, such as scalars,
+//! sequences, mappings, and directives. The scanner operates at a low level, handling
+//! encoding, indentation, and other YAML-specific rules.
+//!
+//! ## Overview
+//!
+//! The scanner processes input streams in several stages:
+//!
+//! 1. **Buffer Management:** Reads data from the input stream into an internal buffer, ensuring
+//!    that sufficient data is available for scanning.
+//! 2. **Token Recognition:** Identifies and extracts YAML tokens, such as:
+//!    - Scalars (plain, quoted, block-style)
+//!    - Flow collections (e.g., `[`, `]`, `{`, `}`)
+//!    - Anchors, aliases, and tags
+//!    - Document indicators (`---`, `...`)
+//!    - Directives (e.g., `%YAML`, `%TAG`)
+//! 3. **Error Handling:** Detects and reports malformed YAML input with descriptive error messages.
+//!
+//! ## Key Components
+//!
+//! ### Functions
+//!
+//! - **Buffer Management:**
+//!   - `cache`: Ensures the buffer contains at least the required number of unread bytes.
+//!   - `skip`: Advances the buffer pointer, skipping over characters.
+//!   - `skip_line`: Handles line-ending sequences (e.g., `\n`, `\r\n`).
+//!
+//! - **Token Recognition:**
+//!   - `yaml_parser_scan_*`: Functions for scanning specific token types.
+//!     - `yaml_parser_scan_plain_scalar`: Scans plain scalar values.
+//!     - `yaml_parser_scan_flow_scalar`: Handles single- and double-quoted scalars.
+//!     - `yaml_parser_scan_block_scalar`: Processes block-style scalars.
+//!     - `yaml_parser_scan_tag`: Recognizes tags.
+//!     - `yaml_parser_scan_directive`: Parses directives like `%YAML`.
+//!
+//! - **Error Handling:**
+//!   - `yaml_parser_set_scanner_error`: Records detailed error information.
+//!   - Constants like `ERROR_SCANNING_BLOCK_SCALAR` provide standardized error messages.
+//!
+//! ### Macros
+//!
+//! - `CHECK!`, `IS_*`, and `WIDTH!`: Provide shorthand for common scanning operations.
+//! - `STRING_EXTEND!`, `STRING_DEL!`, and `JOIN!`: Handle dynamic string operations.
+//!
+//! ## Safety
+//!
+//! This module makes extensive use of `unsafe` code to achieve high performance and direct memory manipulation.
+//!
+//! The following safety precautions are observed:
+//!
+//! - **Pointer Validity:** All pointers passed to functions must be non-null and properly initialized.
+//! - **Buffer Bounds:** Functions like `cache` ensure that the buffer contains sufficient data before accessing it.
+//! - **Memory Management:** Temporary buffers and strings are carefully allocated and deallocated using custom macros and helper functions.
+//!
+
 use crate::externs::{memcpy, memmove, memset, strcmp, strlen};
 use crate::internal::{yaml_queue_extend, yaml_stack_extend};
 use crate::memory::yaml_free;
@@ -30,11 +88,42 @@ use core::mem::{size_of, MaybeUninit};
 use core::ptr;
 use core::ptr::addr_of_mut;
 
-const MAX_SCALAR_SIZE: usize = 65536;
-const SCANNING_TOKEN_ERROR: &[u8] =
-    b"while scanning for the next token\0";
-const INVALID_CHARACTER_ERROR: &[u8] =
+// Error message for invalid indentation indicator (value of 0 encountered).
+const ERROR_INDENTATION: &[u8] =
+    b"found an indentation indicator equal to 0\0";
+
+// Error message for encountering a character that cannot start any YAML token.
+const ERROR_INVALID_CHARACTER: &[u8] =
     b"found character that cannot start any token\0";
+
+// Maximum allowed size for a scalar in YAML (in bytes).
+const MAX_SCALAR_SIZE: usize = 65536;
+
+// Error message for issues encountered while scanning a %TAG directive.
+const ERROR_SCANNING_TAG_DIR: &[u8] =
+    b"while scanning a %TAG directive\0";
+
+// Error message for issues encountered while parsing a %TAG directive.
+const ERROR_PARSING_TAG_DIR: &[u8] =
+    b"while parsing a %TAG directive\0";
+
+// Error message for issues encountered while parsing a YAML tag.
+const ERROR_PARSING_TAG: &[u8] = b"while parsing a tag\0";
+
+// Error message when expected whitespace or a line break is missing.
+const ERROR_MISSING_SPACE_OR_BREAK: &[u8] =
+    b"did not find expected whitespace or line break\0";
+
+// Error message for issues encountered while scanning a YAML tag.
+const ERROR_SCANNING_TAG: &[u8] = b"while scanning a tag\0";
+
+// Error message for issues encountered while scanning the next YAML token.
+const ERROR_SCANNING_TOKEN: &[u8] =
+    b"while scanning for the next token\0";
+
+// Error message for issues encountered while scanning a block scalar.
+const ERROR_SCANNING_BLOCK_SCALAR: &[u8] =
+    b"while scanning a block scalar\0";
 
 unsafe fn cache(parser: *mut YamlParserT, length: size_t) -> Success {
     if (*parser).unread >= length {
@@ -647,7 +736,7 @@ unsafe fn yaml_parser_fetch_next_token(
         return yaml_parser_fetch_flow_entry(parser);
     }
     if CHECK!((*parser).buffer, b'-')
-        && IS_BLANKZ_AT!((*parser).buffer, 1)
+        && IS_WHITESPACE_OR_NULL_AT!((*parser).buffer, 1)
     {
         return yaml_parser_fetch_block_entry(parser);
     }
@@ -695,9 +784,9 @@ unsafe fn yaml_parser_fetch_next_token(
     // If no token matched, set error
     yaml_parser_set_scanner_error(
         parser,
-        SCANNING_TOKEN_ERROR.as_ptr() as *const i8,
+        ERROR_SCANNING_TOKEN.as_ptr() as *const i8,
         (*parser).mark,
-        INVALID_CHARACTER_ERROR.as_ptr() as *const i8,
+        ERROR_INVALID_CHARACTER.as_ptr() as *const i8,
     );
     FAIL
 }
@@ -707,7 +796,7 @@ unsafe fn is_document_start(parser: *const YamlParserT) -> bool {
     CHECK_AT!((*parser).buffer, b'-', 0)
         && CHECK_AT!((*parser).buffer, b'-', 1)
         && CHECK_AT!((*parser).buffer, b'-', 2)
-        && IS_BLANKZ_AT!((*parser).buffer, 3)
+        && IS_WHITESPACE_OR_NULL_AT!((*parser).buffer, 3)
 }
 
 #[inline]
@@ -715,26 +804,26 @@ unsafe fn is_document_end(parser: *const YamlParserT) -> bool {
     CHECK_AT!((*parser).buffer, b'.', 0)
         && CHECK_AT!((*parser).buffer, b'.', 1)
         && CHECK_AT!((*parser).buffer, b'.', 2)
-        && IS_BLANKZ_AT!((*parser).buffer, 3)
+        && IS_WHITESPACE_OR_NULL_AT!((*parser).buffer, 3)
 }
 
 #[inline]
 unsafe fn is_key(parser: *const YamlParserT) -> bool {
     CHECK!((*parser).buffer, b'?')
         && ((*parser).flow_level != 0
-            || IS_BLANKZ_AT!((*parser).buffer, 1))
+            || IS_WHITESPACE_OR_NULL_AT!((*parser).buffer, 1))
 }
 
 #[inline]
 unsafe fn is_value(parser: *const YamlParserT) -> bool {
     CHECK!((*parser).buffer, b':')
         && ((*parser).flow_level != 0
-            || IS_BLANKZ_AT!((*parser).buffer, 1))
+            || IS_WHITESPACE_OR_NULL_AT!((*parser).buffer, 1))
 }
 
 #[inline]
 unsafe fn is_plain_scalar(parser: *const YamlParserT) -> bool {
-    !(IS_BLANKZ!((*parser).buffer)
+    !(IS_WHITESPACE_OR_NULL!((*parser).buffer)
         || CHECK!((*parser).buffer, b'-')
         || CHECK!((*parser).buffer, b'?')
         || CHECK!((*parser).buffer, b':')
@@ -759,7 +848,7 @@ unsafe fn is_plain_scalar(parser: *const YamlParserT) -> bool {
         || (*parser).flow_level == 0
             && (CHECK!((*parser).buffer, b'?')
                 || CHECK!((*parser).buffer, b':'))
-            && !IS_BLANKZ_AT!((*parser).buffer, 1)
+            && !IS_WHITESPACE_OR_NULL_AT!((*parser).buffer, 1)
 }
 
 unsafe fn yaml_parser_stale_simple_keys(
@@ -779,9 +868,9 @@ unsafe fn yaml_parser_stale_simple_keys(
             if (*simple_key).required {
                 yaml_parser_set_scanner_error(
                     parser,
-                    SCANNING_TOKEN_ERROR.as_ptr() as *const i8,
+                    ERROR_SCANNING_TOKEN.as_ptr() as *const i8,
                     (*parser).mark,
-                    INVALID_CHARACTER_ERROR.as_ptr() as *const i8,
+                    ERROR_INVALID_CHARACTER.as_ptr() as *const i8,
                 );
                 return FAIL;
             }
@@ -1624,7 +1713,7 @@ unsafe fn yaml_parser_scan_directive_name(
                         as *const u8
                         as *const libc::c_char,
                 );
-            } else if !IS_BLANKZ!((*parser).buffer) {
+            } else if !IS_WHITESPACE_OR_NULL!((*parser).buffer) {
                 yaml_parser_set_scanner_error(
                     parser,
                     b"while scanning a directive\0" as *const u8
@@ -1778,8 +1867,7 @@ unsafe fn yaml_parser_scan_tag_directive_value(
                     if !IS_BLANK!((*parser).buffer) {
                         yaml_parser_set_scanner_error(
                             parser,
-                            b"while scanning a %TAG directive\0"
-                                as *const u8
+                            ERROR_SCANNING_TAG_DIR.as_ptr()
                                 as *const libc::c_char,
                             start_mark,
                             b"did not find expected whitespace\0"
@@ -1812,13 +1900,13 @@ unsafe fn yaml_parser_scan_tag_directive_value(
                             current_block = 5231181710497607163;
                             continue;
                         }
-                        if !IS_BLANKZ!((*parser).buffer) {
+                        if !IS_WHITESPACE_OR_NULL!((*parser).buffer) {
                             yaml_parser_set_scanner_error(
                                 parser,
-                                b"while scanning a %TAG directive\0" as *const u8
+                                ERROR_SCANNING_TAG_DIR.as_ptr()
                                     as *const libc::c_char,
                                 start_mark,
-                                b"did not find expected whitespace or line break\0" as *const u8
+                                ERROR_MISSING_SPACE_OR_BREAK.as_ptr()
                                     as *const libc::c_char,
                             );
                             current_block = 5231181710497607163;
@@ -1862,7 +1950,7 @@ unsafe fn yaml_parser_scan_anchor(
         if current_block != 5883759901342942623 {
             end_mark = (*parser).mark;
             if length == 0
-                || !(IS_BLANKZ!((*parser).buffer)
+                || !(IS_WHITESPACE_OR_NULL!((*parser).buffer)
                     || CHECK!((*parser).buffer, b'?')
                     || CHECK!((*parser).buffer, b':')
                     || CHECK!((*parser).buffer, b',')
@@ -1946,8 +2034,7 @@ unsafe fn yaml_parser_scan_tag(
             } else if !CHECK!((*parser).buffer, b'>') {
                 yaml_parser_set_scanner_error(
                     parser,
-                    b"while scanning a tag\0" as *const u8
-                        as *const libc::c_char,
+                    ERROR_SCANNING_TAG.as_ptr() as *const libc::c_char,
                     start_mark,
                     b"did not find the expected '>'\0" as *const u8
                         as *const libc::c_char,
@@ -2013,15 +2100,16 @@ unsafe fn yaml_parser_scan_tag(
         if current_block != 17708497480799081542
             && cache(parser, 1_u64).ok
         {
-            if !IS_BLANKZ!((*parser).buffer) {
+            if !IS_WHITESPACE_OR_NULL!((*parser).buffer) {
                 if (*parser).flow_level == 0
                     || !CHECK!((*parser).buffer, b',')
                 {
                     yaml_parser_set_scanner_error(
                         parser,
-                        b"while scanning a tag\0" as *const u8 as *const libc::c_char,
+                        ERROR_SCANNING_TAG.as_ptr()
+                            as *const libc::c_char,
                         start_mark,
-                        b"did not find expected whitespace or line break\0" as *const u8
+                        ERROR_MISSING_SPACE_OR_BREAK.as_ptr()
                             as *const libc::c_char,
                     );
                     current_block = 17708497480799081542;
@@ -2071,8 +2159,7 @@ unsafe fn yaml_parser_scan_tag_handle(
                     b"while scanning a tag directive\0" as *const u8
                         as *const libc::c_char
                 } else {
-                    b"while scanning a tag\0" as *const u8
-                        as *const libc::c_char
+                    ERROR_SCANNING_TAG.as_ptr() as *const libc::c_char
                 },
                 start_mark,
                 b"did not find expected '!'\0" as *const u8
@@ -2228,8 +2315,7 @@ unsafe fn yaml_parser_scan_tag_uri(
                         yaml_parser_set_scanner_error(
                             parser,
                             if directive {
-                                b"while parsing a %TAG directive\0"
-                                    as *const u8
+                                ERROR_PARSING_TAG_DIR.as_ptr()
                                     as *const libc::c_char
                             } else {
                                 b"while parsing a tag\0" as *const u8
@@ -2269,11 +2355,10 @@ unsafe fn yaml_parser_scan_uri_escapes(
             yaml_parser_set_scanner_error(
                 parser,
                 if directive {
-                    b"while parsing a %TAG directive\0" as *const u8
+                    ERROR_PARSING_TAG_DIR.as_ptr()
                         as *const libc::c_char
                 } else {
-                    b"while parsing a tag\0" as *const u8
-                        as *const libc::c_char
+                    ERROR_PARSING_TAG.as_ptr() as *const libc::c_char
                 },
                 start_mark,
                 b"did not find URI escaped octet\0" as *const u8
@@ -2302,11 +2387,12 @@ unsafe fn yaml_parser_scan_uri_escapes(
                 yaml_parser_set_scanner_error(
                     parser,
                     if directive {
-                        (b"while parsing a %TAG directive\0"
-                            as *const u8)
+                        ERROR_PARSING_TAG_DIR
+                            .as_ptr()
                             .cast::<libc::c_char>()
                     } else {
-                        (b"while parsing a tag\0" as *const u8)
+                        ERROR_PARSING_TAG
+                            .as_ptr()
                             .cast::<libc::c_char>()
                     },
                     start_mark,
@@ -2320,11 +2406,11 @@ unsafe fn yaml_parser_scan_uri_escapes(
             yaml_parser_set_scanner_error(
                 parser,
                 if directive {
-                    (b"while parsing a %TAG directive\0" as *const u8)
+                    ERROR_PARSING_TAG_DIR
+                        .as_ptr()
                         .cast::<libc::c_char>()
                 } else {
-                    (b"while parsing a tag\0" as *const u8)
-                        .cast::<libc::c_char>()
+                    ERROR_PARSING_TAG.as_ptr().cast::<libc::c_char>()
                 },
                 start_mark,
                 (b"found an incorrect trailing UTF-8 octet\0"
@@ -2371,12 +2457,11 @@ unsafe fn scan_block_scalar_header(
             if CHECK!((*parser).buffer, b'0') {
                 yaml_parser_set_scanner_error(
                     parser,
-                    (b"while scanning a block scalar\0" as *const u8)
+                    ERROR_SCANNING_BLOCK_SCALAR
+                        .as_ptr()
                         .cast::<libc::c_char>(),
                     start_mark,
-                    (b"found an indentation indicator equal to 0\0"
-                        as *const u8)
-                        .cast::<libc::c_char>(),
+                    ERROR_INDENTATION.as_ptr().cast::<libc::c_char>(),
                 );
                 return 14984465786483313892;
             }
@@ -2388,12 +2473,11 @@ unsafe fn scan_block_scalar_header(
         if CHECK!((*parser).buffer, b'0') {
             yaml_parser_set_scanner_error(
                 parser,
-                (b"while scanning a block scalar\0" as *const u8)
+                ERROR_SCANNING_BLOCK_SCALAR
+                    .as_ptr()
                     .cast::<libc::c_char>(),
                 start_mark,
-                (b"found an indentation indicator equal to 0\0"
-                    as *const u8)
-                    .cast::<libc::c_char>(),
+                ERROR_INDENTATION.as_ptr().cast::<libc::c_char>(),
             );
             return 14984465786483313892;
         }
@@ -2688,7 +2772,7 @@ unsafe fn yaml_parser_scan_block_scalar_breaks(
         {
             yaml_parser_set_scanner_error(
                 parser,
-                (b"while scanning a block scalar\0" as *const u8).cast::<libc::c_char>(),
+                ERROR_SCANNING_BLOCK_SCALAR.as_ptr().cast::<libc::c_char>(),
                 start_mark,
                 (b"found a tab character where an indentation space is expected\0" as *const u8).cast::<libc::c_char>(),
             );
@@ -2745,7 +2829,7 @@ unsafe fn yaml_parser_scan_flow_scalar(
                 || CHECK_AT!((*parser).buffer, b'.', 0)
                     && CHECK_AT!((*parser).buffer, b'.', 1)
                     && CHECK_AT!((*parser).buffer, b'.', 2))
-            && IS_BLANKZ_AT!((*parser).buffer, 3)
+            && IS_WHITESPACE_OR_NULL_AT!((*parser).buffer, 3)
         {
             yaml_parser_set_scanner_error(
                 parser,
@@ -2774,7 +2858,7 @@ unsafe fn yaml_parser_scan_flow_scalar(
                 break;
             }
             leading_blanks = false;
-            while !IS_BLANKZ!((*parser).buffer) {
+            while !IS_WHITESPACE_OR_NULL!((*parser).buffer) {
                 if single
                     && CHECK_AT!((*parser).buffer, b'\'', 0)
                     && CHECK_AT!((*parser).buffer, b'\'', 1)
@@ -3316,7 +3400,7 @@ unsafe fn check_document_indicators(parser: *mut YamlParserT) -> bool {
             || (CHECK_AT!((*parser).buffer, b'.', 0)
                 && CHECK_AT!((*parser).buffer, b'.', 1)
                 && CHECK_AT!((*parser).buffer, b'.', 2)))
-        && IS_BLANKZ_AT!((*parser).buffer, 3)
+        && IS_WHITESPACE_OR_NULL_AT!((*parser).buffer, 3)
     {
         return true;
     }
@@ -3346,7 +3430,7 @@ unsafe fn handle_flow_indicators(
     }
 
     if CHECK!((*parser).buffer, b':')
-        && IS_BLANKZ_AT!((*parser).buffer, 1)
+        && IS_WHITESPACE_OR_NULL_AT!((*parser).buffer, 1)
         || (*parser).flow_level != 0
             && (CHECK!((*parser).buffer, b',')
                 || CHECK!((*parser).buffer, b'[')
@@ -3493,18 +3577,25 @@ unsafe fn handle_blank_characters(
     Ok(())
 }
 
-unsafe fn initialize_plain_scalar_token(
-    token: *mut YamlTokenT,
-    string: &YamlStringT,
+struct ScalarTokenConfig<'a> {
+    string: &'a YamlStringT,
     start_mark: YamlMarkT,
     end_mark: YamlMarkT,
-    parser: *mut YamlParserT,
     leading_blanks: bool,
-    leading_break: &mut YamlStringT,
-    trailing_breaks: &mut YamlStringT,
-    whitespaces: &mut YamlStringT,
+}
+
+struct ScalarTokenBuffers<'a> {
+    leading_break: &'a mut YamlStringT,
+    trailing_breaks: &'a mut YamlStringT,
+    whitespaces: &'a mut YamlStringT,
+}
+
+unsafe fn initialize_plain_scalar_token(
+    token: *mut YamlTokenT,
+    config: ScalarTokenConfig,
+    parser: *mut YamlParserT,
+    buffers: ScalarTokenBuffers,
 ) -> Success {
-    // Initialize token
     ptr::write_bytes(
         token.cast::<libc::c_void>(),
         0,
@@ -3512,11 +3603,11 @@ unsafe fn initialize_plain_scalar_token(
     );
 
     (*token).type_ = YamlScalarToken;
-    (*token).start_mark = start_mark;
-    (*token).end_mark = end_mark;
-    (*token).data.scalar.value = string.start;
+    (*token).start_mark = config.start_mark;
+    (*token).end_mark = config.end_mark;
+    (*token).data.scalar.value = config.string.start;
 
-    let offset = string.pointer.offset_from(string.start);
+    let offset = config.string.pointer.offset_from(config.string.start);
     assert!(
         offset >= 0,
         "Pointer offset is negative! This indicates an invalid memory layout."
@@ -3527,14 +3618,14 @@ unsafe fn initialize_plain_scalar_token(
 
     (*token).data.scalar.style = YamlPlainScalarStyle;
 
-    if leading_blanks {
+    if config.leading_blanks {
         (*parser).simple_key_allowed = true;
     }
 
     // Cleanup
-    STRING_DEL!(leading_break);
-    STRING_DEL!(trailing_breaks);
-    STRING_DEL!(whitespaces);
+    STRING_DEL!(buffers.leading_break);
+    STRING_DEL!(buffers.trailing_breaks);
+    STRING_DEL!(buffers.whitespaces);
 
     OK
 }
@@ -3577,7 +3668,7 @@ unsafe fn yaml_parser_scan_plain_scalar(
         }
 
         // Scan the scalar value
-        while !IS_BLANKZ!((*parser).buffer) {
+        while !IS_WHITESPACE_OR_NULL!((*parser).buffer) {
             match handle_flow_indicators(parser, start_mark) {
                 Ok(true) => break,
                 Ok(false) => {}
@@ -3697,13 +3788,17 @@ unsafe fn yaml_parser_scan_plain_scalar(
 
     initialize_plain_scalar_token(
         token,
-        &string,
-        start_mark,
-        end_mark,
+        ScalarTokenConfig {
+            string: &string,
+            start_mark,
+            end_mark,
+            leading_blanks,
+        },
         parser,
-        leading_blanks,
-        &mut leading_break,
-        &mut trailing_breaks,
-        &mut whitespaces,
+        ScalarTokenBuffers {
+            leading_break: &mut leading_break,
+            trailing_breaks: &mut trailing_breaks,
+            whitespaces: &mut whitespaces,
+        },
     )
 }

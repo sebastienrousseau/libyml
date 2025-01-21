@@ -1,7 +1,0 @@
-
-    outer:
-      inner:
-        - item1
-        - item2:
-            subkey: subvalue
-    

@@ -153,6 +153,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::clone_on_copy)]
     fn test_clone_success() {
         let success = OK;
         let cloned = success.clone();
@@ -160,6 +161,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::clone_on_copy)]
     fn test_clone_failure() {
         let failure = FAIL;
         let cloned = failure.clone();

@@ -119,3 +119,125 @@ pub unsafe fn yaml_string_join(
     // Move a's pointer forward by the length of the copied data
     *a_pointer = (*a_pointer).add(b_length);
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::{
+        externs::free,
+        memory::yaml_realloc,
+        string::{
+            yaml_string_duplicate, yaml_string_extend, yaml_string_join,
+        },
+        yaml::{size_t, yaml_char_t},
+    };
+    use core::ptr;
+
+    #[test]
+    fn test_yaml_string_extend() {
+        unsafe {
+            // Mock initial buffer
+            let initial_size = 4;
+            let mut start = yaml_realloc(ptr::null_mut(), initial_size)
+                as *mut yaml_char_t;
+            assert!(!start.is_null());
+
+            let mut pointer =
+                start.add(initial_size.try_into().unwrap());
+            let mut end = start.add(initial_size.try_into().unwrap());
+
+            // Write some initial data
+            ptr::write_bytes(
+                start,
+                b'A',
+                initial_size.try_into().unwrap(),
+            );
+
+            // Extend the buffer
+            yaml_string_extend(&mut start, &mut pointer, &mut end);
+
+            // Validate the new size and contents
+            assert_eq!(
+                end.offset_from(start),
+                (initial_size * 2) as isize
+            );
+            for i in 0..initial_size {
+                assert_eq!(*start.add(i.try_into().unwrap()), b'A');
+            }
+            for i in initial_size..(initial_size * 2) {
+                assert_eq!(*start.add(i.try_into().unwrap()), 0); // New memory zeroed
+            }
+        }
+    }
+
+    #[test]
+    fn test_yaml_string_duplicate() {
+        unsafe {
+            // Create a source null-terminated string
+            let src = b"Hello\0";
+            let src_ptr =
+                yaml_realloc(ptr::null_mut(), src.len() as size_t)
+                    as *mut yaml_char_t;
+            assert!(!src_ptr.is_null());
+            ptr::copy_nonoverlapping(src.as_ptr(), src_ptr, src.len());
+
+            // Duplicate the string
+            let dup_ptr = yaml_string_duplicate(src_ptr);
+            assert!(!dup_ptr.is_null());
+
+            // Validate the duplicated string
+            for i in 0..src.len() {
+                assert_eq!(*dup_ptr.add(i), src[i]);
+            }
+
+            // Free allocated memory
+            free(src_ptr.cast());
+            free(dup_ptr.cast());
+        }
+    }
+
+    #[test]
+    fn test_yaml_string_join() {
+        unsafe {
+            // Create buffer A
+            let a_size = 4;
+            let mut a_start = yaml_realloc(ptr::null_mut(), a_size)
+                as *mut yaml_char_t;
+            assert!(!a_start.is_null());
+            let mut a_pointer = a_start.add(a_size as usize);
+            let mut a_end = a_start.add(a_size as usize);
+            ptr::write_bytes(a_start, b'A', a_size as usize);
+
+            // Create buffer B
+            let b_size = 2;
+            let mut b_start = yaml_realloc(ptr::null_mut(), b_size)
+                as *mut yaml_char_t;
+            assert!(!b_start.is_null());
+            let mut b_pointer = b_start.add(b_size as usize);
+            let mut b_end = b_start.add(b_size as usize);
+            ptr::write_bytes(b_start, b'B', b_size as usize);
+
+            // Join B into A
+            yaml_string_join(
+                &mut a_start,
+                &mut a_pointer,
+                &mut a_end,
+                &mut b_start,
+                &mut b_pointer,
+                &mut b_end,
+            );
+
+            // Validate the joined buffer
+            assert_eq!(a_pointer.offset_from(a_start), 6); // A (4) + B (2)
+            for i in 0..4 {
+                assert_eq!(*a_start.add(i), b'A');
+            }
+            for i in 4..6 {
+                assert_eq!(*a_start.add(i), b'B');
+            }
+
+            // Free allocated memory
+            free(a_start.cast());
+            free(b_start.cast());
+        }
+    }
+}

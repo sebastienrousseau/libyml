@@ -746,6 +746,52 @@ macro_rules! IS_WHITESPACE_OR_NULL {
     };
 }
 
+/// Checks if the character at the specified offset in the given string is a space, tab, or line break character,
+/// or if it is a null character.
+///
+/// # Parameters
+///
+/// * `$string`: A reference to the string to check.
+/// * `$offset`: The offset within the string to check.
+///
+/// # Return
+///
+/// Returns `true` if the character at the specified offset is a space, tab, line break character, or null character,
+/// and `false` otherwise.
+#[deprecated(
+    since = "0.0.6",
+    note = "please use `IS_WHITESPACE_OR_NULL_AT` instead"
+)]
+#[macro_export]
+macro_rules! IS_BLANKZ_AT {
+    ($string:expr, $offset:expr) => {
+        IS_BLANK_AT!($string, $offset)
+            || IS_BREAKZ_AT!($string, $offset)
+    };
+}
+
+/// Checks if the character at the current pointer in the given string is a space, tab, line break character,
+/// or if it is a null character.
+///
+/// # Parameters
+///
+/// * `string`: A reference to the string to check.
+///
+/// # Return
+///
+/// Returns `true` if the character is a space, tab, line break character, or null character,
+/// and `false` otherwise.
+#[deprecated(
+    since = "0.0.6",
+    note = "please use `IS_WHITESPACE_OR_NULL` instead"
+)]
+#[macro_export]
+macro_rules! IS_BLANKZ {
+    ($string:expr) => {
+        IS_BLANKZ_AT!($string, 0)
+    };
+}
+
 /// Returns the width of a Unicode character at the given offset in a string.
 ///
 /// # Parameters

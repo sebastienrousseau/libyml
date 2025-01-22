@@ -480,4 +480,248 @@ mod tests {
             // No assert here if we don't require failure
         }
     }
+
+    #[test]
+    fn test_yaml_parser_with_empty_input() {
+        unsafe {
+            let mut parser = create_parser();
+            let parser_ptr: *mut YamlParserT = &mut parser;
+
+            let init_code = yaml_parser_initialize(parser_ptr);
+            assert_eq!(init_code, OK);
+
+            let input = b"";
+            yaml_parser_set_input_string(
+                parser_ptr,
+                input.as_ptr(),
+                input.len().try_into().unwrap(),
+            );
+
+            let mut token_types = Vec::new();
+
+            loop {
+                let mut token = create_token();
+                if yaml_parser_scan(parser_ptr, &mut token) != OK {
+                    break;
+                }
+
+                token_types.push(token.type_);
+                yaml_token_delete(&mut token);
+
+                if token_types.last() == Some(&YamlStreamEndToken) {
+                    break;
+                }
+            }
+
+            yaml_parser_delete(parser_ptr);
+
+            assert!(token_types.contains(&YamlStreamStartToken));
+            assert!(token_types.contains(&YamlStreamEndToken));
+        }
+    }
+
+    #[test]
+    fn test_yaml_parser_with_single_document() {
+        unsafe {
+            let mut parser = create_parser();
+            let parser_ptr: *mut YamlParserT = &mut parser;
+
+            let init_code = yaml_parser_initialize(parser_ptr);
+            assert_eq!(init_code, OK);
+
+            let input = b"---\nkey: value\n...";
+            yaml_parser_set_input_string(
+                parser_ptr,
+                input.as_ptr(),
+                input.len().try_into().unwrap(),
+            );
+
+            let mut token_types = Vec::new();
+
+            loop {
+                let mut token = create_token();
+                if yaml_parser_scan(parser_ptr, &mut token) != OK {
+                    break;
+                }
+
+                token_types.push(token.type_);
+                yaml_token_delete(&mut token);
+
+                if token_types.last() == Some(&YamlStreamEndToken) {
+                    break;
+                }
+            }
+
+            yaml_parser_delete(parser_ptr);
+
+            assert!(token_types.contains(&YamlStreamStartToken));
+            assert!(token_types.contains(&YamlDocumentStartToken));
+            assert!(token_types.contains(&YamlDocumentEndToken));
+            assert!(token_types.contains(&YamlStreamEndToken));
+        }
+    }
+
+    #[test]
+    fn test_yaml_parser_with_multiline_scalar() {
+        unsafe {
+            let mut parser = create_parser();
+            let parser_ptr: *mut YamlParserT = &mut parser;
+
+            let init_code = yaml_parser_initialize(parser_ptr);
+            assert_eq!(init_code, OK);
+
+            let input = b"---\nscalar: |\n  Line 1\n  Line 2\n...";
+            yaml_parser_set_input_string(
+                parser_ptr,
+                input.as_ptr(),
+                input.len().try_into().unwrap(),
+            );
+
+            let mut token_types = Vec::new();
+
+            loop {
+                let mut token = create_token();
+                if yaml_parser_scan(parser_ptr, &mut token) != OK {
+                    break;
+                }
+
+                token_types.push(token.type_);
+                yaml_token_delete(&mut token);
+
+                if token_types.last() == Some(&YamlStreamEndToken) {
+                    break;
+                }
+            }
+
+            yaml_parser_delete(parser_ptr);
+
+            assert!(token_types.contains(&YamlStreamStartToken));
+            assert!(token_types.contains(&YamlDocumentStartToken));
+            assert!(token_types.contains(&YamlDocumentEndToken));
+            assert!(token_types.contains(&YamlStreamEndToken));
+        }
+    }
+
+    #[test]
+    fn test_yaml_parser_with_invalid_input() {
+        unsafe {
+            let mut parser = create_parser();
+            let parser_ptr: *mut YamlParserT = &mut parser;
+
+            let init_code = yaml_parser_initialize(parser_ptr);
+            assert_eq!(init_code, OK);
+
+            let input = b"key: [value"; // Missing closing bracket
+            yaml_parser_set_input_string(
+                parser_ptr,
+                input.as_ptr(),
+                input.len().try_into().unwrap(),
+            );
+
+            let mut parse_ok = true;
+
+            let mut iteration_count = 0;
+            loop {
+                iteration_count += 1;
+                if iteration_count > 100 {
+                    parse_ok = false;
+                    break;
+                }
+
+                let mut token = create_token();
+                if yaml_parser_scan(parser_ptr, &mut token) != OK {
+                    parse_ok = false;
+                    break;
+                }
+                yaml_token_delete(&mut token);
+
+                if token.type_ == YamlStreamEndToken {
+                    break;
+                }
+            }
+
+            yaml_parser_delete(parser_ptr);
+
+            assert!(!parse_ok, "Parser should fail on invalid input");
+        }
+    }
+
+    #[test]
+    fn test_yaml_parser_with_anchors_and_aliases() {
+        unsafe {
+            let mut parser = create_parser();
+            let parser_ptr: *mut YamlParserT = &mut parser;
+
+            let init_code = yaml_parser_initialize(parser_ptr);
+            assert_eq!(init_code, OK);
+
+            let input = b"---\nanchor: &id value\nalias: *id\n...";
+            yaml_parser_set_input_string(
+                parser_ptr,
+                input.as_ptr(),
+                input.len().try_into().unwrap(),
+            );
+
+            let mut token_types = Vec::new();
+
+            loop {
+                let mut token = create_token();
+                if yaml_parser_scan(parser_ptr, &mut token) != OK {
+                    break;
+                }
+
+                token_types.push(token.type_);
+                yaml_token_delete(&mut token);
+
+                if token_types.last() == Some(&YamlStreamEndToken) {
+                    break;
+                }
+            }
+
+            yaml_parser_delete(parser_ptr);
+
+            assert!(token_types.contains(&YamlStreamStartToken));
+            assert!(token_types.contains(&YamlDocumentStartToken));
+            assert!(token_types.contains(&YamlStreamEndToken));
+        }
+    }
+
+    #[test]
+    fn test_yaml_parser_with_unicode_characters() {
+        unsafe {
+            let mut parser = create_parser();
+            let parser_ptr: *mut YamlParserT = &mut parser;
+
+            let init_code = yaml_parser_initialize(parser_ptr);
+            assert_eq!(init_code, OK);
+
+            let input = b"key: \xF0\x9F\x98\x81"; // UTF-8 emoji
+            yaml_parser_set_input_string(
+                parser_ptr,
+                input.as_ptr(),
+                input.len().try_into().unwrap(),
+            );
+
+            let mut token_types = Vec::new();
+
+            loop {
+                let mut token = create_token();
+                if yaml_parser_scan(parser_ptr, &mut token) != OK {
+                    break;
+                }
+
+                token_types.push(token.type_);
+                yaml_token_delete(&mut token);
+
+                if token_types.last() == Some(&YamlStreamEndToken) {
+                    break;
+                }
+            }
+
+            yaml_parser_delete(parser_ptr);
+
+            assert!(token_types.contains(&YamlStreamStartToken));
+            assert!(token_types.contains(&YamlStreamEndToken));
+        }
+    }
 }

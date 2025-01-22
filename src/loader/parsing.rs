@@ -2154,4 +2154,54 @@ mod tests {
             cleanup();
         }
     }
+
+    #[test]
+    fn test_minimal_stream_start_end() {
+        unsafe {
+            let parser = yaml_malloc(size_of::<YamlParserT>() as u64)
+                as *mut YamlParserT;
+            let document = yaml_malloc(size_of::<YamlDocumentT>() as u64)
+                as *mut YamlDocumentT;
+
+            assert!(!parser.is_null(), "Parser allocation failed");
+            assert!(!document.is_null(), "Document allocation failed");
+
+            write_bytes(parser as *mut u8, 0, size_of::<YamlParserT>());
+            write_bytes(
+                document as *mut u8,
+                0,
+                size_of::<YamlDocumentT>(),
+            );
+
+            (*parser).tokens.start =
+                yaml_malloc(size_of::<YamlTokenT>() as u64 * 10)
+                    as *mut YamlTokenT;
+            assert!(
+                !(*parser).tokens.start.is_null(),
+                "Token queue allocation failed"
+            );
+            (*parser).tokens.head = (*parser).tokens.start;
+            (*parser).tokens.tail = (*parser).tokens.start;
+            (*parser).tokens.end = (*parser).tokens.start.add(10);
+
+            // Simulate enqueue operations
+            let stream_start_token = YamlTokenT {
+                type_: YamlTokenTypeT::YamlStreamStartToken,
+                ..Default::default()
+            };
+            ENQUEUE!((*parser).tokens, stream_start_token);
+
+            let stream_end_token = YamlTokenT {
+                type_: YamlTokenTypeT::YamlStreamEndToken,
+                ..Default::default()
+            };
+            ENQUEUE!((*parser).tokens, stream_end_token);
+
+            (*parser).stream_start_produced = true;
+
+            yaml_free((*parser).tokens.start as *mut libc::c_void);
+            yaml_free(parser as *mut libc::c_void);
+            yaml_free(document as *mut libc::c_void);
+        }
+    }
 }

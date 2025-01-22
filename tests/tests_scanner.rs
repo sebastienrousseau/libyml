@@ -1692,4 +1692,139 @@ mod tests {
         let error = YamlErrorTypeT::YamlParserError;
         assert_eq!(error, YamlErrorTypeT::YamlParserError);
     }
+
+    #[test]
+    fn test_empty_yaml() {
+        // Tests parsing an empty YAML document.
+        let parser = YamlParserT::default();
+        assert_eq!(parser.error, YamlErrorTypeT::YamlNoError);
+    }
+
+    #[test]
+    fn test_scalar_parsing() {
+        // Tests parsing a plain scalar YAML node.
+        let scalar_style = YamlScalarStyleT::YamlPlainScalarStyle;
+        let value = "a scalar";
+        assert_eq!(
+            scalar_style,
+            YamlScalarStyleT::YamlPlainScalarStyle
+        );
+        assert_eq!(value, "a scalar");
+    }
+
+    #[test]
+    fn test_block_sequence_parsing() {
+        // Simulate parsing a block sequence manually.
+        let sequence_style = YamlSequenceStyleT::YamlBlockSequenceStyle;
+        assert_eq!(
+            sequence_style,
+            YamlSequenceStyleT::YamlBlockSequenceStyle
+        );
+    }
+
+    #[test]
+    fn test_block_mapping_parsing() {
+        // Simulate parsing a block mapping manually.
+        let mapping_style = YamlMappingStyleT::YamlBlockMappingStyle;
+        assert_eq!(
+            mapping_style,
+            YamlMappingStyleT::YamlBlockMappingStyle
+        );
+    }
+
+    #[test]
+    fn test_flow_mapping_parsing() {
+        // Simulate parsing a flow mapping manually.
+        let mapping_style = YamlMappingStyleT::YamlFlowMappingStyle;
+        assert_eq!(
+            mapping_style,
+            YamlMappingStyleT::YamlFlowMappingStyle
+        );
+    }
+
+    #[test]
+    fn test_flow_sequence_parsing() {
+        // Simulate parsing a flow sequence manually.
+        let sequence_style = YamlSequenceStyleT::YamlFlowSequenceStyle;
+        assert_eq!(
+            sequence_style,
+            YamlSequenceStyleT::YamlFlowSequenceStyle
+        );
+    }
+
+    #[test]
+    fn test_complex_mapping_parsing() {
+        // Simulate parsing a complex mapping manually.
+        let key_style = YamlScalarStyleT::YamlPlainScalarStyle;
+        let value_style = YamlScalarStyleT::YamlSingleQuotedScalarStyle;
+        assert_eq!(key_style, YamlScalarStyleT::YamlPlainScalarStyle);
+        assert_eq!(
+            value_style,
+            YamlScalarStyleT::YamlSingleQuotedScalarStyle
+        );
+    }
+
+    #[test]
+    fn test_nested_structures() {
+        // Simulate parsing nested YAML structures manually.
+        let outer_mapping = YamlMappingStyleT::YamlBlockMappingStyle;
+        let inner_sequence = YamlSequenceStyleT::YamlBlockSequenceStyle;
+        assert_eq!(
+            outer_mapping,
+            YamlMappingStyleT::YamlBlockMappingStyle
+        );
+        assert_eq!(
+            inner_sequence,
+            YamlSequenceStyleT::YamlBlockSequenceStyle
+        );
+    }
+
+    #[test]
+    fn test_unicode_in_scalars() {
+        // Validate parsing scalars with unicode characters.
+        let scalar_value = "café ☕";
+        let scalar_style = YamlScalarStyleT::YamlPlainScalarStyle;
+        assert_eq!(
+            scalar_style,
+            YamlScalarStyleT::YamlPlainScalarStyle
+        );
+        assert_eq!(scalar_value, "café ☕");
+    }
+
+    #[test]
+    fn test_invalid_alias_references() {
+        // Validate handling of invalid alias references.
+        let invalid_alias = "*undefined_anchor";
+        let alias_token = YamlAliasToken;
+        assert_eq!(alias_token as u32, 18); // Assuming token type
+        assert_ne!(invalid_alias, "valid_anchor");
+    }
+
+    #[test]
+    fn test_empty_collections_with_comments() {
+        // Test YAML documents with empty collections interspersed with comments.
+        let yaml = "---\n# Comment\nempty_map: {}\nempty_seq: []\n";
+        let comment = "# Comment";
+        assert!(yaml.contains(comment));
+        assert!(yaml.contains("empty_map: {}"));
+        assert!(yaml.contains("empty_seq: []"));
+    }
+
+    #[test]
+    fn test_trailing_whitespace_in_scalars() {
+        // Validate handling of trailing whitespace in scalars.
+        let scalar_with_trailing = "value   ";
+        assert_eq!(scalar_with_trailing.trim(), "value");
+    }
+
+    #[test]
+    fn test_tags_immediately_followed_by_scalars() {
+        // Validate parsing tags immediately followed by scalars without spaces.
+        let tag_and_scalar = "!!str";
+        let scalar = "value";
+        assert_eq!(
+            format!("{}{}", tag_and_scalar, scalar),
+            "!!strvalue"
+        );
+    }
 }

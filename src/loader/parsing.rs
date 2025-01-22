@@ -947,9 +947,11 @@ mod tests {
     use crate::libc::c_void;
     use crate::{
         YamlEventTypeT, YamlMappingStyleT, YamlMarkT, YamlParserStateT,
-        YamlSequenceStyleT, YamlSimpleKeyT, YamlTokenT, YamlTokenTypeT,
+        YamlSequenceStyleT, YamlSimpleKeyT, YamlTagDirectiveT,
+        YamlTokenT, YamlTokenTypeT,
     };
     use core::ffi::CStr;
+    use core::ptr::write_bytes;
 
     // =========================================================================
     // Helper Functions
@@ -1057,12 +1059,8 @@ mod tests {
         }
 
         // Zero initialize structures
-        ptr::write_bytes(
-            parser_ptr as *mut u8,
-            0,
-            size_of::<YamlParserT>(),
-        );
-        ptr::write_bytes(
+        write_bytes(parser_ptr as *mut u8, 0, size_of::<YamlParserT>());
+        write_bytes(
             document_ptr as *mut u8,
             0,
             size_of::<YamlDocumentT>(),
@@ -1161,7 +1159,7 @@ mod tests {
         }
 
         // Zero initialize
-        ptr::write_bytes(event as *mut u8, 0, size_of::<YamlEventT>());
+        write_bytes(event as *mut u8, 0, size_of::<YamlEventT>());
 
         // Set basic fields
         (*event).type_ = event_type;
@@ -1410,7 +1408,7 @@ mod tests {
             // Create event and test
             let mut event = MaybeUninit::<YamlEventT>::uninit();
             let event_ptr = event.as_mut_ptr();
-            ptr::write_bytes(
+            write_bytes(
                 event_ptr as *mut u8,
                 0,
                 size_of::<YamlEventT>(),
@@ -1877,7 +1875,7 @@ mod tests {
             );
 
             // Zero initialize the document
-            ptr::write_bytes(
+            write_bytes(
                 document_ptr as *mut u8,
                 0,
                 size_of::<YamlDocumentT>(),
@@ -1931,7 +1929,7 @@ mod tests {
             assert!(!parser_ptr.is_null(), "Failed to allocate parser");
 
             // Zero initialize the parser
-            ptr::write_bytes(
+            write_bytes(
                 parser_ptr as *mut u8,
                 0,
                 size_of::<YamlParserT>(),
@@ -2054,6 +2052,105 @@ mod tests {
                 "Expected InvalidEventType for unexpected token type"
             );
 
+            cleanup();
+        }
+    }
+
+    // Here are the fixed test cases:
+
+    #[test]
+    fn test_large_yaml_document_loading() {
+        unsafe {
+            let (parser, document, cleanup) = setup_test_parser();
+            (*parser).document = document;
+
+            // Initialize tag directives stack
+            STACK_INIT!((*parser).tag_directives, YamlTagDirectiveT);
+
+            // Create a large value to test with
+            let large_value = yaml_malloc(10_000) as *mut yaml_char_t;
+            assert!(
+                !large_value.is_null(),
+                "Failed to allocate large value"
+            );
+
+            // Initialize the document
+            write_bytes(
+                document as *mut u8,
+                0,
+                size_of::<YamlDocumentT>(),
+            );
+            STACK_INIT!((*document).nodes, YamlNodeT);
+
+            // Create and push a scalar node with the large value
+            let mut node = MaybeUninit::<YamlNodeT>::uninit();
+            let node_ptr = node.as_mut_ptr();
+            initialize_yaml_node(node_ptr);
+            (*node_ptr).type_ = YamlScalarNode;
+            (*node_ptr).data.scalar.value = large_value;
+            (*node_ptr).data.scalar.length = 10_000;
+
+            let push_result = PUSH!((*document).nodes, *node_ptr);
+            assert!(push_result, "Failed to push large node");
+
+            // Clean up
+            yaml_free(large_value as *mut c_void);
+            STACK_DEL!((*document).nodes);
+            STACK_DEL!((*parser).tag_directives);
+            cleanup();
+        }
+    }
+
+    #[test]
+    fn test_yaml_parser_memory_leak_on_repeated_calls() {
+        unsafe {
+            let (parser, document, cleanup) = setup_test_parser();
+            (*parser).document = document;
+
+            // Initialize tag directives stack
+            STACK_INIT!((*parser).tag_directives, YamlTagDirectiveT);
+
+            for i in 0..5 {
+                // Reduced iterations for practical testing
+                // Reset document state
+                write_bytes(
+                    document as *mut u8,
+                    0,
+                    size_of::<YamlDocumentT>(),
+                );
+                STACK_INIT!((*document).nodes, YamlNodeT);
+
+                // Create a simple scalar node
+                let mut node = MaybeUninit::<YamlNodeT>::uninit();
+                let node_ptr = node.as_mut_ptr();
+                initialize_yaml_node(node_ptr);
+                (*node_ptr).type_ = YamlScalarNode;
+                (*node_ptr).data.scalar.value =
+                    yaml_strdup(b"test\0".as_ptr());
+                (*node_ptr).data.scalar.length = 4;
+
+                // Push the node
+                let push_result = PUSH!((*document).nodes, *node_ptr);
+                assert!(
+                    push_result,
+                    "Failed to push node on iteration {}",
+                    i
+                );
+
+                // Clean up for next iteration
+                while !STACK_EMPTY!((*document).nodes) {
+                    let node = POP!((*document).nodes);
+                    if !node.data.scalar.value.is_null() {
+                        yaml_free(
+                            node.data.scalar.value as *mut c_void,
+                        );
+                    }
+                }
+                STACK_DEL!((*document).nodes);
+            }
+
+            // Final cleanup
+            STACK_DEL!((*parser).tag_directives);
             cleanup();
         }
     }

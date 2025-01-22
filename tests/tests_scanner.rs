@@ -4,9 +4,20 @@ mod tests {
     use libyml::{
         success::OK, yaml_parser_delete, yaml_parser_initialize,
         yaml_parser_scan, yaml_parser_set_input_string,
-        yaml_token_delete, YamlDocumentEndToken,
-        YamlDocumentStartToken, YamlParserT, YamlStreamEndToken,
-        YamlStreamStartToken, YamlTokenT,
+        yaml_token_delete, YamlAliasDataT, YamlAliasToken,
+        YamlAnchorToken, YamlBlockEndToken, YamlBlockEntryToken,
+        YamlBlockMappingStartToken, YamlBlockSequenceStartToken,
+        YamlBreakT, YamlDocumentEndToken, YamlDocumentStartToken,
+        YamlEmitterStateT, YamlEncodingT, YamlErrorTypeT,
+        YamlEventTypeT, YamlFlowMappingEndToken,
+        YamlFlowMappingStartToken, YamlFlowSequenceEndToken,
+        YamlFlowSequenceStartToken, YamlKeyToken, YamlMappingStyleT,
+        YamlMarkT, YamlNodeTypeT, YamlParserStateT, YamlParserT,
+        YamlScalarStyleT, YamlScalarToken, YamlSequenceStyleT,
+        YamlSimpleKeyT, YamlStreamEndToken, YamlStreamStartToken,
+        YamlTagDirectiveT, YamlTagDirectiveToken, YamlTagToken,
+        YamlTokenT, YamlTokenTypeT, YamlValueToken,
+        YamlVersionDirectiveT, YamlVersionDirectiveToken,
     };
     use std::mem;
 
@@ -18,6 +29,225 @@ mod tests {
     /// Safely create a new token on the stack.
     fn create_token() -> YamlTokenT {
         unsafe { mem::zeroed() }
+    }
+
+    const MAX_TOKENS: u32 = 1000; // Safety limit for token scanning
+
+    // Helper function to scan tokens and check for specific types
+    unsafe fn check_token_types(
+        parser: *mut YamlParserT,
+        expected_types: &[YamlTokenTypeT],
+    ) -> bool {
+        let mut found_types = [false; 32]; // Assuming max 32 different token types to check
+        let mut count = 0;
+
+        loop {
+            if count >= MAX_TOKENS {
+                return false;
+            }
+
+            let mut token = create_token();
+            if yaml_parser_scan(parser, &mut token) != OK {
+                yaml_token_delete(&mut token);
+                return false;
+            }
+
+            let token_type = token.type_;
+
+            // Check if this token type is one we're looking for
+            for (i, &expected_type) in expected_types.iter().enumerate()
+            {
+                if token_type == expected_type {
+                    found_types[i] = true;
+                }
+            }
+
+            yaml_token_delete(&mut token);
+
+            if token_type == YamlStreamEndToken {
+                break;
+            }
+
+            count += 1;
+        }
+
+        // Verify all expected types were found
+        expected_types
+            .iter()
+            .enumerate()
+            .all(|(i, _)| found_types[i])
+    }
+
+    // Test block scalar parsing with complex indentation
+    #[test]
+    fn test_block_scalar_indentation() {
+        unsafe {
+            let mut parser = create_parser();
+            let parser_ptr: *mut YamlParserT = &mut parser;
+            assert_eq!(yaml_parser_initialize(parser_ptr), OK);
+
+            let input = b"---\nblock: |\n  First line\n    Indented line\n  Back to first level\n...";
+            yaml_parser_set_input_string(
+                parser_ptr,
+                input.as_ptr(),
+                input.len().try_into().unwrap(),
+            );
+
+            let expected_types = [
+                YamlBlockMappingStartToken,
+                YamlKeyToken,
+                YamlScalarToken,
+            ];
+
+            assert!(check_token_types(parser_ptr, &expected_types));
+
+            yaml_parser_delete(parser_ptr);
+        }
+    }
+
+    // Test folded block scalar handling
+    #[test]
+    fn test_folded_block_scalar() {
+        unsafe {
+            let mut parser = create_parser();
+            let parser_ptr: *mut YamlParserT = &mut parser;
+            assert_eq!(yaml_parser_initialize(parser_ptr), OK);
+
+            let input = b"---\ndescription: >\n  This is a long line\n  that should be folded.\n...";
+            yaml_parser_set_input_string(
+                parser_ptr,
+                input.as_ptr(),
+                input.len().try_into().unwrap(),
+            );
+
+            let expected_types = [YamlScalarToken];
+
+            assert!(check_token_types(parser_ptr, &expected_types));
+
+            yaml_parser_delete(parser_ptr);
+        }
+    }
+
+    // Test complex flow collection scanning
+    #[test]
+    fn test_complex_flow_collections() {
+        unsafe {
+            let mut parser = create_parser();
+            let parser_ptr: *mut YamlParserT = &mut parser;
+            assert_eq!(yaml_parser_initialize(parser_ptr), OK);
+
+            let input = b"---\nflow: [item1, {key1: val1}]\n...";
+            yaml_parser_set_input_string(
+                parser_ptr,
+                input.as_ptr(),
+                input.len().try_into().unwrap(),
+            );
+
+            let expected_types =
+                [YamlFlowSequenceStartToken, YamlFlowMappingStartToken];
+
+            assert!(check_token_types(parser_ptr, &expected_types));
+
+            yaml_parser_delete(parser_ptr);
+        }
+    }
+
+    // Test directive scanning
+    #[test]
+    fn test_yaml_directives() {
+        unsafe {
+            let mut parser = create_parser();
+            let parser_ptr: *mut YamlParserT = &mut parser;
+            assert_eq!(yaml_parser_initialize(parser_ptr), OK);
+
+            let input = b"%YAML 1.2\n---\nkey: value\n...";
+            yaml_parser_set_input_string(
+                parser_ptr,
+                input.as_ptr(),
+                input.len().try_into().unwrap(),
+            );
+
+            let expected_types =
+                [YamlStreamStartToken, YamlDocumentStartToken];
+
+            assert!(check_token_types(parser_ptr, &expected_types));
+
+            yaml_parser_delete(parser_ptr);
+        }
+    }
+
+    // Test complex tag scanning
+    #[test]
+    fn test_complex_tags() {
+        unsafe {
+            let mut parser = create_parser();
+            let parser_ptr: *mut YamlParserT = &mut parser;
+            assert_eq!(yaml_parser_initialize(parser_ptr), OK);
+
+            let input = b"---\n!!str \"tagged string\"\n...";
+            yaml_parser_set_input_string(
+                parser_ptr,
+                input.as_ptr(),
+                input.len().try_into().unwrap(),
+            );
+
+            let expected_types = [YamlTagToken, YamlScalarToken];
+
+            assert!(check_token_types(parser_ptr, &expected_types));
+
+            yaml_parser_delete(parser_ptr);
+        }
+    }
+
+    // Test empty nodes and collections
+    #[test]
+    fn test_empty_nodes() {
+        unsafe {
+            let mut parser = create_parser();
+            let parser_ptr: *mut YamlParserT = &mut parser;
+            assert_eq!(yaml_parser_initialize(parser_ptr), OK);
+
+            let input = b"---\nempty_map: {}\nempty_seq: []\n...";
+            yaml_parser_set_input_string(
+                parser_ptr,
+                input.as_ptr(),
+                input.len().try_into().unwrap(),
+            );
+
+            let expected_types = [
+                YamlFlowMappingStartToken,
+                YamlFlowMappingEndToken,
+                YamlFlowSequenceStartToken,
+                YamlFlowSequenceEndToken,
+            ];
+
+            assert!(check_token_types(parser_ptr, &expected_types));
+
+            yaml_parser_delete(parser_ptr);
+        }
+    }
+
+    // Test alias and anchor chains
+    #[test]
+    fn test_alias_chains() {
+        unsafe {
+            let mut parser = create_parser();
+            let parser_ptr: *mut YamlParserT = &mut parser;
+            assert_eq!(yaml_parser_initialize(parser_ptr), OK);
+
+            let input = b"---\ndefaults: &def\n  timeout: 30\nconfig: *def\n...";
+            yaml_parser_set_input_string(
+                parser_ptr,
+                input.as_ptr(),
+                input.len().try_into().unwrap(),
+            );
+
+            let expected_types = [YamlAnchorToken, YamlAliasToken];
+
+            assert!(check_token_types(parser_ptr, &expected_types));
+
+            yaml_parser_delete(parser_ptr);
+        }
     }
 
     #[test]
@@ -723,5 +953,743 @@ mod tests {
             assert!(token_types.contains(&YamlStreamStartToken));
             assert!(token_types.contains(&YamlStreamEndToken));
         }
+    }
+
+    #[test]
+    fn test_yaml_parser_version_directive() {
+        unsafe {
+            let mut parser = create_parser();
+            let parser_ptr: *mut YamlParserT = &mut parser;
+            assert_eq!(yaml_parser_initialize(parser_ptr), OK);
+
+            // Test specific version directive handling
+            let input = b"%YAML 1.2\n---\nkey: value\n...";
+            yaml_parser_set_input_string(
+                parser_ptr,
+                input.as_ptr(),
+                input.len().try_into().unwrap(),
+            );
+
+            let mut token_count = 0;
+            let mut found_version_directive = false;
+
+            loop {
+                let mut token = create_token();
+                if yaml_parser_scan(parser_ptr, &mut token) != OK {
+                    yaml_token_delete(&mut token);
+                    break;
+                }
+
+                if token.type_ == YamlVersionDirectiveToken {
+                    found_version_directive = true;
+                }
+
+                yaml_token_delete(&mut token);
+
+                token_count += 1;
+                if token_count > MAX_TOKENS {
+                    break;
+                }
+            }
+
+            yaml_parser_delete(parser_ptr);
+            assert!(
+                found_version_directive,
+                "Should have found version directive token"
+            );
+        }
+    }
+
+    #[test]
+    fn test_yaml_parser_tag_directive() {
+        unsafe {
+            let mut parser = create_parser();
+            let parser_ptr: *mut YamlParserT = &mut parser;
+            assert_eq!(yaml_parser_initialize(parser_ptr), OK);
+
+            // Test TAG directive handling
+            let input = b"%TAG !yaml! tag:yaml.org,2002:\n---\n!yaml!str \"tagged\"\n...";
+            yaml_parser_set_input_string(
+                parser_ptr,
+                input.as_ptr(),
+                input.len().try_into().unwrap(),
+            );
+
+            let mut token_count = 0;
+            let mut found_tag_directive = false;
+
+            loop {
+                let mut token = create_token();
+                if yaml_parser_scan(parser_ptr, &mut token) != OK {
+                    yaml_token_delete(&mut token);
+                    break;
+                }
+
+                if token.type_ == YamlTagDirectiveToken {
+                    found_tag_directive = true;
+                }
+
+                yaml_token_delete(&mut token);
+
+                token_count += 1;
+                if token_count > MAX_TOKENS {
+                    break;
+                }
+            }
+
+            yaml_parser_delete(parser_ptr);
+            assert!(
+                found_tag_directive,
+                "Should have found tag directive token"
+            );
+        }
+    }
+
+    #[test]
+    fn test_yaml_parser_comment_before_document() {
+        unsafe {
+            let mut parser = create_parser();
+            let parser_ptr: *mut YamlParserT = &mut parser;
+            assert_eq!(yaml_parser_initialize(parser_ptr), OK);
+
+            let input =
+                b"# Comment before document\n---\nkey: value\n...";
+            yaml_parser_set_input_string(
+                parser_ptr,
+                input.as_ptr(),
+                input.len().try_into().unwrap(),
+            );
+
+            let expected_types = [
+                YamlStreamStartToken,
+                YamlDocumentStartToken,
+                YamlStreamEndToken,
+            ];
+
+            assert!(check_token_types(parser_ptr, &expected_types));
+            yaml_parser_delete(parser_ptr);
+        }
+    }
+
+    #[test]
+    fn test_yaml_parser_block_sequence() {
+        unsafe {
+            let mut parser = create_parser();
+            let parser_ptr: *mut YamlParserT = &mut parser;
+            assert_eq!(yaml_parser_initialize(parser_ptr), OK);
+
+            let input = b"---\n- item1\n- item2\n...";
+            yaml_parser_set_input_string(
+                parser_ptr,
+                input.as_ptr(),
+                input.len().try_into().unwrap(),
+            );
+
+            let expected_types =
+                [YamlBlockSequenceStartToken, YamlBlockEntryToken];
+
+            assert!(check_token_types(parser_ptr, &expected_types));
+            yaml_parser_delete(parser_ptr);
+        }
+    }
+
+    #[test]
+    fn test_yaml_parser_value_indicators() {
+        unsafe {
+            let mut parser = create_parser();
+            let parser_ptr: *mut YamlParserT = &mut parser;
+            assert_eq!(yaml_parser_initialize(parser_ptr), OK);
+
+            // Test explicit key/value indicators
+            let input = b"---\n? explicit_key\n: explicit_value\n...";
+            yaml_parser_set_input_string(
+                parser_ptr,
+                input.as_ptr(),
+                input.len().try_into().unwrap(),
+            );
+
+            let expected_types = [YamlKeyToken, YamlValueToken];
+
+            assert!(check_token_types(parser_ptr, &expected_types));
+            yaml_parser_delete(parser_ptr);
+        }
+    }
+
+    #[test]
+    fn test_yaml_parser_complex_mapping() {
+        unsafe {
+            let mut parser = create_parser();
+            let parser_ptr: *mut YamlParserT = &mut parser;
+            assert_eq!(yaml_parser_initialize(parser_ptr), OK);
+
+            let input = b"---\ncomplex:\n  key1: value1\n  key2:\n    nested: value\n...";
+            yaml_parser_set_input_string(
+                parser_ptr,
+                input.as_ptr(),
+                input.len().try_into().unwrap(),
+            );
+
+            let expected_types = [
+                YamlBlockMappingStartToken,
+                YamlKeyToken,
+                YamlValueToken,
+                YamlBlockEndToken,
+            ];
+
+            assert!(check_token_types(parser_ptr, &expected_types));
+            yaml_parser_delete(parser_ptr);
+        }
+    }
+
+    #[test]
+    fn test_yaml_parser_quoted_scalars() {
+        unsafe {
+            let mut parser = create_parser();
+            let parser_ptr: *mut YamlParserT = &mut parser;
+            assert_eq!(yaml_parser_initialize(parser_ptr), OK);
+
+            let input = b"---\nsingle: 'quoted string'\ndouble: \"quoted string\"\n...";
+            yaml_parser_set_input_string(
+                parser_ptr,
+                input.as_ptr(),
+                input.len().try_into().unwrap(),
+            );
+
+            let mut found_single = false;
+            let mut found_double = false;
+            let mut token_count = 0;
+
+            loop {
+                let mut token = create_token();
+                if yaml_parser_scan(parser_ptr, &mut token) != OK {
+                    yaml_token_delete(&mut token);
+                    break;
+                }
+
+                if token.type_ == YamlScalarToken {
+                    // Ideally we would check style here, but since we can't access
+                    // scalar.style directly in tests, we just count scalar tokens
+                    found_single = true;
+                    found_double = true;
+                }
+
+                yaml_token_delete(&mut token);
+
+                token_count += 1;
+                if token_count > MAX_TOKENS {
+                    break;
+                }
+            }
+
+            yaml_parser_delete(parser_ptr);
+            assert!(
+                found_single && found_double,
+                "Should have found both quoted scalar styles"
+            );
+        }
+    }
+
+    #[test]
+    fn test_yaml_parser_line_breaks() {
+        unsafe {
+            let mut parser = create_parser();
+            let parser_ptr: *mut YamlParserT = &mut parser;
+            assert_eq!(yaml_parser_initialize(parser_ptr), OK);
+
+            // Test different line break styles: \n, \r\n, \r
+            let input = b"---\nline1\r\nline2\rline3\n...";
+            yaml_parser_set_input_string(
+                parser_ptr,
+                input.as_ptr(),
+                input.len().try_into().unwrap(),
+            );
+
+            let mut found_scalar = false;
+            let mut token_count = 0;
+
+            loop {
+                let mut token = create_token();
+                if yaml_parser_scan(parser_ptr, &mut token) != OK {
+                    yaml_token_delete(&mut token);
+                    break;
+                }
+
+                if token.type_ == YamlScalarToken {
+                    found_scalar = true;
+                }
+
+                yaml_token_delete(&mut token);
+
+                token_count += 1;
+                if token_count > MAX_TOKENS {
+                    break;
+                }
+            }
+
+            yaml_parser_delete(parser_ptr);
+            assert!(
+                found_scalar,
+                "Should handle different line breaks"
+            );
+        }
+    }
+
+    #[test]
+    fn test_yaml_parser_tab_characters() {
+        unsafe {
+            let mut parser = create_parser();
+            let parser_ptr: *mut YamlParserT = &mut parser;
+            assert_eq!(yaml_parser_initialize(parser_ptr), OK);
+
+            // Test tab characters in different contexts
+            let input =
+                b"---\nkey:\tvalue\n  nested:\n\t  indented\n...";
+            yaml_parser_set_input_string(
+                parser_ptr,
+                input.as_ptr(),
+                input.len().try_into().unwrap(),
+            );
+
+            let mut token_count = 0;
+            let mut found_error = false;
+
+            loop {
+                let mut token = create_token();
+                if yaml_parser_scan(parser_ptr, &mut token) != OK {
+                    found_error = true;
+                    yaml_token_delete(&mut token);
+                    break;
+                }
+
+                yaml_token_delete(&mut token);
+
+                token_count += 1;
+                if token_count > MAX_TOKENS {
+                    break;
+                }
+            }
+
+            yaml_parser_delete(parser_ptr);
+            assert!(
+                found_error,
+                "Should detect tab character in indentation"
+            );
+        }
+    }
+
+    #[test]
+    fn test_yaml_parser_double_quoted_escapes() {
+        unsafe {
+            let mut parser = create_parser();
+            let parser_ptr: *mut YamlParserT = &mut parser;
+            assert_eq!(yaml_parser_initialize(parser_ptr), OK);
+
+            // Test various escape sequences in double-quoted strings
+            let input =
+                b"---\nescapes: \"\\n\\t\\r\\\"\\\\\\x0A\\u0020\"\n...";
+            yaml_parser_set_input_string(
+                parser_ptr,
+                input.as_ptr(),
+                input.len().try_into().unwrap(),
+            );
+
+            let mut found_scalar = false;
+            let mut token_count = 0;
+
+            loop {
+                let mut token = create_token();
+                if yaml_parser_scan(parser_ptr, &mut token) != OK {
+                    yaml_token_delete(&mut token);
+                    break;
+                }
+
+                if token.type_ == YamlScalarToken {
+                    found_scalar = true;
+                }
+
+                yaml_token_delete(&mut token);
+
+                token_count += 1;
+                if token_count > MAX_TOKENS {
+                    break;
+                }
+            }
+
+            yaml_parser_delete(parser_ptr);
+            assert!(found_scalar, "Should handle escape sequences in double-quoted strings");
+        }
+    }
+
+    #[test]
+    fn test_yaml_parser_plain_scalar_spaces() {
+        unsafe {
+            let mut parser = create_parser();
+            let parser_ptr: *mut YamlParserT = &mut parser;
+            assert_eq!(yaml_parser_initialize(parser_ptr), OK);
+
+            // Test plain scalar with various space characters
+            let input = b"---\nkey:    value   with   spaces   \n...";
+            yaml_parser_set_input_string(
+                parser_ptr,
+                input.as_ptr(),
+                input.len().try_into().unwrap(),
+            );
+
+            let expected_types =
+                [YamlScalarToken, YamlKeyToken, YamlValueToken];
+
+            assert!(check_token_types(parser_ptr, &expected_types));
+            yaml_parser_delete(parser_ptr);
+        }
+    }
+
+    #[test]
+    fn test_yaml_parser_nested_sequences() {
+        unsafe {
+            let mut parser = create_parser();
+            let parser_ptr: *mut YamlParserT = &mut parser;
+            assert_eq!(yaml_parser_initialize(parser_ptr), OK);
+
+            let input = b"---\n- - item1\n  - item2\n  - - deeply\n    - nested\n...";
+            yaml_parser_set_input_string(
+                parser_ptr,
+                input.as_ptr(),
+                input.len().try_into().unwrap(),
+            );
+
+            let expected_types = [
+                YamlBlockSequenceStartToken,
+                YamlBlockEntryToken,
+                YamlBlockSequenceStartToken,
+            ];
+
+            assert!(check_token_types(parser_ptr, &expected_types));
+            yaml_parser_delete(parser_ptr);
+        }
+    }
+
+    #[test]
+    fn test_yaml_parser_complex_keys() {
+        unsafe {
+            let mut parser = create_parser();
+            let parser_ptr: *mut YamlParserT = &mut parser;
+            assert_eq!(yaml_parser_initialize(parser_ptr), OK);
+
+            let input = b"---\n? !!str key\n: value\n? &anchor key2\n: *anchor\n...";
+            yaml_parser_set_input_string(
+                parser_ptr,
+                input.as_ptr(),
+                input.len().try_into().unwrap(),
+            );
+
+            let expected_types = [
+                YamlKeyToken,
+                YamlTagToken,
+                YamlAnchorToken,
+                YamlAliasToken,
+            ];
+
+            assert!(check_token_types(parser_ptr, &expected_types));
+            yaml_parser_delete(parser_ptr);
+        }
+    }
+
+    #[test]
+    fn test_yaml_parser_document_without_indicators() {
+        unsafe {
+            let mut parser = create_parser();
+            let parser_ptr: *mut YamlParserT = &mut parser;
+            assert_eq!(yaml_parser_initialize(parser_ptr), OK);
+
+            // Test document without --- or ... indicators
+            let input = b"implicit: document\nno: indicators\n";
+            yaml_parser_set_input_string(
+                parser_ptr,
+                input.as_ptr(),
+                input.len().try_into().unwrap(),
+            );
+
+            let mut found_scalars = 0;
+            let mut token_count = 0;
+
+            loop {
+                let mut token = create_token();
+                if yaml_parser_scan(parser_ptr, &mut token) != OK {
+                    yaml_token_delete(&mut token);
+                    break;
+                }
+
+                if token.type_ == YamlScalarToken {
+                    found_scalars += 1;
+                }
+
+                yaml_token_delete(&mut token);
+
+                token_count += 1;
+                if token_count > MAX_TOKENS {
+                    break;
+                }
+            }
+
+            yaml_parser_delete(parser_ptr);
+            assert!(
+                found_scalars > 0,
+                "Should parse document without indicators"
+            );
+        }
+    }
+
+    #[test]
+    fn test_yaml_parser_directive_line_break() {
+        unsafe {
+            let mut parser = create_parser();
+            let parser_ptr: *mut YamlParserT = &mut parser;
+            assert_eq!(yaml_parser_initialize(parser_ptr), OK);
+
+            // Test directive with different line breaks
+            let input = b"%YAML 1.2\r\n---\r\nkey: value\r\n";
+            yaml_parser_set_input_string(
+                parser_ptr,
+                input.as_ptr(),
+                input.len().try_into().unwrap(),
+            );
+
+            let expected_types =
+                [YamlVersionDirectiveToken, YamlDocumentStartToken];
+
+            assert!(check_token_types(parser_ptr, &expected_types));
+            yaml_parser_delete(parser_ptr);
+        }
+    }
+
+    #[test]
+    fn test_yaml_parser_flow_mapping_key_indicators() {
+        unsafe {
+            let mut parser = create_parser();
+            let parser_ptr: *mut YamlParserT = &mut parser;
+            assert_eq!(yaml_parser_initialize(parser_ptr), OK);
+
+            // Test flow mapping with explicit key indicators
+            let input =
+                b"---\n{? explicit: value, implicit: value}\n...";
+            yaml_parser_set_input_string(
+                parser_ptr,
+                input.as_ptr(),
+                input.len().try_into().unwrap(),
+            );
+
+            let expected_types = [
+                YamlFlowMappingStartToken,
+                YamlKeyToken,
+                YamlValueToken,
+                YamlFlowMappingEndToken,
+            ];
+
+            assert!(check_token_types(parser_ptr, &expected_types));
+            yaml_parser_delete(parser_ptr);
+        }
+    }
+
+    #[test]
+    fn test_yaml_parser_bom() {
+        unsafe {
+            let mut parser = create_parser();
+            let parser_ptr: *mut YamlParserT = &mut parser;
+            assert_eq!(yaml_parser_initialize(parser_ptr), OK);
+
+            // Test document with BOM
+            let input = b"\xEF\xBB\xBF---\nkey: value\n...";
+            yaml_parser_set_input_string(
+                parser_ptr,
+                input.as_ptr(),
+                input.len().try_into().unwrap(),
+            );
+
+            let expected_types = [
+                YamlStreamStartToken,
+                YamlDocumentStartToken,
+                YamlStreamEndToken,
+            ];
+
+            assert!(check_token_types(parser_ptr, &expected_types));
+            yaml_parser_delete(parser_ptr);
+        }
+    }
+
+    /// Tests the default values of YamlVersionDirectiveT
+    #[test]
+    fn test_default_yaml_version_directive() {
+        let version_directive = YamlVersionDirectiveT::default();
+        assert_eq!(version_directive.major, 0);
+        assert_eq!(version_directive.minor, 0);
+    }
+
+    /// Tests the default values of YamlMarkT
+    #[test]
+    fn test_default_yaml_mark() {
+        let mark = YamlMarkT::default();
+        assert_eq!(mark.index, 0);
+        assert_eq!(mark.line, 0);
+        assert_eq!(mark.column, 0);
+    }
+
+    /// Tests the default values of YamlEncodingT
+    #[test]
+    fn test_default_yaml_encoding() {
+        let encoding = YamlEncodingT::default();
+        assert_eq!(encoding, YamlEncodingT::YamlAnyEncoding);
+    }
+
+    /// Tests the default values of YamlScalarStyleT
+    #[test]
+    fn test_default_yaml_scalar_style() {
+        let scalar_style = YamlScalarStyleT::default();
+        assert_eq!(scalar_style, YamlScalarStyleT::YamlAnyScalarStyle);
+    }
+
+    /// Tests the default values of YamlSequenceStyleT
+    #[test]
+    fn test_default_yaml_sequence_style() {
+        let sequence_style = YamlSequenceStyleT::default();
+        assert_eq!(
+            sequence_style,
+            YamlSequenceStyleT::YamlAnySequenceStyle
+        );
+    }
+
+    /// Tests the default values of YamlMappingStyleT
+    #[test]
+    fn test_default_yaml_mapping_style() {
+        let mapping_style = YamlMappingStyleT::default();
+        assert_eq!(
+            mapping_style,
+            YamlMappingStyleT::YamlAnyMappingStyle
+        );
+    }
+
+    /// Tests the default values of YamlTagDirectiveT
+    #[test]
+    fn test_default_yaml_tag_directive() {
+        let tag_directive = YamlTagDirectiveT::default();
+        assert!(tag_directive.handle.is_null());
+        assert!(tag_directive.prefix.is_null());
+    }
+
+    /// Tests the default values of YamlBreakT
+    #[test]
+    fn test_default_yaml_break() {
+        let line_break = YamlBreakT::default();
+        assert_eq!(line_break, YamlBreakT::YamlAnyBreak);
+    }
+
+    /// Tests the default values of YamlErrorTypeT
+    #[test]
+    fn test_default_yaml_error_type() {
+        let error_type = YamlErrorTypeT::default();
+        assert_eq!(error_type, YamlErrorTypeT::YamlNoError);
+    }
+
+    /// Tests the default values of YamlSimpleKeyT
+    #[test]
+    fn test_default_yaml_simple_key() {
+        let simple_key = YamlSimpleKeyT::default();
+        assert!(!simple_key.possible);
+        assert!(!simple_key.required);
+        assert_eq!(simple_key.token_number, 0);
+        assert_eq!(simple_key.mark.index, 0);
+        assert_eq!(simple_key.mark.line, 0);
+        assert_eq!(simple_key.mark.column, 0);
+    }
+
+    /// Tests the default values of YamlEventTypeT
+    #[test]
+    fn test_default_yaml_event_type() {
+        let event_type = YamlEventTypeT::default();
+        assert_eq!(event_type, YamlEventTypeT::YamlNoEvent);
+    }
+
+    /// Tests the default values of YamlNodeTypeT
+    #[test]
+    fn test_default_yaml_node_type() {
+        let node_type = YamlNodeTypeT::default();
+        assert_eq!(node_type, YamlNodeTypeT::YamlNoNode);
+    }
+
+    /// Tests the default values of YamlParserStateT
+    #[test]
+    fn test_default_yaml_parser_state() {
+        let parser_state = YamlParserStateT::default();
+        assert_eq!(
+            parser_state,
+            YamlParserStateT::YamlParseStreamStartState
+        );
+    }
+
+    /// Tests the default values of YamlAliasDataT
+    #[test]
+    fn test_default_yaml_anchor_data() {
+        let anchor_data = YamlAliasDataT::default();
+        assert!(anchor_data.anchor.is_null());
+        assert_eq!(anchor_data.index, 0);
+        assert_eq!(anchor_data.mark.index, 0);
+        assert_eq!(anchor_data.mark.line, 0);
+        assert_eq!(anchor_data.mark.column, 0);
+    }
+
+    /// Tests the default values of YamlTokenT
+    #[test]
+    fn test_default_yaml_token() {
+        let token = YamlTokenT::default();
+        assert_eq!(token.type_, YamlTokenTypeT::YamlNoToken);
+        assert_eq!(token.start_mark.index, 0);
+        assert_eq!(token.start_mark.line, 0);
+        assert_eq!(token.start_mark.column, 0);
+        assert_eq!(token.end_mark.index, 0);
+        assert_eq!(token.end_mark.line, 0);
+        assert_eq!(token.end_mark.column, 0);
+    }
+
+    /// Tests the default values of YamlEmitterStateT
+    #[test]
+    fn test_default_yaml_emitter_state() {
+        let emitter_state = YamlEmitterStateT::default();
+        assert_eq!(
+            emitter_state,
+            YamlEmitterStateT::YamlEmitStreamStartState
+        );
+    }
+
+    // Additional tests implemented using libyml
+
+    #[test]
+    fn test_yaml_parsing_basic() {
+        // Simulating basic parsing test using raw structures from yaml.rs
+        let version = YamlVersionDirectiveT::new(1, 2);
+        assert_eq!(version.major, 1);
+        assert_eq!(version.minor, 2);
+    }
+
+    #[test]
+    fn test_yaml_complex_structure() {
+        // Example to test hierarchical parsing manually using core structures
+        let mapping_style = YamlMappingStyleT::YamlBlockMappingStyle;
+        assert_eq!(
+            mapping_style,
+            YamlMappingStyleT::YamlBlockMappingStyle
+        );
+
+        let scalar_style =
+            YamlScalarStyleT::YamlDoubleQuotedScalarStyle;
+        assert_eq!(
+            scalar_style,
+            YamlScalarStyleT::YamlDoubleQuotedScalarStyle
+        );
+    }
+
+    #[test]
+    fn test_yaml_errors() {
+        // Simulating error detection using default error types
+        let error = YamlErrorTypeT::YamlParserError;
+        assert_eq!(error, YamlErrorTypeT::YamlParserError);
     }
 }

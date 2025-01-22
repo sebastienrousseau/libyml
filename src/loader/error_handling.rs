@@ -32,6 +32,8 @@ pub enum YamlError {
     InvalidEventType,
     /// Invalid YAML document structure.
     InvalidDocumentStructure,
+    /// Invalid parser state encountered.
+    ParserError,
     /// An unknown error occurred.
     UnknownError,
 }
@@ -56,6 +58,9 @@ impl fmt::Display for YamlError {
             }
             YamlError::InvalidDocumentStructure => {
                 write!(f, "Invalid YAML document structure.")
+            }
+            YamlError::ParserError => {
+                write!(f, "Invalid parser state encountered.")
             }
             YamlError::UnknownError => {
                 write!(f, "An unknown error occurred.")

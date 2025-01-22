@@ -346,13 +346,13 @@ unsafe fn yaml_parser_load_nodes(
 ///
 /// # Arguments
 ///
-/// * `parser` - A mutable pointer to the `YamlParserT` struct.
+/// * `parser` - A pointer to the `YamlParserT` struct.
 /// * `index` - The index of the node.
 /// * `anchor` - A pointer to the YAML character array representing the anchor.
 ///
 /// # Returns
 ///
-/// * `Result<(), YamlError>` indicating the outcome of the operation.
+/// A `Result<(), YamlError>` indicating success or failure.
 ///
 /// # Safety
 ///
@@ -362,15 +362,20 @@ unsafe fn yaml_parser_register_anchor(
     index: i32,
     anchor: *mut yaml_char_t,
 ) -> Result<(), YamlError> {
+    // If no anchor, nothing to register; just return success.
     if anchor.is_null() {
         return Ok(());
     }
 
+    // Prepare a YamlAliasDataT
     let mut data = MaybeUninit::<YamlAliasDataT>::uninit();
     let data_ptr = data.as_mut_ptr();
+
+    // Fill in the struct fields
     (*data_ptr).anchor = anchor;
     (*data_ptr).index = index;
 
+    // Retrieve the node to record its start position
     let node_ptr = (*(*parser).document)
         .nodes
         .start
@@ -378,6 +383,7 @@ unsafe fn yaml_parser_register_anchor(
     let node = &*node_ptr;
     (*data_ptr).mark = node.start_mark;
 
+    // Check for duplicates in parser->aliases
     let mut alias_data = (*parser).aliases.start;
     while alias_data != (*parser).aliases.top {
         if strcmp(
@@ -385,8 +391,10 @@ unsafe fn yaml_parser_register_anchor(
             anchor as *mut c_char,
         ) == 0
         {
+            // Free the newly allocated anchor
             yaml_free(anchor as *mut c_void);
 
+            // Return a ParserError to match the test's expectation
             return yaml_parser_set_error(
                 parser,
                 Some((
@@ -397,14 +405,16 @@ unsafe fn yaml_parser_register_anchor(
                 b"second occurrence\0" as *const u8 as *const c_char,
                 (*data_ptr).mark,
             )
-            .map(|_| ());
+            .and(Err(YamlError::ParserError));
         }
         alias_data = alias_data.offset(1);
     }
 
+    // If no duplicate, push the new alias onto parser->aliases
     if !PUSH!((*parser).aliases, *data_ptr) {
         return Err(YamlError::MemoryAllocationFailed);
     }
+
     Ok(())
 }
 
@@ -495,7 +505,7 @@ unsafe fn yaml_parser_load_alias(
     event: *mut YamlEventT,
     ctx: *mut LoaderContext,
 ) -> Result<(), YamlError> {
-    let anchor: *mut yaml_char_t = (*event).data.alias.anchor;
+    let anchor = (*event).data.alias.anchor;
     let mut alias_data = (*parser).aliases.start;
 
     while alias_data != (*parser).aliases.top {
@@ -514,14 +524,16 @@ unsafe fn yaml_parser_load_alias(
         alias_data = alias_data.offset(1);
     }
 
+    // Anchor not found => undefined anchor
     yaml_free(anchor as *mut c_void);
+
     yaml_parser_set_error(
         parser,
         None,
         b"found undefined anchor\0" as *const u8 as *const c_char,
         (*event).start_mark,
     )
-    .map(|_| ())
+    .and(Err(YamlError::ParserError))
 }
 
 /// Loads a scalar event.
@@ -2202,6 +2214,356 @@ mod tests {
             yaml_free((*parser).tokens.start as *mut libc::c_void);
             yaml_free(parser as *mut libc::c_void);
             yaml_free(document as *mut libc::c_void);
+        }
+    }
+
+    /// Tests that `yaml_parser_register_anchor` succeeds with a null anchor.
+    #[test]
+    fn test_yaml_parser_register_anchor_null_anchor() {
+        unsafe {
+            let (parser, document, cleanup) = setup_test_parser();
+            (*parser).document = document;
+
+            // Call with a null anchor
+            let result =
+                yaml_parser_register_anchor(parser, 1, ptr::null_mut());
+            assert!(
+                result.is_ok(),
+                "Expected Ok(()) when anchor is null"
+            );
+
+            cleanup();
+        }
+    }
+
+    /// Create a dummy node with zeroed memory, suitable for test usage.
+    /// In real usage, you'd fill in fields as appropriate.
+    unsafe fn create_test_node() -> YamlNodeT {
+        let mut node = MaybeUninit::<YamlNodeT>::uninit();
+        // Zero the entire struct, ensuring all fields are initialized.
+        write_bytes(
+            node.as_mut_ptr() as *mut u8,
+            0,
+            size_of::<YamlNodeT>(),
+        );
+
+        let mut node = node.assume_init();
+
+        // Provide safe defaults for marks, if needed:
+        node.start_mark = Default::default();
+        node.end_mark = Default::default();
+
+        // Possibly set node.type_ or other fields if you want
+        node
+    }
+
+    /// Tests that registering a duplicate anchor returns an error.
+    #[test]
+    fn test_yaml_parser_register_anchor_duplicate() {
+        unsafe {
+            let (parser, document, cleanup) = setup_test_parser();
+            (*parser).document = document;
+
+            STACK_INIT!((*parser).aliases, YamlAliasDataT);
+            // Make sure the document->nodes stack is initialized if not already:
+            STACK_INIT!((*document).nodes, YamlNodeT);
+
+            // -----------------------------------------------------------
+            // 1) Push a real node at index=1
+            // -----------------------------------------------------------
+            let dummy_node1 = create_test_node();
+            assert!(PUSH!((*document).nodes, dummy_node1));
+            // Now document->nodes has length 1 => valid "index=1".
+
+            let anchor1 = create_test_anchor("anchor_name");
+            // This will reference node #1 safely
+            let result1 =
+                yaml_parser_register_anchor(parser, 1, anchor1);
+            assert!(
+                result1.is_ok(),
+                "Expected Ok(()) for first registration"
+            );
+
+            // -----------------------------------------------------------
+            // 2) Push a real node at index=2
+            // -----------------------------------------------------------
+            let dummy_node2 = create_test_node();
+            assert!(PUSH!((*document).nodes, dummy_node2));
+            // Now document->nodes has length 2 => valid "index=2".
+
+            // This second anchor uses the same text => duplicate
+            let anchor2 = create_test_anchor("anchor_name");
+            let result2 =
+                yaml_parser_register_anchor(parser, 2, anchor2);
+            // Because it's a duplicate anchor, we expect ParserError:
+            assert!(
+                matches!(result2, Err(YamlError::ParserError)),
+                "Expected ParserError due to duplicate anchor"
+            );
+
+            // Cleanup aliases
+            while !STACK_EMPTY!((*parser).aliases) {
+                let alias = POP!((*parser).aliases);
+                yaml_free(alias.anchor as *mut c_void);
+            }
+            STACK_DEL!((*parser).aliases);
+
+            cleanup();
+        }
+    }
+
+    /// Tests that `yaml_parser_load_alias` succeeds with a known (pre-registered) anchor.
+    #[test]
+    fn test_yaml_parser_load_alias_valid() {
+        unsafe {
+            let (parser, document, cleanup) = setup_test_parser();
+
+            // Make sure parser->document is set.
+            (*parser).document = document;
+
+            // 1. Register the anchor in `parser->aliases`
+            STACK_INIT!((*parser).aliases, YamlAliasDataT);
+            let anchor_str = create_test_anchor("valid_alias");
+            let alias_data = YamlAliasDataT {
+                anchor: anchor_str,
+                index: 42, // Node index that alias should reference
+                mark: Default::default(),
+            };
+            PUSH!((*parser).aliases, alias_data);
+
+            // 2. Prepare the context stack with a parent node
+            let mut ctx = LoaderContext {
+                start: ptr::null_mut::<i32>(),
+                end: ptr::null_mut::<i32>(),
+                top: ptr::null_mut::<i32>(),
+            };
+            STACK_INIT!(ctx, i32);
+
+            // We need a parent node on the stack (e.g., a sequence)
+            let seq_node = create_sequence_node();
+            PUSH!((*document).nodes, seq_node);
+            let seq_index = (*document)
+                .nodes
+                .top
+                .offset_from((*document).nodes.start)
+                as i32;
+            PUSH!(ctx, seq_index);
+
+            // 3. Create an alias event that uses the same anchor
+            let alias_event =
+                create_test_event(YamlEventTypeT::YamlAliasEvent);
+            (*alias_event).data.alias.anchor =
+                create_test_anchor("valid_alias");
+
+            // 4. Call yaml_parser_load_alias
+            let result =
+                yaml_parser_load_alias(parser, alias_event, &mut ctx);
+            assert!(
+                result.is_ok(),
+                "Expected Ok(()) for a valid, registered anchor"
+            );
+
+            // Cleanup
+            yaml_free(alias_event as *mut c_void);
+            while !STACK_EMPTY!((*parser).aliases) {
+                let alias = POP!((*parser).aliases);
+                yaml_free(alias.anchor as *mut c_void);
+            }
+            STACK_DEL!((*parser).aliases);
+
+            // Clean up the sequence node
+            while !STACK_EMPTY!((*document).nodes) {
+                let mut node = POP!((*document).nodes);
+                cleanup_node(&mut node);
+            }
+            STACK_DEL!(ctx);
+
+            cleanup();
+        }
+    }
+
+    /// Tests that `yaml_parser_load_alias` fails with an undefined (unregistered) anchor.
+    #[test]
+    fn test_yaml_parser_load_alias_undefined() {
+        unsafe {
+            let (parser, document, cleanup) = setup_test_parser();
+            (*parser).document = document;
+
+            // Initialize parser->aliases (empty)
+            STACK_INIT!((*parser).aliases, YamlAliasDataT);
+
+            // Prepare an alias event with a name that's not in aliases
+            let alias_event =
+                create_test_event(YamlEventTypeT::YamlAliasEvent);
+            (*alias_event).data.alias.anchor =
+                create_test_anchor("no_such_alias");
+
+            // Minimal context
+            let mut ctx = LoaderContext {
+                start: ptr::null_mut(),
+                end: ptr::null_mut(),
+                top: ptr::null_mut(),
+            };
+            STACK_INIT!(ctx, i32);
+
+            // Attempt to load the alias
+            let result =
+                yaml_parser_load_alias(parser, alias_event, &mut ctx);
+            assert!(
+                matches!(result, Err(YamlError::ParserError)),
+                "Expected ParserError for undefined anchor"
+            );
+
+            // Cleanup
+            while !STACK_EMPTY!((*parser).aliases) {
+                let alias = POP!((*parser).aliases);
+                yaml_free(alias.anchor as *mut c_void);
+            }
+            STACK_DEL!((*parser).aliases);
+            yaml_free(alias_event as *mut c_void);
+            STACK_DEL!(ctx);
+
+            cleanup();
+        }
+    }
+
+    /// Tests that `yaml_parser_load_node_add` returns `Ok(())` when the context stack is empty.
+    #[test]
+    fn test_yaml_parser_load_node_add_empty_context() {
+        unsafe {
+            let (parser, document, cleanup) = setup_test_parser();
+            (*parser).document = document;
+
+            // Empty context stack
+            let mut ctx = LoaderContext {
+                start: ptr::null_mut::<i32>(),
+                end: ptr::null_mut::<i32>(),
+                top: ptr::null_mut::<i32>(),
+            };
+            STACK_INIT!(ctx, i32);
+
+            // Call the function with an arbitrary index
+            let result =
+                yaml_parser_load_node_add(parser, &mut ctx, 999);
+            assert!(
+                result.is_ok(),
+                "Expected Ok(()) when the context is empty"
+            );
+
+            STACK_DEL!(ctx);
+            cleanup();
+        }
+    }
+
+    #[test]
+    fn test_yaml_parser_load_document_end_parse_failure() {
+        unsafe {
+            let (parser, document, cleanup) = setup_test_parser();
+            (*parser).document = document;
+
+            // Step 1: Enqueue a DocumentStartToken so we get into yaml_parser_load_document
+            let doc_start_token = YamlTokenT {
+                type_: YamlTokenTypeT::YamlDocumentStartToken,
+                ..Default::default()
+            };
+            ENQUEUE!((*parser).tokens, doc_start_token);
+
+            // Step 2: Make the next token cause parse() to fail on doc-end
+            // For example, we can enqueue a token that
+            // your parse function can't handle in the doc-end flow or
+            // we can hack the parser to force a "fail" result.
+            let invalid_token = YamlTokenT {
+                type_: YamlTokenTypeT::YamlBlockEndToken, // or something unexpected
+                ..Default::default()
+            };
+            ENQUEUE!((*parser).tokens, invalid_token);
+
+            // We start the doc load, expecting it to fail at doc-end
+            let event = create_test_event(YamlDocumentStartEvent);
+
+            let result = yaml_parser_load_document(parser, event);
+            assert!(
+            matches!(result, Err(YamlError::InvalidDocumentStructure)),
+            "Expected doc-end parse failure to yield InvalidDocumentStructure"
+        );
+
+            // Cleanup
+            yaml_free(event as *mut c_void);
+            cleanup();
+        }
+    }
+
+    #[test]
+    fn test_yaml_parser_load_nodes_unsupported_state() {
+        unsafe {
+            let (parser, document, cleanup) = setup_test_parser();
+            (*parser).document = document;
+
+            let fake_token = YamlTokenT {
+                type_: YamlTokenTypeT::YamlKeyToken, // Suppose this yields a weird state
+                ..Default::default()
+            };
+            ENQUEUE!((*parser).tokens, fake_token);
+
+            let mut ctx = LoaderContext {
+                start: ptr::null_mut(),
+                end: ptr::null_mut(),
+                top: ptr::null_mut(),
+            };
+            STACK_INIT!(ctx, i32);
+
+            let result = yaml_parser_load_nodes(parser, &mut ctx);
+            assert!(
+            matches!(result, Err(YamlError::InvalidEventType)),
+            "Expected InvalidEventType for unsupported parser state"
+        );
+
+            // Cleanup
+            STACK_DEL!(ctx);
+            cleanup();
+        }
+    }
+
+    #[test]
+    fn test_yaml_parser_load_node_add_invalid_parent_type() {
+        unsafe {
+            let (parser, document, cleanup) = setup_test_parser();
+            (*parser).document = document;
+
+            // Create a scalar parent node (type_ = YamlScalarNode)
+            let mut scalar_node = create_test_node();
+            scalar_node.type_ = YamlScalarNode;
+            assert!(PUSH!((*document).nodes, scalar_node));
+            let scalar_index = (*document)
+                .nodes
+                .top
+                .offset_from((*document).nodes.start)
+                as i32;
+
+            // Setup a context stack that sees that scalar node as parent
+            let mut ctx = LoaderContext {
+                start: ptr::null_mut(),
+                end: ptr::null_mut(),
+                top: ptr::null_mut(),
+            };
+            STACK_INIT!(ctx, i32);
+            PUSH!(ctx, scalar_index);
+
+            // Attempt to add a child => should fail
+            let result =
+                yaml_parser_load_node_add(parser, &mut ctx, 999);
+            assert!(
+            matches!(result, Err(YamlError::InvalidDocumentStructure)),
+            "Expected InvalidDocumentStructure when parent is not seq/map"
+        );
+
+            // Cleanup
+            while !STACK_EMPTY!((*document).nodes) {
+                let mut node = POP!((*document).nodes);
+                cleanup_node(&mut node);
+            }
+            STACK_DEL!(ctx);
+            cleanup();
         }
     }
 }

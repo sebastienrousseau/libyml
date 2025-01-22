@@ -1659,8 +1659,6 @@ mod tests {
         );
     }
 
-    // Additional tests implemented using libyml
-
     #[test]
     fn test_yaml_parsing_basic() {
         // Simulating basic parsing test using raw structures from yaml.rs
@@ -1826,5 +1824,109 @@ mod tests {
             format!("{}{}", tag_and_scalar, scalar),
             "!!strvalue"
         );
+    }
+
+    #[test]
+    fn test_empty_scalar() {
+        // Test how the parser handles an empty scalar (e.g., `key:` with no value).
+        let mut parser = YamlParserT::default();
+        unsafe {
+            let _ = yaml_parser_initialize(&mut parser);
+        }
+        unsafe {
+            yaml_parser_set_input_string(
+                &mut parser,
+                b"---\nkey:\n...".as_ptr(),
+                12,
+            );
+        }
+        assert_eq!(parser.error, YamlErrorTypeT::YamlNoError);
+        unsafe {
+            yaml_parser_delete(&mut parser);
+        }
+    }
+
+    #[test]
+    fn test_large_scalar() {
+        // Test a YAML file approaching MAX_SCALAR_SIZE.
+        let large_scalar: String = "a".repeat(65535);
+        let input = format!("---\nkey: |\n{}\n...", large_scalar);
+        let mut parser = YamlParserT::default();
+        unsafe {
+            let _ = yaml_parser_initialize(&mut parser);
+        }
+        unsafe {
+            yaml_parser_set_input_string(
+                &mut parser,
+                input.as_ptr(),
+                input.len().try_into().unwrap(),
+            )
+        };
+        assert_eq!(parser.error, YamlErrorTypeT::YamlNoError);
+        unsafe {
+            yaml_parser_delete(&mut parser);
+        }
+    }
+
+    #[test]
+    fn test_multiline_flow_collections() {
+        // Test flow collections spanning multiple lines.
+        let mut parser = YamlParserT::default();
+        unsafe {
+            let _ = yaml_parser_initialize(&mut parser);
+        }
+        unsafe {
+            yaml_parser_set_input_string(
+                &mut parser,
+                b"---\nflow: [\n  item1,\n  item2,\n  item3\n]\n..."
+                    .as_ptr(),
+                36,
+            )
+        };
+        assert_eq!(parser.error, YamlErrorTypeT::YamlNoError);
+        unsafe {
+            yaml_parser_delete(&mut parser);
+        }
+    }
+
+    #[test]
+    fn test_multiple_bom_characters() {
+        // Test files with multiple BOM characters in various positions.
+        let mut parser = YamlParserT::default();
+        unsafe {
+            let _ = yaml_parser_initialize(&mut parser);
+        }
+        unsafe {
+            yaml_parser_set_input_string(
+                &mut parser,
+                b"\xEF\xBB\xBF---\nkey: value\n\xEF\xBB\xBF..."
+                    .as_ptr(),
+                30,
+            )
+        };
+        assert_eq!(parser.error, YamlErrorTypeT::YamlNoError);
+        unsafe {
+            yaml_parser_delete(&mut parser);
+        }
+    }
+
+    #[test]
+    fn test_complex_nested_tags() {
+        // Test deeply nested tags.
+        let mut parser = YamlParserT::default();
+        unsafe {
+            let _ = yaml_parser_initialize(&mut parser);
+        }
+        unsafe {
+            yaml_parser_set_input_string(
+                &mut parser,
+                b"---\n!!map { !!seq [ !!str 'value' ] }\n...".as_ptr(),
+                37,
+            )
+        };
+        assert_eq!(parser.error, YamlErrorTypeT::YamlNoError);
+        unsafe {
+            yaml_parser_delete(&mut parser);
+        }
     }
 }

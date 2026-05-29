@@ -1,7 +1,7 @@
 [package]
-name = "unsafe-libyaml-fuzz"
+name = "libyml-fuzz"
 version = "0.0.0"
-authors = ["David Tolnay <dtolnay@gmail.com>"]
+authors = ["LibYML Contributors"]
 edition = "2021"
 publish = false
 
@@ -10,23 +10,11 @@ cargo-fuzz = true
 
 [dependencies]
 libfuzzer-sys = "0.4.7"
-unsafe-libyaml = { path = ".." }
+libyml = { path = ".." }
 
 [[bin]]
-name = "scan"
-path = "fuzz_targets/scan.rs"
-test = false
-doc = false
-
-[[bin]]
-name = "parse"
-path = "fuzz_targets/parse.rs"
-test = false
-doc = false
-
-[[bin]]
-name = "load"
-path = "fuzz_targets/load.rs"
+name = "fuzz_parse"
+path = "fuzz_targets/fuzz_parse.rs"
 test = false
 doc = false
 

@@ -61,7 +61,10 @@ fn main() {
                 break;
             }
         }
-        println!("parsed {event_count} events from {} bytes", yaml.len());
+        println!(
+            "parsed {event_count} events from {} bytes",
+            yaml.len()
+        );
 
         yaml_parser_delete(&mut parser);
     }

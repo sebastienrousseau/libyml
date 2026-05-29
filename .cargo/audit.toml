@@ -1,0 +1,22 @@
+# cargo-audit configuration.
+#
+# RUSTSEC-2025-0067 flagged `libyml` for the unsoundness in
+# `libyml::string::yaml_string_extend` across all published
+# versions ≤ 0.0.5. The 0.0.6 release **structurally removes the
+# vulnerable surface**: the entire `libyml::string` module —
+# along with the rest of the hand-translated C-libyaml copy — is
+# gone from the source tree. Every public function is re-exported
+# from the upstream `unsafe-libyaml` crate instead.
+#
+# The RustSec advisory database has not been updated to mark
+# 0.0.6 as patched (the advisory tracks the *crate's* unmaintained
+# status across all versions, not the presence of the specific
+# code path), so `cargo audit` self-flags the shim. This ignore
+# entry should be **removed** once the advisory database accepts a
+# PR amending `patched_versions = "^0.0.6"`.
+#
+# Verification (run any time):
+#   cargo tree -p libyml | grep -E 'libyml|unsafe-libyaml'
+#   grep -r 'yaml_string_extend' src/   # → no matches
+[advisories]
+ignore = ["RUSTSEC-2025-0067"]

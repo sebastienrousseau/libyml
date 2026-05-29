@@ -20,4 +20,12 @@ skip = []
 skip-tree = []
 
 [advisories]
-ignore = []
+# RUSTSEC-2025-0067 affected `libyml ≤ 0.0.5` (the `yaml_string_extend`
+# unsoundness). The 0.0.6 release removes the entire `libyml::string`
+# module — and the rest of the hand-translated C-libyaml copy — and
+# re-exports the upstream `unsafe-libyaml` instead. Verify locally
+# with `grep -r yaml_string_extend src/` (no matches). The advisory
+# database tracks the crate's unmaintained status rather than code
+# presence, so we ignore the advisory ourselves and document the
+# structural fix here.
+ignore = ["RUSTSEC-2025-0067"]

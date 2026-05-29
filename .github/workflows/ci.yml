@@ -1,7 +1,7 @@
 name: CI
 on:
   push:
-    branches: [main, feat/**]
+    branches: [master, main, feat/**]
   pull_request:
 
 concurrency:
@@ -14,13 +14,52 @@ jobs:
     with:
       rust-version: 'stable'
       run-coverage: true
+      # `cargo audit` runs in the inline `audit` job below (which
+      # generates its own lockfile and reads `.cargo/audit.toml`).
+      # Disabling here avoids "Couldn't load ./Cargo.lock" for this
+      # library crate, which doesn't commit a lockfile.
+      run-audit: false
     secrets:
       CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
 
-  security:
-    uses: sebastienrousseau/pipelines/.github/workflows/security.yml@main
-    with:
-      language: rust
+  # The `serde_yml`-style call to
+  # `sebastienrousseau/pipelines/.github/workflows/security.yml`
+  # was replaced with the two inline jobs below. The reusable
+  # workflow's `CodeQL Analysis` step uploads a SARIF file via
+  # `github/codeql-action/upload-sarif`, which fails on this
+  # repository while GitHub's default code-scanning setup is
+  # enabled (the two surfaces conflict at upload time). The inline
+  # jobs preserve the same coverage — `cargo audit` and
+  # `dependency-review` — without the CodeQL upload conflict. Drop
+  # this block and restore the upstream security workflow call
+  # once default code-scanning is turned off in repo settings.
+
+  audit:
+    name: Rust Security Audit
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install cargo-audit
+        run: cargo install cargo-audit --locked
+      - name: Generate lockfile
+        run: cargo generate-lockfile
+      - name: Run cargo audit
+        run: cargo audit --deny warnings
+
+  dependency-review:
+    name: Dependency Review
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/dependency-review-action@v4
+        with:
+          fail-on-severity: moderate
 
   docs:
     if: github.ref == 'refs/heads/main'

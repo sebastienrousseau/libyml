@@ -4,6 +4,27 @@
 compatibility shim so existing call sites keep working while you
 migrate to a maintained alternative.
 
+> ## ⚠️ Security: RUSTSEC-2025-0067 is structurally fixed in 0.0.6
+>
+> [RUSTSEC-2025-0067](https://rustsec.org/advisories/RUSTSEC-2025-0067.html)
+> flagged all `libyml ≤ 0.0.5` as unsound — the
+> `libyml::string::yaml_string_extend` function had a code path
+> that could trigger undefined behaviour. **Upgrading to
+> `libyml = "0.0.6"` removes the vulnerable surface entirely** —
+> the entire `libyml::string` module is gone from the source tree
+> alongside the rest of the hand-translated C-libyaml copy, and
+> every public function is now re-exported from the upstream
+> `unsafe-libyaml` crate.
+>
+> **`cargo audit` will still warn anyway.** The RustSec advisory
+> database tracks the crate's unmaintained status across all
+> versions and has chosen not to mark `0.0.6` as patched. The
+> warning is a maintainer-status signal at this point, not a
+> code-presence signal. To suppress it in your own project, copy
+> the snippet from the
+> [README's "cargo audit" section](./README.md#cargo-audit-will-still-warn--heres-why-and-how-to-handle-it),
+> or migrate fully to one of the maintained alternatives below.
+
 The shim itself depends on
 [`unsafe-libyaml`](https://crates.io/crates/unsafe-libyaml) — the
 upstream Rust translation of C `libyaml` that `libyml` was

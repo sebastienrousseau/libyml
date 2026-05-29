@@ -14,8 +14,7 @@ use core::ptr;
 use libyml::success::{is_failure, is_success};
 use libyml::{
     yaml_emitter_delete, yaml_emitter_emit, yaml_emitter_initialize,
-    yaml_emitter_set_output_string,
-    yaml_mapping_end_event_initialize,
+    yaml_emitter_set_output_string, yaml_mapping_end_event_initialize,
     yaml_mapping_start_event_initialize, yaml_parser_delete,
     yaml_parser_initialize, yaml_parser_parse,
     yaml_parser_set_input_string, yaml_scalar_event_initialize,
@@ -217,13 +216,14 @@ fn type_aliases_resolve_at_libyml_paths() {
     // const names still resolve at the crate root.
     #[allow(unused_imports)]
     use libyml::{
-        YamlAnyScalarStyle, YamlBlockMappingStyle, YamlBlockSequenceStyle,
-        YamlDoubleQuotedScalarStyle, YamlEmitterError, YamlEmitterT,
-        YamlEventT, YamlFoldedScalarStyle, YamlLiteralScalarStyle,
-        YamlMappingNode, YamlMemoryError, YamlPlainScalarStyle,
-        YamlScalarNode, YamlScalarStyleT, YamlSequenceNode,
-        YamlSingleQuotedScalarStyle, YamlTagDirectiveT, YamlUtf8Encoding,
-        YamlVersionDirectiveT, YamlWriterError,
+        YamlAnyScalarStyle, YamlBlockMappingStyle,
+        YamlBlockSequenceStyle, YamlDoubleQuotedScalarStyle,
+        YamlEmitterError, YamlEmitterT, YamlEventT,
+        YamlFoldedScalarStyle, YamlLiteralScalarStyle, YamlMappingNode,
+        YamlMemoryError, YamlPlainScalarStyle, YamlScalarNode,
+        YamlScalarStyleT, YamlSequenceNode,
+        YamlSingleQuotedScalarStyle, YamlTagDirectiveT,
+        YamlUtf8Encoding, YamlVersionDirectiveT, YamlWriterError,
     };
 }
 

@@ -27,6 +27,7 @@
 **Getting started**
 
 - [Install](#install) — stop-gap shim usage
+- [Security: RUSTSEC-2025-0067 fixed in 0.0.6](#security-rustsec-2025-0067-fixed-in-006)
 - [Quick Start](#quick-start) — shim usage in twenty lines
 
 **Choosing a replacement**
@@ -68,6 +69,74 @@ shipped are no longer in the source tree; downstream users link
 the upstream's audited copy through this re-export. Whether your
 eventual destination is `unsafe-libyaml`, `yaml-rust2`, or
 `noyalib` is your call.
+
+---
+
+## Security: RUSTSEC-2025-0067 fixed in 0.0.6
+
+[**RUSTSEC-2025-0067**](https://rustsec.org/advisories/RUSTSEC-2025-0067.html)
+flagged **all `libyml` versions ≤ 0.0.5** as unsound — the
+`libyml::string::yaml_string_extend` function had a code path
+that could trigger undefined behaviour.
+
+**Upgrading to `libyml = "0.0.6"` removes the vulnerable
+surface entirely:**
+
+- The entire `libyml::string` module — along with the rest of
+  the hand-translated C-libyaml copy — is **gone** from the
+  source tree.
+- Every public function is now a re-export from the upstream
+  `unsafe-libyaml` crate, which has an actively-maintained,
+  independently-audited translation of the C parser.
+- The `yaml_string_extend` symbol no longer exists in this crate
+  at any path. Code that depended on it won't compile — which is
+  exactly the desired outcome.
+
+Verification:
+
+```bash
+$ cargo update -p libyml --precise 0.0.6
+$ grep -r yaml_string_extend $(cargo metadata --format-version 1 \
+    | jq -r '.packages[] | select(.name=="libyml") | .manifest_path | rtrimstr("/Cargo.toml")')/src
+# (no output — the function is no longer in the source tree)
+```
+
+The same structural fix flows through to any
+[maintained alternative](#maintained-alternatives) you eventually
+migrate to.
+
+### `cargo audit` will still warn — here's why and how to handle it
+
+The RustSec advisory database has chosen **not** to mark `0.0.6`
+as patched. The decision was made on the basis that `libyml` is
+unmaintained regardless of which version you pick — a position
+that applies to the *crate* as a whole rather than to a specific
+*code path*. Practical consequence: `cargo audit` and `cargo deny`
+will emit RUSTSEC-2025-0067 against `libyml = "0.0.6"` even though
+the unsound surface no longer exists in this release.
+
+This repo's own CI suppresses the warning via [`.cargo/audit.toml`](./.cargo/audit.toml)
+and [`deny.toml`](./deny.toml). If you're a downstream user who
+wants the same suppression in your own project, copy the snippet
+below — and feel free to remove it whenever you migrate fully.
+
+```toml
+# .cargo/audit.toml — at the workspace root
+[advisories]
+# RUSTSEC-2025-0067 affects libyml's `yaml_string_extend` helper.
+# The 0.0.6 deprecation shim removes that surface entirely; verify
+# locally with `grep -r yaml_string_extend src/` (no matches).
+# The advisory database tracks the crate's unmaintained status,
+# not code presence — so we ignore the advisory ourselves and
+# document the structural fix here.
+ignore = ["RUSTSEC-2025-0067"]
+```
+
+For `cargo deny`, add the same `RUSTSEC-2025-0067` ID to your
+`deny.toml`'s `[advisories] ignore` list with the same rationale.
+
+The cleanest long-term path is still to migrate off `libyml`
+entirely — the maintained alternatives are listed above.
 
 ---
 

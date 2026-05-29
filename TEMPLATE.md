@@ -1,6 +1,6 @@
 <!-- markdownlint-disable MD033 MD041 -->
 
-<img src="https://kura.pro/libyml/images/logos/libyml.svg"
+<img src="https://cloudcdn.pro/libyml/v1/logos/libyml.svg"
 alt="libyml logo" width="66" align="right" />
 
 <!-- markdownlint-enable MD033 MD041 -->

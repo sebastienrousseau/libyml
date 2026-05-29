@@ -1,7 +1,7 @@
 <!-- SPDX-License-Identifier: Apache-2.0 OR MIT -->
 
 <p align="center">
-  <img src="https://kura.pro/libyml/images/logos/libyml.svg" alt="libyml logo" width="128" />
+  <img src="https://cloudcdn.pro/libyml/v1/logos/libyml.svg" alt="libyml logo" width="128" />
 </p>
 
 <h1 align="center">libyml</h1>

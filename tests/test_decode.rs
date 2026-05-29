@@ -1,3 +1,14 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+//
+// Retained from `libyml ≤ 0.0.5`. This file shows what migration to
+// the 0.0.6 shim looks like for a downstream test that imports the
+// `libyml::decode::*` sub-module surface. **No changes needed** —
+// the path resolves verbatim through the shim's re-export module,
+// and the original tests already read `.ok` directly off the
+// upstream `Success` return value.
+
+#![allow(deprecated)]
+
 #[cfg(test)]
 mod tests {
     use core::mem::MaybeUninit;

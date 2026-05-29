@@ -295,6 +295,16 @@ common PascalCase enum-variant constants (`YamlUtf8Encoding`,
 `YamlPlainScalarStyle`, …) are restored on top so existing call
 sites compile unchanged.
 
+The path-form sub-modules also survive: `libyml::api::*`,
+`libyml::decode::*`, `libyml::document::*`, `libyml::dumper::*`,
+`libyml::loader::*`, `libyml::yaml::*`, and `libyml::success::*`
+keep resolving through thin re-export modules. Two former
+sub-modules — `libyml::memory` and `libyml::string` — are retained
+as **empty stub modules** with docs explaining the removal, so
+`use libyml::memory;` keeps compiling even though every former
+item under it is gone. The full inventory is in
+[What was removed in 0.0.6](#what-was-removed-in-006).
+
 The shim being backed by `unsafe-libyaml` internally is an
 implementation detail, not a recommendation to use
 `unsafe-libyaml` specifically. The
@@ -329,22 +339,29 @@ and examples is in [`MIGRATION.md` § "Test and example coverage in
 
 ## What was removed in 0.0.6
 
-The deep internal modules that previous versions exposed leaked
-implementation details of the hand-translated C copy. They are
-**removed** in this shim. The right replacement depends on which
-alternative you picked:
+Most of the previous public surface is **retained** through the
+shim — the historical `libyml::api::*`, `libyml::decode::*`,
+`libyml::document::*`, `libyml::dumper::*`, `libyml::loader::*`,
+and `libyml::yaml::*` path-form imports keep resolving via thin
+re-export modules that point at the upstream `unsafe-libyaml`
+functions. The table below covers the items that **don't**
+survive — the implementation-detail helpers that depended on the
+hand-translated C copy.
 
 | Removed from `libyml` | What it was | Where it goes |
 | :--- | :--- | :--- |
-| `libyml::api` | High-level wrappers over the parser/emitter init/free pairs | Bare functions at `unsafe_libyaml::yaml_parser_*` / `yaml_emitter_*` (re-exported by this shim at the crate root) |
-| `libyml::dumper` | `yaml_emitter_open` / `_close` / `_dump` helpers | `unsafe_libyaml::yaml_emitter_open` / `_close` / `_dump` (re-exported at the crate root) |
-| `libyml::decode` | `yaml_parser_initialize` / `_delete` wrappers | `unsafe_libyaml::yaml_parser_initialize` / `_delete` (re-exported at the crate root) |
-| `libyml::document` | `yaml_document_*` event/node helpers | `unsafe_libyaml::yaml_document_*` (some are re-exported at the crate root; the rest are reachable via the upstream path) |
-| `libyml::loader` | `yaml_parser_load` | `unsafe_libyaml::yaml_parser_load` (re-exported at the crate root) |
-| `libyml::memory` | `yaml_malloc` / `yaml_free` / `yaml_realloc` / `yaml_strdup` | None — the upstream uses Rust's `alloc` directly; allocate with Rust's standard primitives instead |
-| `libyml::string` | `yaml_string_extend` / `_join` helpers | None — internal helpers of the C copy; rewrite using Rust's `Vec`/`String` |
-| `libyml::yaml` | Public path-form re-exports of all enums + structs | Type aliases at the `libyml` crate root (`YamlParserT`, etc.); upstream snake_case names available under `unsafe_libyaml::` |
-| `libyml::success::Success` (as a nameable type) | `#[derive(PartialEq, Debug)]` struct wrapping `bool` | Read `.ok` on the upstream's return value directly; the shim retains `is_success(bool)` and `is_failure(bool)` helpers |
+| `libyml::memory::*` | `yaml_malloc` / `yaml_free` / `yaml_realloc` / `yaml_strdup` allocator wrappers | None — the upstream uses Rust's `alloc` directly. Allocate with `std::alloc::{alloc, dealloc}` or `Vec`/`Box` instead. `libyml::memory` is retained as an empty stub module so `use libyml::memory;` keeps resolving — every former item under it is gone |
+| `libyml::string::*` | `yaml_string_extend` / `yaml_string_join` — the unsound helper [RUSTSEC-2025-0067](#security-rustsec-2025-0067-fixed-in-006) flags | None — build strings with Rust's `Vec` / `String`. `libyml::string` is retained as an empty stub module for the same source-compatibility reason as `memory` |
+| `libyml::internal::*` | Hand-translated internal helpers (parser/emitter state machines) | None — `unsafe-libyaml` keeps its equivalents private |
+| `libyml::macros::*` | Internal `__assert!` / `do_loop!` macros | None — implementation details of the C copy |
+| `libyml::externs::*` | C-style `malloc` / `free` / `memcpy` / `memmove` re-exports | None — the upstream uses Rust's `alloc` directly |
+| `libyml::utils::*` | Internal `memory_macros` module | None — implementation detail of the C copy |
+| `libyml::libc` | Re-exports of `core::ffi::c_*` primitives | Use `core::ffi::*` (or `libc::*` if you depend on the `libc` crate) directly |
+| `libyml::loader::yaml_parser_set_composer_error` | Internal composer-error injection helper | None — inspect `parser.problem` after `yaml_parser_parse` / `yaml_parser_load` returns failure instead |
+| `libyml::dumper::yaml_emitter_dump_node` / `_scalar` / `_sequence` / `_mapping` | Internal sub-routines of `yaml_emitter_dump` | None — the upstream keeps these private; drive emission through the public `yaml_emitter_dump` entry point |
+| `libyml::success::Success` (as a nameable type) | `#[derive(PartialEq, Debug)]` struct wrapping `bool` | Read `.ok` on the upstream's return value directly; the shim retains `libyml::success::is_success(bool)` and `is_failure(bool)` helpers |
+| `libyml::yaml::yaml_char_t` | C-libyaml byte type | Retained as a `pub type yaml_char_t = u8;` alias under `libyml::yaml` so the path keeps resolving |
+| `src/bin/run-emitter-test-suite.rs`, `src/bin/run-parser-test-suite.rs`, `src/bin/cstr/*` | yaml-test-suite harness binaries | Upstream `unsafe-libyaml` runs its own equivalent test suite |
 
 The full table is in [`MIGRATION.md`](./MIGRATION.md#removed-in-006).
 

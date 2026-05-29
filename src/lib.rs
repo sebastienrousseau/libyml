@@ -53,16 +53,41 @@
 //! item below is marked `#[deprecated]`, so the compiler will point
 //! at the spots that need updating during your migration.
 //!
+//! ## What still resolves under `libyml::*` (0.0.6)
+//!
+//! Most of the previous public surface is **retained** via thin
+//! re-export modules pointing at `unsafe-libyaml`:
+//!
+//! - [`libyml::api`](crate::api) — parser/emitter init + event
+//!   initialisers.
+//! - [`libyml::decode`](crate::decode) — `yaml_parser_initialize`
+//!   / `_delete`.
+//! - [`libyml::document`](crate::document) — `yaml_document_*`
+//!   helpers.
+//! - [`libyml::dumper`](crate::dumper) — `yaml_emitter_open`
+//!   / `_close` / `_dump`.
+//! - [`libyml::loader`](crate::loader) — `yaml_parser_load`.
+//! - [`libyml::yaml`](crate::yaml) — every PascalCase type alias
+//!   and PascalCase enum-variant constant.
+//! - [`libyml::success`](crate::success) — `is_success(bool)` /
+//!   `is_failure(bool)` helpers (the `Success` struct itself is
+//!   no longer nameable — read `.ok` instead).
+//!
+//! The historical [`libyml::memory`](crate::memory) and
+//! [`libyml::string`](crate::string) paths still resolve, but as
+//! **empty stub modules** — every former item under them is gone
+//! because they belonged to the hand-translated C copy this shim
+//! deletes (`libyml::string::yaml_string_extend` is the unsound
+//! helper RUSTSEC-2025-0067 flags).
+//!
 //! ## Removed in 0.0.6 (vs. 0.0.5)
 //!
-//! The deep internal modules that previous versions exposed —
-//! `libyml::api`, `libyml::dumper`, `libyml::decode`,
-//! `libyml::document`, `libyml::loader`, `libyml::memory`,
-//! `libyml::string`, `libyml::success`, the public `yaml`
-//! module — are **gone** in this release. Their hand-translated
-//! C implementations have been replaced by re-exports of the
-//! upstream's equivalents. See `MIGRATION.md` for the equivalence
-//! table per alternative.
+//! The implementation-detail modules — `libyml::internal`,
+//! `libyml::macros`, `libyml::externs`, `libyml::utils`,
+//! `libyml::libc`, the contents of `libyml::memory` and
+//! `libyml::string`, and the `yaml-test-suite` runner binaries
+//! under `src/bin/` — are **gone** in this release. See
+//! `MIGRATION.md` for the equivalence table per alternative.
 
 #![deprecated(
     since = "0.0.6",

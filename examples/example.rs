@@ -5,14 +5,14 @@
 //! `libyml` is deprecated; the example below exercises the public
 //! surface that the 0.0.6 shim continues to provide. The original
 //! example suite included demonstrations of the now-removed
-//! `libyml::api`, `libyml::memory`, and `libyml::string` modules —
-//! all three were dropped because they exposed implementation
-//! details of the hand-translated C-libyaml copy that this shim
-//! no longer ships. See `MIGRATION.md` for the upstream equivalents.
+//! `libyml::memory::*` and `libyml::string::*` modules — those
+//! sub-blocks are kept as comments in `examples/apis/main.rs` with
+//! the Rust-native replacements, so you can see the before/after
+//! diff. See `MIGRATION.md` for the upstream equivalents.
 //!
 //! Run with: `cargo run --example example`.
 
-#![allow(deprecated)]
+#![allow(deprecated, missing_docs)]
 
 use core::mem::MaybeUninit;
 use core::ptr;
@@ -20,38 +20,20 @@ use libyml::success::is_success;
 use libyml::{
     yaml_emitter_delete, yaml_emitter_emit, yaml_emitter_initialize,
     yaml_emitter_set_output_string, yaml_mapping_end_event_initialize,
-    yaml_mapping_start_event_initialize, yaml_parser_delete,
-    yaml_parser_initialize, yaml_parser_parse,
-    yaml_parser_set_input_string, yaml_scalar_event_initialize,
+    yaml_mapping_start_event_initialize, yaml_scalar_event_initialize,
     yaml_stream_end_event_initialize,
     yaml_stream_start_event_initialize, YamlBlockMappingStyle,
-    YamlEmitterT, YamlEventT, YamlParserT, YamlPlainScalarStyle,
-    YamlUtf8Encoding,
+    YamlEmitterT, YamlEventT, YamlPlainScalarStyle, YamlUtf8Encoding,
 };
 
-fn parse_simple_document() {
-    let yaml = b"name: libyml\nversion: 0.0.6\n";
-    unsafe {
-        let mut parser = MaybeUninit::<YamlParserT>::uninit();
-        assert!(is_success(
-            yaml_parser_initialize(parser.as_mut_ptr()).ok
-        ));
-        let mut parser = parser.assume_init();
+/// `apis::main` mirrors the historical
+/// `libyml ≤ 0.0.5` `examples/apis/main.rs` aggregator — the parts
+/// that still work are kept; the removed slabs are documented inline.
+mod apis;
 
-        yaml_parser_set_input_string(
-            &mut parser,
-            yaml.as_ptr(),
-            yaml.len() as u64,
-        );
-
-        let mut event = MaybeUninit::<YamlEventT>::uninit();
-        assert!(is_success(
-            yaml_parser_parse(&mut parser, event.as_mut_ptr()).ok
-        ));
-        println!("✅ parser emitted its first event from a 2-line doc");
-
-        yaml_parser_delete(&mut parser);
-    }
+fn main() {
+    apis::main::main();
+    emit_simple_document();
 }
 
 fn emit_simple_document() {
@@ -141,8 +123,6 @@ fn emit_simple_document() {
     }
 }
 
-/// Helper that initialises an event with `init`, emits it through
-/// `emitter`, and asserts both succeeded.
 unsafe fn emit(
     emitter: *mut YamlEmitterT,
     init: impl FnOnce(*mut YamlEventT) -> bool,
@@ -150,9 +130,4 @@ unsafe fn emit(
     let mut ev = MaybeUninit::<YamlEventT>::uninit();
     assert!(is_success(init(ev.as_mut_ptr())));
     assert!(is_success(yaml_emitter_emit(emitter, ev.as_mut_ptr()).ok));
-}
-
-fn main() {
-    parse_simple_document();
-    emit_simple_document();
 }

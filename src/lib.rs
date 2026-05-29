@@ -386,3 +386,147 @@ pub mod success {
         !ok
     }
 }
+
+// ── Path-form re-export modules ───────────────────────────────────────
+//
+// `libyml ≤ 0.0.5` exposed its surface under several sub-modules so
+// callers could do `use libyml::api::yaml_parser_set_input_string` or
+// `use libyml::yaml::YamlEventT`. The modules below restore those
+// paths verbatim by re-exporting the equivalent items from the crate
+// root (which itself re-exports from `unsafe-libyaml`). Every item is
+// inherits the `#[deprecated]` annotation through the crate root, so
+// the compiler still points at every usage during migration.
+
+/// API-surface helpers. Re-exported from the crate root for source
+/// compatibility with `libyml ≤ 0.0.5`'s
+/// [`libyml::api`](https://docs.rs/libyml/0.0.5/libyml/api/index.html)
+/// module.
+pub mod api {
+    pub use crate::{
+        yaml_alias_event_initialize, yaml_emitter_delete,
+        yaml_emitter_initialize, yaml_emitter_set_break,
+        yaml_emitter_set_canonical, yaml_emitter_set_encoding,
+        yaml_emitter_set_indent, yaml_emitter_set_output,
+        yaml_emitter_set_output_string, yaml_emitter_set_unicode,
+        yaml_emitter_set_width, yaml_mapping_end_event_initialize,
+        yaml_mapping_start_event_initialize, yaml_parser_set_encoding,
+        yaml_parser_set_input, yaml_parser_set_input_string,
+        yaml_scalar_event_initialize,
+        yaml_sequence_end_event_initialize,
+        yaml_sequence_start_event_initialize,
+        yaml_stream_end_event_initialize,
+        yaml_stream_start_event_initialize, yaml_token_delete,
+    };
+}
+
+/// Parser-decode helpers. Re-exported from the crate root for source
+/// compatibility with `libyml ≤ 0.0.5`'s
+/// [`libyml::decode`](https://docs.rs/libyml/0.0.5/libyml/decode/index.html)
+/// module.
+pub mod decode {
+    pub use crate::{yaml_parser_delete, yaml_parser_initialize};
+}
+
+/// Document-tree helpers. Re-exported from the crate root for source
+/// compatibility with `libyml ≤ 0.0.5`'s
+/// [`libyml::document`](https://docs.rs/libyml/0.0.5/libyml/document/index.html)
+/// module.
+pub mod document {
+    pub use crate::{
+        yaml_document_delete, yaml_document_end_event_initialize,
+        yaml_document_get_node, yaml_document_get_root_node,
+        yaml_document_initialize, yaml_document_start_event_initialize,
+    };
+    pub use unsafe_libyaml::{
+        yaml_document_add_mapping, yaml_document_add_scalar,
+        yaml_document_add_sequence, yaml_document_append_mapping_pair,
+        yaml_document_append_sequence_item,
+    };
+}
+
+/// Emitter dumper helpers. Re-exported from the crate root for source
+/// compatibility with `libyml ≤ 0.0.5`'s
+/// [`libyml::dumper`](https://docs.rs/libyml/0.0.5/libyml/dumper/index.html)
+/// module. **Note:** the previous releases also exposed
+/// `yaml_emitter_dump_node` / `_scalar` / `_sequence` / `_mapping` as
+/// `pub` items; the upstream keeps those private. Callers should
+/// drive emission through the public `yaml_emitter_dump` entry point.
+pub mod dumper {
+    pub use crate::{
+        yaml_emitter_close, yaml_emitter_dump, yaml_emitter_open,
+    };
+}
+
+/// Event-loader helpers. Re-exported from the crate root for source
+/// compatibility with `libyml ≤ 0.0.5`'s
+/// [`libyml::loader`](https://docs.rs/libyml/0.0.5/libyml/loader/index.html)
+/// module. **Note:** the previous releases also exposed
+/// `yaml_parser_set_composer_error` as a `pub` item; the upstream
+/// surfaces composer errors through `yaml_parser_parse` /
+/// `yaml_parser_load` directly, so callers that constructed
+/// composer errors manually need to switch to inspecting
+/// `parser.problem` after the regular parse APIs return failure.
+pub mod loader {
+    pub use crate::yaml_parser_load;
+}
+
+/// Type aliases. Re-exported from the crate root for source
+/// compatibility with `libyml ≤ 0.0.5`'s
+/// [`libyml::yaml`](https://docs.rs/libyml/0.0.5/libyml/yaml/index.html)
+/// module — all `Yaml*T` PascalCase types and `Yaml*` PascalCase enum
+/// variants land at this path too.
+pub mod yaml {
+    pub use crate::{
+        YamlAliasDataT, YamlAliasEvent, YamlAnyEncoding,
+        YamlAnyMappingStyle, YamlAnyScalarStyle, YamlAnySequenceStyle,
+        YamlBlockMappingStyle, YamlBlockSequenceStyle, YamlBreakT,
+        YamlComposerError, YamlDocumentEndEvent,
+        YamlDocumentStartEvent, YamlDocumentT,
+        YamlDoubleQuotedScalarStyle, YamlEmitterError,
+        YamlEmitterStateT, YamlEmitterT, YamlEncodingT, YamlErrorTypeT,
+        YamlEventT, YamlEventTypeT, YamlFlowMappingStyle,
+        YamlFlowSequenceStyle, YamlFoldedScalarStyle,
+        YamlLiteralScalarStyle, YamlMappingEndEvent, YamlMappingNode,
+        YamlMappingStartEvent, YamlMappingStyleT, YamlMarkT,
+        YamlMemoryError, YamlNoError, YamlNoEvent, YamlNoNode,
+        YamlNodeItemT, YamlNodePairT, YamlNodeT, YamlNodeTypeT,
+        YamlParserError, YamlParserStateT, YamlParserT,
+        YamlPlainScalarStyle, YamlReadHandlerT, YamlReaderError,
+        YamlScalarEvent, YamlScalarNode, YamlScalarStyleT,
+        YamlScannerError, YamlSequenceEndEvent, YamlSequenceNode,
+        YamlSequenceStartEvent, YamlSequenceStyleT, YamlSimpleKeyT,
+        YamlSingleQuotedScalarStyle, YamlStackT, YamlStreamEndEvent,
+        YamlStreamStartEvent, YamlTagDirectiveT, YamlTokenT,
+        YamlTokenTypeT, YamlUtf16beEncoding, YamlUtf16leEncoding,
+        YamlUtf8Encoding, YamlVersionDirectiveT, YamlWriteHandlerT,
+        YamlWriterError,
+    };
+
+    /// Alias for [`u8`]. `libyml ≤ 0.0.5` exposed YAML scalar bytes
+    /// as `yaml_char_t` (the `libyaml` C convention); preserved here
+    /// for source compatibility.
+    #[allow(non_camel_case_types)]
+    pub type yaml_char_t = u8;
+}
+
+/// **Removed in 0.0.6.** Previous releases exposed a hand-translated
+/// C-libyaml allocator surface (`yaml_malloc` / `yaml_free` /
+/// `yaml_realloc` / `yaml_strdup`). Those helpers were
+/// implementation details of the hand-translated parser, which the
+/// 0.0.6 shim deletes; the upstream `unsafe-libyaml` uses Rust's
+/// `alloc` directly. Allocate with Rust's standard primitives
+/// instead. This empty module is retained so that
+/// `use libyml::memory;` keeps resolving — every former item under
+/// it is gone.
+pub mod memory {}
+
+/// **Removed in 0.0.6 — see [`RUSTSEC-2025-0067`].** Previous
+/// releases exposed `yaml_string_extend` / `yaml_string_join`
+/// helpers under this path. The 0.0.6 shim deletes the entire
+/// hand-translated C copy that those helpers belonged to. Build
+/// strings with Rust's `Vec` / `String` instead. This empty module
+/// is retained so `use libyml::string;` keeps resolving — every
+/// former item under it is gone.
+///
+/// [`RUSTSEC-2025-0067`]: https://rustsec.org/advisories/RUSTSEC-2025-0067.html
+pub mod string {}

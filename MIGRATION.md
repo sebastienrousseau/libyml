@@ -335,52 +335,55 @@ this is not a bump.
 
 ## Test and example coverage in 0.0.6
 
-The shim is wire-compatible with typical user code (parser /
-emitter init + parse / emit cycles work transparently), but the
-original library's own unit tests and examples verified the *old
-implementation's internal shape* — the `success::Success` derive
-chain, the `api::*` wrappers, the `memory::yaml_malloc` /
-`string::yaml_string_extend` helpers, the `loader::Loader` event
-walker — which the `unsafe-libyaml` backend does not expose at
-the same shape.
+The 0.0.6 shim is wire-compatible with typical user code (parser
+/ emitter init + parse / emit cycles work transparently). The
+original `libyml ≤ 0.0.5` test and example files are kept in this
+repo where they could be brought across with a small mechanical
+patch — they serve as a *worked-example* of what the migration
+looks like from the downstream side. Where the original tests
+probed the previous implementation's **private fields**, **derived
+`Default` impls**, or **deleted internal modules**
+(`internal`, `macros`, `externs`, the `string::yaml_string_extend`
+unsound helper), they were removed because they reflect
+implementation-detail coverage rather than downstream user code.
 
-### Tests retained (1 file, 5 tests, all pass)
+### Tests retained (3 files, 18 tests, all pass)
 
-| File | Covers |
-| :--- | :--- |
-| `tests/shim.rs` | Parser init/delete, parse-first-event, emit a `{greeting: hello}` mapping round-trip, type-alias resolution, `success` helpers |
+| File | Source | Changes applied | Tests |
+| :--- | :--- | :--- | ---: |
+| `tests/test_decode.rs` | from 0.0.5 | **verbatim** — `libyml::decode::*` path module re-exports through the shim | 8 |
+| `tests/test_lib.rs` | from 0.0.5 | two-line patch (`is_success(call)` → `is_success(call.ok)`, drop `#![no_std]`) | 5 |
+| `tests/shim.rs` | new | smoke suite covering parser init, parse-first-event, emit-mapping round-trip, type aliases, `success` helpers | 5 |
 
-### Examples retained (2 runnable, all execute to completion)
+### Examples retained (3 runnable, all execute to completion)
 
-| Path | Notes |
-| :--- | :--- |
-| `examples/migration.rs` | Standalone shim demo — parse a 2-line doc through the re-exported surface |
-| `examples/example.rs` | Parse + emit demo — exercises both halves of the shim |
+| Path | Source | Changes applied |
+| :--- | :--- | :--- |
+| `examples/example.rs` | from 0.0.5 (aggregator shape) | runs `examples/apis/main.rs` then a parse + emit demo |
+| `examples/apis/main.rs` | from 0.0.5 | parser slabs kept; `memory` + `string` slabs kept as commented-out blocks with Rust-native replacements inline |
+| `examples/migration.rs` | new | single-file shim demo (parse a 2-line doc and count events) |
 
-### Tests removed (legacy implementation-detail coverage)
+### Tests removed (probed the old implementation's private shape)
 
 | File | Why |
 | :--- | :--- |
-| `tests/test_api.rs` | Tested `libyml::api::*` thin wrappers — module removed in shim |
-| `tests/test_decode.rs` | `libyml::decode::*` — wrappers around parser init removed in shim |
-| `tests/test_document.rs` | Walked the internal `YamlDocumentT` layout; struct fields rename to upstream's snake_case |
-| `tests/test_dumper.rs` | `libyml::dumper::*` — wrappers removed in shim |
-| `tests/test_emitter.rs` | Used hand-translated emitter internals not re-exported by upstream |
+| `tests/test_api.rs` | Used `libyml::memory::yaml_malloc` / `_strdup` and `libyml::externs::free` — the C-libyaml allocator surface is removed in 0.0.6 (the upstream uses Rust's `alloc` directly) |
+| `tests/test_document.rs` | Called `YamlDocumentT::cleanup()` and constructed `yaml_mark_t::default()` — internal helpers not exposed by `unsafe-libyaml` |
+| `tests/test_dumper.rs` | Read private fields (`emitter.opened`, `emitter.closed`, `emitter.write_handler`) — public in the fork's reimplementation, private in `unsafe-libyaml` |
+| `tests/test_emitter.rs` | Imported the deleted `src/bin/run-emitter-test-suite.rs` runner |
 | `tests/test_internal.rs` | Tested the removed `libyml::internal` module |
-| `tests/test_lib.rs` | Used `#![no_std]` plus `is_success(Success)`; `Success` no longer nameable |
-| `tests/test_loader.rs` | `libyml::loader::*` — wrapper module removed in shim |
-| `tests/test_macros.rs` | Removed `libyml::macros::*` internal macros |
-| `tests/test_memory.rs` | `libyml::memory::yaml_*` allocator wrappers removed in shim |
-| `tests/test_parser.rs`, `test_parser_error.rs` | Used hand-translated parser internals not re-exported by upstream |
-| `tests/test_string.rs` | `libyml::string::yaml_string_*` helpers removed in shim |
-| `tests/test_yaml.rs` | Asserted on the internal `Yaml*T` layout — fields rename to upstream's snake_case |
-| `tests/data/*` (libyml-test-suite proc macros) | yaml-test-suite harness; upstream `unsafe-libyaml` runs its own equivalent |
+| `tests/test_loader.rs` | Imported `libyml::loader::yaml_parser_set_composer_error` — internal helper not in the upstream's public API |
+| `tests/test_macros.rs` | Imported the removed `libyml::macros`, `libyml::libc`, `libyml::externs` and the `yaml_string_extend` unsound helper (RUSTSEC-2025-0067) |
+| `tests/test_memory.rs` | Imported the removed `libyml::memory` allocator wrappers |
+| `tests/test_parser.rs`, `test_parser_error.rs` | Imported the deleted `src/bin/run-parser-test-suite.rs` runner |
+| `tests/test_string.rs` | Imported the removed `libyml::string` module (the unsound `yaml_string_extend` helper RUSTSEC-2025-0067 covers) |
+| `tests/test_yaml.rs` | Called `YamlEncodingT::default()` and used `YamlAnyEncoding` / `YamlAnyScalarStyle` / etc. as enum-variant `match` patterns — both rely on derive impls and the variant-position rename gap |
+| `tests/data/*` (libyml-test-suite proc macros) | yaml-test-suite harness; upstream `unsafe-libyaml` runs its own equivalent suite |
 
 ### Examples removed
 
 | Path | Why |
 | :--- | :--- |
-| `examples/apis/*` | Demoed the removed `libyml::api`, `libyml::memory`, `libyml::string` modules |
 | `src/bin/run-emitter-test-suite.rs` | Test-suite runner depending on removed internals |
 | `src/bin/run-parser-test-suite.rs` | Test-suite runner depending on removed internals |
 | `src/bin/cstr/*` | Internal CStr helper for the removed test-suite binaries |

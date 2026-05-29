@@ -305,14 +305,20 @@ covers the choice.
 
 ## What still works in 0.0.6
 
-The shim is wire-compatible with typical user code. Verified by
+The shim is wire-compatible with typical user code. The original
+test files from `libyml ≤ 0.0.5` are kept under `tests/` (with
+small adaptation comments noting the patches) so users can see
+their own code's migration shape side-by-side. Verified by
 `cargo test --all-targets` + `cargo run --example example` +
 `cargo run --example migration`:
 
 | Surface | Status |
 | :--- | :--- |
-| `tests/shim.rs` — parser init/delete, parse-first-event, emit a `{greeting: hello}` mapping round-trip, type-alias resolution, `success` helpers | **5 / 5 pass** |
-| `examples/example.rs` — parse a 2-line doc, emit a single mapping | **exits 0** |
+| `tests/test_lib.rs` — retained from 0.0.5, two-line patch (`is_success(call)` → `is_success(call.ok)`, drop `#![no_std]`) | **5 / 5 pass** |
+| `tests/test_decode.rs` — retained from 0.0.5 **verbatim** — the `libyml::decode::*` path module re-exports through the shim | **8 / 8 pass** |
+| `tests/shim.rs` — new smoke suite: parser init/delete, parse-first-event, emit a `{greeting: hello}` mapping round-trip, type-alias resolution, `success` helpers | **5 / 5 pass** |
+| `examples/example.rs` — retained 0.0.5 aggregator shape — runs `examples/apis/main.rs` then a parse + emit demo | **exits 0** |
+| `examples/apis/main.rs` — retained from 0.0.5; the `memory` + `string` slabs are kept as comments with Rust-native replacements | **exits 0** |
 | `examples/migration.rs` — single-file shim demo | **exits 0** |
 
 The full per-file inventory of retained / patched / removed tests

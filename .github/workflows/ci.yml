@@ -62,8 +62,9 @@ jobs:
           fail-on-severity: moderate
 
   docs:
-    if: github.ref == 'refs/heads/main'
+    if: github.ref == 'refs/heads/master'
     uses: sebastienrousseau/pipelines/.github/workflows/docs.yml@main
     with:
       type: rust
       redirect-crate: libyml
+      cname: doc.libyml.com
